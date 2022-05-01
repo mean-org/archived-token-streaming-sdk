@@ -5,6 +5,8 @@ import { Commitment, Connection, ConnectionConfig, Keypair, PublicKey, Transacti
 import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { BN, Idl, Program } from "@project-serum/anchor";
 
+import { IDL, Msp } from './idl';
+
 /**
  * MSP
  */
@@ -20,7 +22,7 @@ import { u64Number } from "./u64n";
 export class MSP {
 
   private connection: Connection;
-  private program: Program<Idl>;
+  private program: Program<Msp>;
   private commitment: Commitment | ConnectionConfig | undefined;
 
   /**
@@ -314,9 +316,7 @@ export class MSP {
     ixs.push(
       this.program.instruction.createTreasury(
         new BN(slot),
-        treasuryBump,
-        treasuryMintBump,
-        streamName,
+        streamName ?? "",
         TreasuryType.Open,
         true, // autoclose = true
         false, // sol fee payed by treasury
@@ -337,6 +337,31 @@ export class MSP {
         }
       )
     );
+
+    // // Create treasury
+    // const ix1 = this.program.methods.createTreasury(
+    //   new BN(slot),
+    //   streamName,
+    //   TreasuryType.Open,
+    //   true, // autoclose = true
+    //   false, // sol fee payed by treasury
+    // )
+    //   .accounts({
+    //     payer: treasurer,
+    //     treasurer: treasurer,
+    //     treasury: treasury,
+    //     treasuryMint: treasuryMint,
+    //     treasuryToken: treasuryToken,
+    //     associatedToken: mint,
+    //     feeTreasury: Constants.FEE_TREASURY,
+    //     associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+    //     tokenProgram: TOKEN_PROGRAM_ID,
+    //     systemProgram: SystemProgram.programId,
+    //     rent: SYSVAR_RENT_PUBKEY
+    //   })
+    //   .instruction();
+
+    // ixs.push(ix1);
 
     const feeTreasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -379,7 +404,7 @@ export class MSP {
     // Create Stream
     ixs.push(
       this.program.instruction.createStream(
-        streamName,
+        streamName ?? "",
         new BN(startUtcInSeconds),
         new BN(0), // rate amount units
         new BN(0), // rate interval in seconds
@@ -608,10 +633,10 @@ export class MSP {
     const slotBuffer = new u64Number(slot).toBuffer();
     const treasurySeeds = [treasurer.toBuffer(), slotBuffer];
     // Treasury Pool PDA
-    const [treasury, treasuryBump] = await PublicKey.findProgramAddress(treasurySeeds, this.program.programId);
+    const [treasury,] = await PublicKey.findProgramAddress(treasurySeeds, this.program.programId);
     const treasuryPoolMintSeeds = [treasurer.toBuffer(), treasury.toBuffer(), slotBuffer];
     // Treasury Pool Mint PDA
-    const [treasuryMint, treasuryMintBump] = await PublicKey.findProgramAddress(
+    const [treasuryMint,] = await PublicKey.findProgramAddress(
       treasuryPoolMintSeeds, 
       this.program.programId
     );
@@ -626,8 +651,6 @@ export class MSP {
 
     let tx = this.program.transaction.createTreasury(
       new BN(slot),
-      treasuryBump,
-      treasuryMintBump,
       label,
       type,
       false, // autoclose = false

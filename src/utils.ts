@@ -1,14 +1,14 @@
 import { Commitment, Connection, PublicKey, ConfirmOptions, Finality, ParsedConfirmedTransaction, PartiallyDecodedInstruction, GetProgramAccountsFilter, ParsedInstruction, LAMPORTS_PER_SOL, ParsedInnerInstruction, Transaction, Enum, TokenAmount, ConfirmedSignaturesForAddress2Options } from "@solana/web3.js";
-import { BN, Idl, Program, Provider } from "@project-serum/anchor";
+import { BN, BorshInstructionCoder, Idl, Program, Provider } from "@project-serum/anchor";
 /**
  * MSP
  */
 import { Constants } from "./constants";
 import { StreamActivity, Stream, MSP_ACTIONS, TransactionFees } from "./types";
 import { STREAM_STATUS, Treasury, TreasuryType } from "./types";
-import MSP_IDL from './idl';
+import { IDL, Msp } from './idl';
 import { bs58 } from "@project-serum/anchor/dist/cjs/utils/bytes";
-import { Wallet } from "@project-serum/anchor/dist/cjs/provider";
+import { AnchorProvider, Wallet } from "@project-serum/anchor/dist/cjs/provider";
 
 String.prototype.toPublicKey = function (): PublicKey {
   return new PublicKey(this.toString());
@@ -28,7 +28,7 @@ export const createProgram = (
   connection: Connection,
   walletAddress: string
 
-): Program<Idl> => {
+): Program<Msp> => {
   
   const opts: ConfirmOptions = {
     preflightCommitment: "finalized",
@@ -41,13 +41,17 @@ export const createProgram = (
     signTransaction: async (tx) => tx
   };
 
-  const provider = new Provider(connection, wallet, opts);
+  const provider = new AnchorProvider(connection, wallet, opts);
+  console.log(`provider:`);
+  console.log(provider);
   
-  return new Program(MSP_IDL, Constants.MSP, provider);
+  
+  // return new Program(Msp, Constants.MSP, provider);
+  return new Program(IDL, Constants.MSP, provider);
 }
 
 export const getStream = async (
-  program: Program<Idl>,
+  program: Program<Msp>,
   address: PublicKey,
   friendly: boolean = true
 
@@ -107,7 +111,7 @@ export const getStreamCached = async (
 }
 
 export const listStreams = async (
-  program: Program<Idl>,
+  program: Program<Msp>,
   treasurer?: PublicKey | undefined,
   treasury?: PublicKey | undefined,
   beneficiary?: PublicKey | undefined,
@@ -170,7 +174,7 @@ export const listStreamsCached = async (
 }
 
 export const listStreamActivity = async (
-  program: Program<Idl>,
+  program: Program<Msp>,
   address: PublicKey,
   before: string = '',
   limit: number = 10,
@@ -203,7 +207,7 @@ export const listStreamActivity = async (
 }
 
 export const getTreasury = async (
-  program: Program<Idl>,
+  program: Program<Msp>,
   address: PublicKey,
   friendly: boolean = true
 
@@ -216,7 +220,7 @@ export const getTreasury = async (
 }
 
 export const listTreasuries = async (
-  program: Program<Idl>,
+  program: Program<Msp>,
   treasurer?: PublicKey | undefined,
   friendly: boolean = true
 
@@ -354,7 +358,7 @@ export const getValidTreasuryAllocation = async (
 }
 
 const getFilteredStreamAccounts = async (
-  program: Program<Idl>,
+  program: Program<Msp>,
   treasurer?: PublicKey | undefined,
   treasury?: PublicKey | undefined,
   beneficiary?: PublicKey | undefined
@@ -581,7 +585,7 @@ const parseStreamItemData = (
 }
 
 const parseStreamActivityData = (
-  program: Program<Idl>,
+  program: Program<Msp>,
   signature: string,
   tx: ParsedConfirmedTransaction,
   friendly: boolean = true
@@ -593,12 +597,18 @@ const parseStreamActivityData = (
   if (!tx.transaction.message.instructions.length) {
     return streamActivity;
   }
+
+  const coder = new BorshInstructionCoder(IDL as Idl);
+  
   let instruction = tx.transaction.message.instructions.filter((ix: any) => {
     try {
       let buffer = bs58.decode(ix.data);
       if (ix.programId.equals(Constants.MSP) && buffer.length < 80) {
-        let info = program.coder.instruction.decode(buffer.slice(0, buffer.length));
-        return info && (info.name === "createStream" || info.name === "addFunds" || info.name === "withdraw");
+        // let info = program.coder.instruction.decode(buffer.slice(0, buffer.length));
+        // return info && (info.name === "createStream" || info.name === "addFunds" || info.name === "withdraw");
+
+        const decodedIx = coder.decode(ix.data, "base58");
+        return decodedIx && (decodedIx.name === "createStream" || decodedIx.name === "addFunds" || decodedIx.name === "withdraw");
       }
     } catch {
       return false;
@@ -610,8 +620,10 @@ const parseStreamActivityData = (
     return streamActivity;
   }
 
-  let buffer = bs58.decode(instruction.data);
-  let info = program.coder.instruction.decode(buffer);
+  // let buffer = bs58.decode(instruction.data);
+  // let info = program.coder.instruction.decode(buffer);
+
+  const info = coder.decode(instruction.data, "base58"); // todo: remove dup code, rename
   
   if (info && (info.name === 'createStream' || info.name === 'addFunds' || info.name === 'withdraw')) {
 
