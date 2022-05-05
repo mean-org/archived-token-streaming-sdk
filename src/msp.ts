@@ -512,8 +512,6 @@ export class MSP {
     ixs.push(
       this.program.instruction.createTreasury(
         new BN(slot),
-        treasuryBump,
-        treasuryMintBump,
         streamName,
         TreasuryType.Open,
         true, // autoclose = true
