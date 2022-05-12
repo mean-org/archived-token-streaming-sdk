@@ -1,4 +1,24 @@
-import { Commitment, Connection, PublicKey, ConfirmOptions, Finality, ParsedConfirmedTransaction, PartiallyDecodedInstruction, GetProgramAccountsFilter, ParsedInstruction, LAMPORTS_PER_SOL, ParsedInnerInstruction, Transaction, Enum, TokenAmount, ConfirmedSignaturesForAddress2Options } from "@solana/web3.js";
+import { 
+  Commitment, 
+  Connection, 
+  PublicKey, 
+  ConfirmOptions, 
+  Finality, 
+  ParsedConfirmedTransaction, 
+  PartiallyDecodedInstruction, 
+  GetProgramAccountsFilter, 
+  ParsedInstruction, 
+  LAMPORTS_PER_SOL, 
+  ParsedInnerInstruction, 
+  Transaction, 
+  Enum, 
+  TokenAmount, 
+  ConfirmedSignaturesForAddress2Options, 
+  Keypair, 
+  TransactionInstruction, 
+  SystemProgram, 
+  AccountInfo 
+} from "@solana/web3.js";
 import { BN, BorshInstructionCoder, Idl, Program, Provider } from "@project-serum/anchor";
 /**
  * MSP
@@ -9,6 +29,7 @@ import { STREAM_STATUS, Treasury, TreasuryType } from "./types";
 import { IDL, Msp } from './idl';
 import { bs58 } from "@project-serum/anchor/dist/cjs/utils/bytes";
 import { AnchorProvider, Wallet } from "@project-serum/anchor/dist/cjs/provider";
+import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, NATIVE_MINT, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
 String.prototype.toPublicKey = function (): PublicKey {
   return new PublicKey(this.toString());
@@ -42,9 +63,6 @@ export const createProgram = (
   };
 
   const provider = new AnchorProvider(connection, wallet, opts);
-  console.log(`provider:`);
-  console.log(provider);
-  
   
   // return new Program(Msp, Constants.MSP, provider);
   return new Program(IDL, Constants.MSP, provider);
@@ -936,4 +954,178 @@ const getStreamMissedEarningUnitsWhilePaused = (stream: any) => {
     stream.rateAmountUnits.toNumber();
 
   return parseInt(withdrawableWhilePaused.toString());
+}
+
+export async function fundExistingWSolAccountInstructions(
+  connection: Connection,
+  owner: PublicKey,
+  ownerWSolTokenAccount: PublicKey,
+  payer: PublicKey,
+  amountToWrapInLamports: number,
+  ): Promise<[TransactionInstruction[], Keypair]>
+{   
+    // Allocate memory for the account
+    const minimumAccountBalance = await Token.getMinBalanceRentForExemptAccount(
+        connection,
+    );
+    const newWrapAccount = Keypair.generate();
+
+    let wrapIxs: Array<TransactionInstruction> = 
+    [
+        SystemProgram.createAccount({
+            fromPubkey: payer,
+            newAccountPubkey: newWrapAccount.publicKey,
+            lamports: minimumAccountBalance + amountToWrapInLamports,
+            space: AccountLayout.span,
+            programId: TOKEN_PROGRAM_ID,
+        }),
+        Token.createInitAccountInstruction(
+            TOKEN_PROGRAM_ID,
+            NATIVE_MINT,
+            newWrapAccount.publicKey,
+            owner
+        ),
+        Token.createTransferInstruction(
+            TOKEN_PROGRAM_ID,
+            newWrapAccount.publicKey,
+            ownerWSolTokenAccount,
+            owner,
+            [],
+            amountToWrapInLamports
+        ),
+        Token.createCloseAccountInstruction(
+            TOKEN_PROGRAM_ID,
+            newWrapAccount.publicKey,
+            payer,
+            owner,
+            []
+        ),
+    ];
+
+    return [wrapIxs, newWrapAccount];
+}
+
+export async function createAtaCreateInstructionIfNotExists(
+  ataAddress: PublicKey,
+  mintAddress: PublicKey,
+  ownerAccountAddress: PublicKey,
+  payerAddress: PublicKey,
+  connection: Connection
+): Promise<TransactionInstruction | null> {
+  try {
+    const ata = await connection.getAccountInfo(ataAddress);
+    if (!ata) {
+      // console.log("ATA: %s for mint: %s was not found. Generating 'create' instruction...", ataAddress.toBase58(), mintAddress.toBase58());
+      let [_, createIx] = await createAtaCreateInstruction(ataAddress, mintAddress, ownerAccountAddress, payerAddress);
+      return createIx;
+    }
+
+    // console.log("ATA: %s for mint: %s already exists", ataAddress.toBase58(), mintAddress.toBase58());
+    return null;
+  } catch (err) {
+    console.log("Unable to find associated account: %s", err);
+    throw Error("Unable to find associated account");
+  }
+}
+
+export async function createAtaCreateInstruction(
+  ataAddress: PublicKey,
+  mintAddress: PublicKey,
+  ownerAccountAddress: PublicKey,
+  payerAddress: PublicKey
+): Promise<[PublicKey, TransactionInstruction]> {
+  if (ataAddress === null) {
+    ataAddress = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      mintAddress,
+      ownerAccountAddress,
+    );
+  }
+
+  let ataCreateInstruction = Token.createAssociatedTokenAccountInstruction(
+    ASSOCIATED_TOKEN_PROGRAM_ID,
+    TOKEN_PROGRAM_ID,
+    mintAddress,
+    ataAddress,
+    ownerAccountAddress,
+    payerAddress,
+  );
+  return [ataAddress, ataCreateInstruction];
+}
+
+export async function createWrapSolInstructions(
+  connection: Connection,
+  wSolAmountInLamports: number,
+  owner: PublicKey,
+  ownerWSolTokenAccount: PublicKey,
+  ownerWSolTokenAccountInfo: AccountInfo<Buffer> | null,
+
+): Promise<[TransactionInstruction[], Keypair[]]> {
+
+  let ixs: TransactionInstruction[] = [];
+  let signers: Keypair[] = [];
+  const wSolAmountInLamportsBn = new BN(wSolAmountInLamports);
+  let ownerWSolAtaBalanceBn = new BN(0);
+
+  if (ownerWSolTokenAccountInfo) {
+    const ownerWSolAtaTokenAmount = (await connection.getTokenAccountBalance(ownerWSolTokenAccount)).value;
+    ownerWSolAtaBalanceBn = new BN(ownerWSolAtaTokenAmount.amount);
+  } else {
+    let ownerFromAtaCreateInstruction = await createAtaCreateInstructionIfNotExists(
+      ownerWSolTokenAccount,
+      NATIVE_MINT,
+      owner,
+      owner,
+      connection);
+    if (ownerFromAtaCreateInstruction)
+      ixs.push(ownerFromAtaCreateInstruction);
+  }
+  if (wSolAmountInLamportsBn.gt(ownerWSolAtaBalanceBn)) {
+    const amountToWrapBn = wSolAmountInLamportsBn.sub(ownerWSolAtaBalanceBn);
+    const [wrapIxs, newWrapAccount] = await fundExistingWSolAccountInstructions(
+      connection,
+      owner,
+      ownerWSolTokenAccount,
+      owner,
+      amountToWrapBn.toNumber(),
+    );
+    ixs.push(...wrapIxs);
+    signers.push(newWrapAccount);
+  }
+
+  return [ixs, signers];
+}
+
+// export async function createWrappedSolTokenAccountInstructions(
+//   connection: Connection,
+//   amountToWrapInLamports: number,
+//   owner: PublicKey,
+//   ownerWSolTokenAccount: PublicKey,
+// ): Promise<[TransactionInstruction[], Keypair]> {
+
+//   // REF: https://github.com/solana-labs/solana-program-library/blob/3eccf25ece1c373a117fc9f6e6cbeb2216d86f03/token/ts/src/instructions/syncNative.ts#L28
+//   const wrapIxs = [
+//     Token.createAssociatedTokenAccountInstruction(
+//         payer.publicKey,
+//         associatedToken,
+//         owner,
+//         NATIVE_MINT,
+//         programId,
+//         ASSOCIATED_TOKEN_PROGRAM_ID
+//     ),
+//     SystemProgram.transfer({
+//         fromPubkey: payer.publicKey,
+//         toPubkey: associatedToken,
+//         lamports: amount,
+//     }),
+//     createSyncNativeInstruction(associatedToken, programId)
+//   ];
+
+//   return [wrapIxs, newWSolAccount];
+// }
+
+export function sleep(ms: number) {
+  console.log("Sleeping for", ms / 1000, "seconds");
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
