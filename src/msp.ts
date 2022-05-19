@@ -2,7 +2,7 @@
  * Solana
  */
 import { Commitment, Connection, ConnectionConfig, Keypair, PublicKey, Transaction, Signer, Finality, TransactionInstruction, SystemProgram, SYSVAR_RENT_PUBKEY, AccountInfo } from "@solana/web3.js";
-import { ASSOCIATED_TOKEN_PROGRAM_ID, NATIVE_MINT, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { ASSOCIATED_TOKEN_PROGRAM_ID, NATIVE_MINT as NATIVE_WSOL_MINT, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { BN, Idl, Program } from "@project-serum/anchor";
 
 import { Msp } from './idl';
@@ -263,8 +263,13 @@ export class MSP {
     startUtc?: Date,
     streamName?: string,
     feePayedByTreasurer: boolean = false,
-    autoWSol: boolean = false,
   ): Promise<Transaction> {
+
+    let autoWSol = false;
+    if(mint.equals(Constants.SOL_MINT)) {
+      mint = NATIVE_WSOL_MINT;
+      autoWSol = true;
+    }
 
     let ixs: TransactionInstruction[] = [];
     let txSigners: Signer[] = [];
@@ -280,13 +285,7 @@ export class MSP {
     );
 
     const treasurerTokenInfo = await this.connection.getAccountInfo(treasurerToken);
-
-    // if (!treasurerTokenInfo) {
-    //   throw Error("Treasurer token account doesn't exist");
-    // }
-
     await this.ensureAutoWrapSolInstructions(
-      mint,
       autoWSol,
       amount,
       treasurer,
@@ -449,7 +448,7 @@ export class MSP {
     let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");
     tx.recentBlockhash = blockhash;
     
-    if (txSigners.length) {
+    if (txSigners.length > 0) {
       tx.partialSign(...txSigners);
     }
 
@@ -473,6 +472,12 @@ export class MSP {
 
     if (treasurer.equals(beneficiary)) {
       throw Error("Beneficiary can not be the same Treasurer");
+    }
+
+    let autoWSol = false;
+    if(mint.equals(Constants.SOL_MINT)) {
+      mint = NATIVE_WSOL_MINT;
+      autoWSol = true;
     }
     
     let ixs: TransactionInstruction[] = [];
@@ -553,6 +558,17 @@ export class MSP {
       true
     );
 
+    const treasurerTokenInfo = await this.connection.getAccountInfo(treasurerToken);
+    await this.ensureAutoWrapSolInstructions(
+      autoWSol,
+      allocationAssigned,
+      treasurer,
+      treasurerToken,
+      treasurerTokenInfo,
+      ixs,
+      txSigners,
+    );
+
     // Add Funds
     ixs.push(
       this.program.instruction.addFunds(
@@ -630,7 +646,7 @@ export class MSP {
   public async createTreasury (
     payer: PublicKey,
     treasurer: PublicKey,
-    associatedToken: PublicKey,
+    associatedTokenMint: PublicKey,
     label: string,
     type: TreasuryType,
     solFeePayedByTreasury: boolean = false
@@ -649,10 +665,14 @@ export class MSP {
       this.program.programId
     );
 
+    if(associatedTokenMint.equals(Constants.SOL_MINT)) {
+      associatedTokenMint = NATIVE_WSOL_MINT;
+    }
+
     const treasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
-      associatedToken,
+      associatedTokenMint,
       treasury,
       true
     );
@@ -670,7 +690,7 @@ export class MSP {
           treasury: treasury,
           treasuryMint: treasuryMint,
           treasuryToken: treasuryToken,
-          associatedToken: associatedToken,
+          associatedToken: associatedTokenMint,
           feeTreasury: Constants.FEE_TREASURY,
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
           tokenProgram: TOKEN_PROGRAM_ID,
@@ -721,12 +741,16 @@ export class MSP {
     return tx;
   }
 
+  /**
+   * This one returns not only the transaction but also the address of the
+   * stream that will be created
+   */
   public async createStream2 (
     payer: PublicKey,
     treasurer: PublicKey,
     treasury: PublicKey,
     beneficiary: PublicKey,
-    associatedToken: PublicKey,
+    treasuryAssociatedTokenMint: PublicKey,
     streamName: string,
     allocationAssigned: number,
     rateAmount?: number,
@@ -748,7 +772,7 @@ export class MSP {
       throw Error("Treasury doesn't exist");
     }
 
-    if (treasuryInfo.associatedToken !== associatedToken.toBase58()) {
+    if (treasuryInfo.associatedToken !== treasuryAssociatedTokenMint.toBase58()) {
       throw Error("Incorrect associated token address");
     }
 
@@ -756,7 +780,7 @@ export class MSP {
     const treasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
-      associatedToken,
+      treasuryAssociatedTokenMint,
       treasury,
       true
     );
@@ -764,7 +788,7 @@ export class MSP {
     const feeTreasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
-      associatedToken,
+      treasuryAssociatedTokenMint,
       Constants.FEE_TREASURY,
       true
     );
@@ -792,7 +816,7 @@ export class MSP {
           treasurer: treasurer,
           treasury: treasury,
           treasuryToken: treasuryToken,
-          associatedToken: associatedToken,
+          associatedToken: treasuryAssociatedTokenMint,
           beneficiary: beneficiary,
           stream: streamAccount.publicKey,
           feeTreasury: Constants.FEE_TREASURY,
@@ -932,11 +956,12 @@ export class MSP {
     contributor: PublicKey,
     treasury: PublicKey,
     stream: PublicKey,
-    amount: number
-
+    amount: number,
+    autoWSol: boolean = false,
   ): Promise<Transaction> {
 
     let ixs: TransactionInstruction[] = [];
+    let txSigners: Signer[] = [];
 
     if (!amount) {
       throw Error("Amount should be greater than 0");
@@ -958,21 +983,26 @@ export class MSP {
       throw Error("Invalid stream beneficiary associated token");
     }
 
-    const associatedToken = new PublicKey(treasuryInfo.associatedToken as string);
+    const treasuryAssociatedTokenMint = new PublicKey(treasuryInfo.associatedToken as string);
     const treasuryMint = new PublicKey(treasuryInfo.mint as string);
     const contributorToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
-      associatedToken,
+      treasuryAssociatedTokenMint,
       contributor,
       true
     );
 
-    const contributorTokenInfo = this.connection.getAccountInfo(contributorToken, "recent");
-
-    if (!contributorTokenInfo) {
-      throw Error("Contributor token account doesn't exist");
-    }
+    const contributorTokenInfo = await this.connection.getAccountInfo(contributorToken, "recent"); // TODO: standarized commitment
+    await this.ensureAutoWrapSolInstructions(
+      autoWSol,
+      amount,
+      contributor,
+      contributorToken,
+      contributorTokenInfo,
+      ixs,
+      txSigners,
+    );
 
     const contributorTreasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -985,7 +1015,7 @@ export class MSP {
     const treasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
-      associatedToken,
+      treasuryAssociatedTokenMint,
       treasury,
       true
     );
@@ -993,7 +1023,7 @@ export class MSP {
     const feeTreasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
-      associatedToken,
+      treasuryAssociatedTokenMint,
       Constants.FEE_TREASURY,
       true
     );
@@ -1009,7 +1039,7 @@ export class MSP {
             contributorTreasuryToken: contributorTreasuryToken,
             treasury: treasury,
             treasuryToken: treasuryToken,
-            associatedToken: associatedToken,
+            associatedToken: treasuryAssociatedTokenMint,
             treasuryMint: treasuryMint,
             feeTreasury: Constants.FEE_TREASURY,
             feeTreasuryToken: feeTreasuryToken,
@@ -1042,7 +1072,7 @@ export class MSP {
             treasurer: contributor,
             treasury: treasury,
             treasuryToken: treasuryToken,
-            associatedToken: associatedToken,
+            associatedToken: treasuryAssociatedTokenMint,
             stream: stream,
             feeTreasury: Constants.FEE_TREASURY,
             feeTreasuryToken: feeTreasuryToken,
@@ -1059,6 +1089,10 @@ export class MSP {
     tx.feePayer = payer;
     let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");    
     tx.recentBlockhash = blockhash;
+    
+    if (txSigners.length > 0) {
+      tx.partialSign(...txSigners);
+    }
 
     return tx;
   }
@@ -1097,7 +1131,6 @@ export class MSP {
     let txSigners: Signer[] = [];
 
     await this.ensureAutoWrapSolInstructions(
-      treasuryAssociatedTokenMint,
       autoWSol,
       amount,
       contributor,
@@ -1324,7 +1357,8 @@ export class MSP {
     );
     ixs.push(withdrawIx);
 
-    if (treasuryAssociatedTokenMint.equals(NATIVE_MINT)) {
+    // unwrap all on exit
+    if (treasuryAssociatedTokenMint.equals(NATIVE_WSOL_MINT)) {
       const closeWSolIx = Token.createCloseAccountInstruction(
         TOKEN_PROGRAM_ID,
         beneficiaryToken,
@@ -1432,8 +1466,8 @@ export class MSP {
     payer: PublicKey,
     destination: PublicKey,
     stream: PublicKey,
-    autoCloseTreasury: boolean = false
-
+    autoCloseTreasury: boolean = false,
+    autoWSol: boolean = true,
   ): Promise<Transaction> {
 
     const streamInfo = await this.getStream(stream) as Stream;
@@ -1455,11 +1489,11 @@ export class MSP {
 
     const treasurer = new PublicKey(streamInfo.treasurer as string);
     const beneficiary = new PublicKey(streamInfo.beneficiary as string);
-    const associatedToken = new PublicKey(streamInfo.associatedToken as string);
+    const treasuryAssociatedTokenMint = new PublicKey(streamInfo.associatedToken as string);
     const beneficiaryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
-      associatedToken,
+      treasuryAssociatedTokenMint,
       beneficiary,
       true
     );
@@ -1467,7 +1501,7 @@ export class MSP {
     const treasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
-      associatedToken,
+      treasuryAssociatedTokenMint,
       treasury,
       true
     );
@@ -1476,7 +1510,7 @@ export class MSP {
     const feeTreasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
-      associatedToken,
+      treasuryAssociatedTokenMint,
       Constants.FEE_TREASURY,
       true
     );
@@ -1489,7 +1523,7 @@ export class MSP {
             treasurer: treasurer,
             beneficiary: beneficiary,
             beneficiaryToken: beneficiaryToken,
-            associatedToken: associatedToken,
+            associatedToken: treasuryAssociatedTokenMint,
             treasury: treasury,
             treasuryToken: treasuryToken,
             stream: stream,
@@ -1518,7 +1552,7 @@ export class MSP {
       const destinationToken = await Token.getAssociatedTokenAddress(
         ASSOCIATED_TOKEN_PROGRAM_ID,
         TOKEN_PROGRAM_ID,
-        associatedToken,
+        treasuryAssociatedTokenMint,
         destination,
         true
       );
@@ -1532,7 +1566,7 @@ export class MSP {
               treasurerTreasuryToken: treasurerTreasuryToken,
               destinationAuthority: destination,
               destinationTokenAccount: destinationToken,
-              associatedToken: associatedToken,
+              associatedToken: treasuryAssociatedTokenMint,
               treasury: treasury,
               treasuryToken: treasuryToken,
               treasuryMint: treasuryMint,
@@ -1546,6 +1580,22 @@ export class MSP {
           }
         )
       );
+
+      // unwrap all on exit and only if destination is also a signer
+      if (
+        autoWSol &&
+        treasuryAssociatedTokenMint.equals(NATIVE_WSOL_MINT) &&
+        treasurer.equals(destination)
+      ) {
+        const closeWSolIx = Token.createCloseAccountInstruction(
+          TOKEN_PROGRAM_ID,
+          beneficiaryToken,
+          beneficiary,
+          beneficiary,
+          []
+        );
+        ixs.push(closeWSolIx);
+      }
     }
 
     let tx = new Transaction().add(...ixs);
@@ -1559,8 +1609,8 @@ export class MSP {
   public async closeTreasury (
     payer: PublicKey,
     destination: PublicKey,
-    treasury: PublicKey   
-
+    treasury: PublicKey  , 
+    autoWSol: boolean = true,
   ): Promise<Transaction> {
 
     const treasuryInfo = await getTreasury(this.program, treasury);
@@ -1579,7 +1629,7 @@ export class MSP {
       true
     );
 
-    let treasuryAssociatedTokenMint = new PublicKey(NATIVE_MINT);
+    let treasuryAssociatedTokenMint = new PublicKey(NATIVE_WSOL_MINT);
     const treasuryAssociatedToken = treasuryInfo.associatedToken as string;
 
     if (treasuryAssociatedToken !== "") {
@@ -1638,7 +1688,8 @@ export class MSP {
     ixs.push(closeTreasuryIx);
 
     if (
-      treasuryAssociatedTokenMint.equals(NATIVE_MINT)
+      autoWSol &&
+      treasuryAssociatedTokenMint.equals(NATIVE_WSOL_MINT)
       && destination.equals(treasurer) // the ata authority needs to be signer for the unwrap to work
     ) {
       const closeWSolIx = Token.createCloseAccountInstruction(
@@ -1951,8 +2002,8 @@ export class MSP {
     payer: PublicKey,
     destination: PublicKey,
     treasury: PublicKey,
-    amount: number
-
+    amount: number,
+    autoWSol: boolean = true,
   ): Promise<Transaction> {
 
     const treasuryInfo = await getTreasury(this.program, treasury);
@@ -2014,7 +2065,8 @@ export class MSP {
     ixs.push(treasuryWithdrawIx);
 
     if (
-      treasuryAssociatedTokenMint.equals(NATIVE_MINT)
+      autoWSol &&
+      treasuryAssociatedTokenMint.equals(NATIVE_WSOL_MINT)
       && destination.equals(treasurer) // the ata authority needs to be signer for the unwrap to work
     ) {
       const closeWSolIx = Token.createCloseAccountInstruction(
@@ -2041,7 +2093,6 @@ export class MSP {
   }
 
   private async ensureAutoWrapSolInstructions(
-    treasuryAtaMint: PublicKey,
     autoWSol: boolean,
     amountInLamports: number,
     owner: PublicKey,
@@ -2050,7 +2101,7 @@ export class MSP {
     instructions: TransactionInstruction[],
     signers: Signer[]
   ) {
-    if (treasuryAtaMint.equals(NATIVE_MINT) && autoWSol) {
+    if (autoWSol) {
       const [wrapSolIxs, wrapSolSigners] = await createWrapSolInstructions(
         this.connection,
         amountInLamports,

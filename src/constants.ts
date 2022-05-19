@@ -12,4 +12,6 @@ import { PublicKey } from "@solana/web3.js";
     static CLIFF_PERCENT_NUMERATOR = 10_000;
     static CLIFF_PERCENT_DENOMINATOR = 1_000_000;
     static MAX_TX_SIZE = 1200;
+    // This is an internal convention to identify the intention to use NATIVE sol and not SPL wSOL
+    static SOL_MINT = new PublicKey('11111111111111111111111111111111');
 }
