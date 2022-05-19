@@ -190,7 +190,6 @@ export class MSP {
     beneficiary: PublicKey,
     mint: PublicKey,
     amount: number,
-    autoWSol: boolean = false,
   ): Promise<Transaction> {
 
     let ixs: TransactionInstruction[] = [];
@@ -204,18 +203,9 @@ export class MSP {
     );
 
     const senderTokenInfo = await this.connection.getAccountInfo(senderToken);
-
-    // TODO: Replace with direct SOL transfer
-    await this.ensureAutoWrapSolInstructions(
-      mint,
-      autoWSol,
-      amount,
-      sender,
-      senderToken,
-      senderTokenInfo,
-      ixs,
-      txSigners,
-    );
+    if (!senderTokenInfo) {
+      throw Error("Sender token account not found");
+    }
 
     let beneficiaryToken = beneficiary;
     const beneficiaryAccountInfo = await this.connection.getAccountInfo(beneficiary);
