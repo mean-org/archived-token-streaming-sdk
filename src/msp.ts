@@ -12,7 +12,7 @@ import { IDL, Msp } from './idl';
  */
 import { Stream, ListStreamParams, Treasury, TreasuryType, STREAM_STATUS } from "./types";
 import { createProgram, getStream, getStreamCached, getTreasury, getValidTreasuryAllocation, listStreamActivity, listStreams, listStreamsCached } from "./utils";
-import { Constants } from "./constants";
+import { Constants, NETWORK_IDS, WARNING_TYPES } from "./constants";
 import { Beneficiary, listTreasuries, StreamBeneficiary } from ".";
 import { u64Number } from "./u64n";
 
@@ -42,7 +42,7 @@ export class MSP {
     this.program = createProgram(this.connection, walletAddress);
   }
 
-  public async getStream (
+  public async getStream(
     id: PublicKey,
     friendly: boolean = true
 
@@ -56,7 +56,7 @@ export class MSP {
     return getStream(program, id, friendly);
   }
 
-  public async refreshStream (
+  public async refreshStream(
     streamInfo: any,
     hardUpdate: boolean = false,
     friendly: boolean = true
@@ -72,17 +72,17 @@ export class MSP {
         Constants.FEE_TREASURY.toBase58()
       );
 
-      const streamId = typeof copyStreamInfo.id === 'string' 
-        ? new PublicKey(copyStreamInfo.id) 
-        : copyStreamInfo.id as PublicKey; 
+      const streamId = typeof copyStreamInfo.id === 'string'
+        ? new PublicKey(copyStreamInfo.id)
+        : copyStreamInfo.id as PublicKey;
 
-        return await getStream(program, streamId);
+      return await getStream(program, streamId);
     }
 
     return getStreamCached(copyStreamInfo, friendly);
   }
 
-  public async listStreams ({
+  public async listStreams({
     treasurer,
     treasury,
     beneficiary,
@@ -99,7 +99,7 @@ export class MSP {
     );
   }
 
-  public async refreshStreams (
+  public async refreshStreams(
     streamInfoList: Stream[],
     treasurer?: PublicKey | undefined,
     treasury?: PublicKey | undefined,
@@ -111,8 +111,8 @@ export class MSP {
 
     if (hardUpdate) {
       return await listStreams(
-        this.program, 
-        treasurer, 
+        this.program,
+        treasurer,
         treasury,
         beneficiary,
         friendly
@@ -131,7 +131,7 @@ export class MSP {
    * @param friendly The data will be displayed in a user readable format
    * @returns 
    */
-  public async listStreamActivity (
+  public async listStreamActivity(
     id: PublicKey,
     before: string,
     limit: number = 10,
@@ -147,16 +147,16 @@ export class MSP {
     }
 
     return listStreamActivity(
-      this.program, 
+      this.program,
       id,
       before,
       limit,
-      commitment, 
+      commitment,
       friendly
     );
   }
 
-  public async getTreasury (
+  public async getTreasury(
     id: PublicKey,
     commitment?: Commitment | undefined,
     friendly: boolean = true
@@ -172,7 +172,7 @@ export class MSP {
     return getTreasury(this.program, id, friendly);
   }
 
-  public async listTreasuries (
+  public async listTreasuries(
     treasurer: PublicKey | undefined,
     friendly: boolean = true
 
@@ -185,7 +185,7 @@ export class MSP {
     )
   }
 
-  public async transfer (
+  public async transfer(
     sender: PublicKey,
     beneficiary: PublicKey,
     mint: PublicKey,
@@ -212,7 +212,7 @@ export class MSP {
     const beneficiaryAccountInfo = await this.connection.getAccountInfo(beneficiary);
 
     if (!beneficiaryAccountInfo || !beneficiaryAccountInfo.owner.equals(TOKEN_PROGRAM_ID)) {
-      
+
       beneficiaryToken = await Token.getAssociatedTokenAddress(
         ASSOCIATED_TOKEN_PROGRAM_ID,
         TOKEN_PROGRAM_ID,
@@ -256,7 +256,7 @@ export class MSP {
     return tx;
   }
 
-  public async scheduledTransfer (
+  public async scheduledTransfer(
     treasurer: PublicKey,
     beneficiary: PublicKey,
     mint: PublicKey,
@@ -302,7 +302,7 @@ export class MSP {
       treasury,
       true
     );
-    
+
     // Get the treasury pool treasurer token
     const treasurerTreasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -438,7 +438,7 @@ export class MSP {
     tx.feePayer = treasurer;
     let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");
     tx.recentBlockhash = blockhash;
-    
+
     if (txSigners.length) {
       tx.partialSign(...txSigners);
     }
@@ -446,7 +446,7 @@ export class MSP {
     return tx;
   }
 
-  public async streamPayment (
+  public async streamPayment(
     treasurer: PublicKey,
     beneficiary: PublicKey,
     mint: PublicKey,
@@ -464,7 +464,7 @@ export class MSP {
     if (treasurer.equals(beneficiary)) {
       throw Error("Beneficiary can not be the same Treasurer");
     }
-    
+
     let ixs: TransactionInstruction[] = [];
     let txSigners: Signer[] = [];
 
@@ -479,14 +479,14 @@ export class MSP {
     );
 
     const cliffVestPercentValue = cliffVestPercent ? cliffVestPercent * Constants.CLIFF_PERCENT_NUMERATOR : 0;
-    
+
     const slot = await this.connection.getSlot(this.commitment as Commitment || "finalized");
     const slotBuffer = new u64Number(slot).toBuffer();
     const treasurySeeds = [treasurer.toBuffer(), slotBuffer];
     const [treasury, treasuryBump] = await PublicKey.findProgramAddress(treasurySeeds, this.program.programId);
     const treasuryMintSeeds = [treasurer.toBuffer(), treasury.toBuffer(), slotBuffer];
     const [treasuryMint, treasuryMintBump] = await PublicKey.findProgramAddress(
-      treasuryMintSeeds, 
+      treasuryMintSeeds,
       this.program.programId
     );
 
@@ -609,7 +609,7 @@ export class MSP {
     tx.feePayer = treasurer;
     let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");
     tx.recentBlockhash = blockhash;
-    
+
     if (txSigners.length) {
       tx.partialSign(...txSigners);
     }
@@ -617,7 +617,7 @@ export class MSP {
     return tx;
   }
 
-  public async createTreasury (
+  public async createTreasury(
     payer: PublicKey,
     treasurer: PublicKey,
     associatedToken: PublicKey,
@@ -635,7 +635,7 @@ export class MSP {
     const treasuryPoolMintSeeds = [treasurer.toBuffer(), treasury.toBuffer(), slotBuffer];
     // Treasury Pool Mint PDA
     const [treasuryMint,] = await PublicKey.findProgramAddress(
-      treasuryPoolMintSeeds, 
+      treasuryPoolMintSeeds,
       this.program.programId
     );
 
@@ -677,7 +677,7 @@ export class MSP {
     return tx;
   }
 
-  public async createStream (
+  public async createStream(
     payer: PublicKey,
     treasurer: PublicKey,
     treasury: PublicKey,
@@ -716,7 +716,7 @@ export class MSP {
       treasury,
       true
     );
-    
+
     const feeTreasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
@@ -770,7 +770,7 @@ export class MSP {
     return tx;
   }
 
-  public async createStreams (
+  public async createStreams(
     payer: PublicKey,
     treasurer: PublicKey,
     treasury: PublicKey,
@@ -804,7 +804,7 @@ export class MSP {
       treasury,
       true
     );
-    
+
     const feeTreasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
@@ -878,12 +878,12 @@ export class MSP {
       tx.partialSign(...signers);
 
       txs.push(tx);
-    }    
+    }
 
     return txs;
   }
 
-  public async fundStream (
+  public async fundStream(
     payer: PublicKey,
     contributor: PublicKey,
     treasury: PublicKey,
@@ -980,10 +980,10 @@ export class MSP {
 
     // calculate fee if are payed by treasury to deduct it from the amount
     let allocationAmountBn = new BN(amount);
-    
+
     if (streamInfo.feePayedByTreasurer) {
       allocationAmountBn = await getValidTreasuryAllocation(
-        this.program.provider.connection, 
+        this.program.provider.connection,
         treasuryInfo,
         amount
       );
@@ -1013,13 +1013,13 @@ export class MSP {
 
     let tx = new Transaction().add(...ixs);
     tx.feePayer = payer;
-    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");    
+    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");
     tx.recentBlockhash = blockhash;
 
     return tx;
-  } 
+  }
 
-  public async addFunds (
+  public async addFunds(
     payer: PublicKey,
     contributor: PublicKey,
     treasury: PublicKey,
@@ -1100,13 +1100,13 @@ export class MSP {
     );
 
     tx.feePayer = payer;
-    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");    
+    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");
     tx.recentBlockhash = blockhash;
 
     return tx;
   }
 
-  public async allocate (
+  public async allocate(
     payer: PublicKey,
     treasurer: PublicKey,
     treasury: PublicKey,
@@ -1177,13 +1177,13 @@ export class MSP {
     );
 
     tx.feePayer = payer;
-    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");    
+    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");
     tx.recentBlockhash = blockhash;
 
     return tx;
   }
 
-  public async withdraw (
+  public async withdraw(
     payer: PublicKey,
     stream: PublicKey,
     amount: number
@@ -1264,7 +1264,7 @@ export class MSP {
     return tx;
   }
 
-  public async pauseStream (
+  public async pauseStream(
     payer: PublicKey,
     treasurer: PublicKey,
     stream: PublicKey
@@ -1304,7 +1304,7 @@ export class MSP {
     return tx;
   }
 
-  public async resumeStream (
+  public async resumeStream(
     payer: PublicKey,
     treasurer: PublicKey,
     stream: PublicKey
@@ -1344,7 +1344,7 @@ export class MSP {
     return tx;
   }
 
-  public async closeStream (
+  public async closeStream(
     payer: PublicKey,
     destination: PublicKey,
     stream: PublicKey,
@@ -1472,10 +1472,10 @@ export class MSP {
     return tx;
   }
 
-  public async closeTreasury (
+  public async closeTreasury(
     payer: PublicKey,
     destination: PublicKey,
-    treasury: PublicKey   
+    treasury: PublicKey
 
   ): Promise<Transaction> {
 
@@ -1556,7 +1556,7 @@ export class MSP {
     return tx;
   }
 
-  public async refreshTreasuryData (
+  public async refreshTreasuryData(
     payer: PublicKey,
     treasurer: PublicKey,
     treasury: PublicKey
@@ -1579,7 +1579,7 @@ export class MSP {
     );
 
     // get treasury streams amount
-    const memcmpFilters = [{ memcmp: { offset: 8 + 170, bytes: treasury.toBase58() }}];
+    const memcmpFilters = [{ memcmp: { offset: 8 + 170, bytes: treasury.toBase58() } }];
     const totalStreams = (await this.program.account.stream.all(memcmpFilters)).length;
 
     let tx = this.program.transaction.refreshTreasuryData(
@@ -1601,7 +1601,7 @@ export class MSP {
     return tx;
   }
 
-  public async transferStream (
+  public async transferStream(
     beneficiary: PublicKey,
     newBeneficiary: PublicKey,
     stream: PublicKey
@@ -1613,7 +1613,7 @@ export class MSP {
     if (!streamInfo) {
       throw Error("Stream doesn't exist");
     }
-    
+
     const beneficiaryAddress = new PublicKey(streamInfo.beneficiary as string);
 
     if (!beneficiary.equals(beneficiaryAddress)) {
@@ -1639,7 +1639,7 @@ export class MSP {
     return tx;
   }
 
-  public async createStreamFromPda (
+  public async createStreamFromPda(
     payer: PublicKey,
     treasurer: PublicKey,
     treasury: PublicKey,
@@ -1679,7 +1679,7 @@ export class MSP {
       treasury,
       true
     );
-    
+
     const feeTreasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
@@ -1730,7 +1730,7 @@ export class MSP {
     return tx;
   }
 
-  public async createStreamsFromPda (
+  public async createStreamsFromPda(
     payer: PublicKey,
     treasurer: PublicKey,
     treasury: PublicKey,
@@ -1764,7 +1764,7 @@ export class MSP {
       treasury,
       true
     );
-    
+
     const feeTreasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
@@ -1839,7 +1839,7 @@ export class MSP {
     return txs;
   }
 
-  public async treasuryWithdraw (
+  public async treasuryWithdraw(
     payer: PublicKey,
     destination: PublicKey,
     treasury: PublicKey,
@@ -1906,6 +1906,22 @@ export class MSP {
     tx.recentBlockhash = blockhash;
 
     return tx;
+  }
+
+  public async checkAddressForWarnings(address: string, networkId: number = NETWORK_IDS.SOLANA_MAINNET): Promise<number> {
+    let result = WARNING_TYPES.NO_WARNING;
+    switch (networkId) {
+      case NETWORK_IDS.SOLANA_MAINNET:
+      case NETWORK_IDS.SOLANA_TESTNET:
+      case NETWORK_IDS.SOLANA_DEVNET:
+        //check the address validity
+
+        break;
+      default:
+        result = WARNING_TYPES.UNKNOWN_NETWORK;
+        break;
+    }
+    return result;
   }
 }
 
