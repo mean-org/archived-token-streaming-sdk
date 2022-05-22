@@ -1,4 +1,4 @@
-import { Commitment, Connection, PublicKey, ConfirmOptions, Finality, ParsedConfirmedTransaction, PartiallyDecodedInstruction, GetProgramAccountsFilter, ParsedInstruction, LAMPORTS_PER_SOL, ParsedInnerInstruction, Transaction, Enum, TokenAmount, ConfirmedSignaturesForAddress2Options } from "@solana/web3.js";
+import { Commitment, Connection, PublicKey, ConfirmOptions, Finality, ParsedConfirmedTransaction, PartiallyDecodedInstruction, GetProgramAccountsFilter, ParsedInstruction, LAMPORTS_PER_SOL, ParsedInnerInstruction, Transaction, Enum, TokenAmount, ConfirmedSignaturesForAddress2Options, AccountInfo, ParsedAccountData } from "@solana/web3.js";
 import { BN, BorshInstructionCoder, Idl, Program, Provider } from "@project-serum/anchor";
 /**
  * MSP
@@ -29,7 +29,7 @@ export const createProgram = (
   walletAddress: string
 
 ): Program<Msp> => {
-  
+
   const opts: ConfirmOptions = {
     preflightCommitment: "finalized",
     commitment: "finalized",
@@ -37,15 +37,15 @@ export const createProgram = (
 
   let wallet: Wallet = {
     publicKey: new PublicKey(walletAddress),
-    signAllTransactions: async (txs) => txs, 
+    signAllTransactions: async (txs) => txs,
     signTransaction: async (tx) => tx
   };
 
   const provider = new AnchorProvider(connection, wallet, opts);
   console.log(`provider:`);
   console.log(provider);
-  
-  
+
+
   // return new Program(Msp, Constants.MSP, provider);
   return new Program(IDL, Constants.MSP, provider);
 }
@@ -56,7 +56,7 @@ export const getStream = async (
   friendly: boolean = true
 
 ): Promise<any> => {
-  
+
   try {
 
     const streamEventResponse = await program.simulate.getStream({
@@ -64,10 +64,10 @@ export const getStream = async (
         stream: address
       }
     });
-  
+
     if (
-      !streamEventResponse || 
-      !streamEventResponse.events || 
+      !streamEventResponse ||
+      !streamEventResponse.events ||
       !streamEventResponse.events.length ||
       !streamEventResponse.events[0].data
     ) {
@@ -76,11 +76,11 @@ export const getStream = async (
 
     const event: any = streamEventResponse.events[0].data;
     let streamInfo = parseGetStreamData(
-      event, 
-      address, 
+      event,
+      address,
       friendly
     );
-  
+
     return streamInfo;
 
   } catch (error: any) {
@@ -127,10 +127,10 @@ export const listStreams = async (
   for (let item of accounts) {
     if (item.account !== undefined) {
       let parsedStream = parseStreamItemData(item.account, item.publicKey, blockTime, friendly);
-      let info = Object.assign({ }, parsedStream);
+      let info = Object.assign({}, parsedStream);
       let signatures = await program.provider.connection.getConfirmedSignaturesForAddress2(
         friendly ? new PublicKey(info.id as string) : (info.id as PublicKey),
-        { limit: 1 }, 
+        { limit: 1 },
         'confirmed'
       );
 
@@ -158,17 +158,17 @@ export const listStreamsCached = async (
   for (let streamInfo of streamInfoList) {
     let timeDiff = streamInfo.lastRetrievedTimeInSeconds - streamInfo.lastRetrievedBlockTime;
     let blockTime = parseInt((Date.now() / 1_000).toString()) - timeDiff;
-    
+
     let parsedStream = parseStreamItemData(
-      streamInfo.data, 
-      new PublicKey(streamInfo.id as string), 
-      blockTime, 
+      streamInfo.data,
+      new PublicKey(streamInfo.id as string),
+      blockTime,
       friendly
     );
 
     parsedStream.createdBlockTime = streamInfo.createdBlockTime;
     streamList.push(parsedStream);
-  }  
+  }
 
   return streamList;
 }
@@ -230,7 +230,7 @@ export const listTreasuries = async (
   let memcmpFilters: any[] = [];
 
   if (treasurer) {
-    memcmpFilters.push({ memcmp: { offset: 8 + 43, bytes: treasurer.toBase58() }});
+    memcmpFilters.push({ memcmp: { offset: 8 + 43, bytes: treasurer.toBase58() } });
   }
 
   const accounts = await program.account.treasury.all(memcmpFilters);
@@ -347,7 +347,7 @@ export const getValidTreasuryAllocation = async (
   const feeAmount = badStreamAllocationAmount
     .mul(new BN(feeNumerator))
     .div(new BN(feeDenaminator));
-  
+
   if (unallocatedBalance.gte(feeAmount)) {
     return badStreamAllocationAmount;
   }
@@ -369,9 +369,9 @@ const getFilteredStreamAccounts = async (
 
   if (treasury) {
 
-    let memcmpFilters = [{ memcmp: { offset: 8 + 170, bytes: treasury.toBase58() }}];
+    let memcmpFilters = [{ memcmp: { offset: 8 + 170, bytes: treasury.toBase58() } }];
     const accs = await program.account.stream.all(memcmpFilters);
-  
+
     if (accs.length) {
       accounts.push(...accs);
     }
@@ -380,9 +380,9 @@ const getFilteredStreamAccounts = async (
 
     if (treasurer) {
 
-      let memcmpFilters = [{ memcmp: { offset: 8 + 34, bytes: treasurer.toBase58() }}];  
+      let memcmpFilters = [{ memcmp: { offset: 8 + 34, bytes: treasurer.toBase58() } }];
       const accs = await program.account.stream.all(memcmpFilters);
-    
+
       if (accs.length) {
         for (let acc of accs) {
           if (accounts.indexOf(acc) === -1) {
@@ -391,12 +391,12 @@ const getFilteredStreamAccounts = async (
         }
       }
     }
-  
+
     if (beneficiary) {
-  
-      let memcmpFilters = [{ memcmp: { offset: 8 + 106, bytes: beneficiary.toBase58() }}];
+
+      let memcmpFilters = [{ memcmp: { offset: 8 + 106, bytes: beneficiary.toBase58() } }];
       const accs = await program.account.stream.all(memcmpFilters);
-    
+
       if (accs.length) {
         for (let acc of accs) {
           if (accounts.indexOf(acc) === -1) {
@@ -435,37 +435,37 @@ const parseGetStreamData = (
     allocationAssigned: friendly ? event.allocationAssignedUnits.toNumber() : event.allocationAssignedUnits,
     // allocationReserved: friendly ? event.allocationReservedUnits.toNumber() : event.allocationReservedUnits,
 
-    secondsSinceStart: friendly 
-      ? Math.max(0, event.currentBlockTime.toNumber() - event.startUtc.toNumber()) 
+    secondsSinceStart: friendly
+      ? Math.max(0, event.currentBlockTime.toNumber() - event.startUtc.toNumber())
       : event.currentBlockTime.sub(new BN(event.startUtc)),
 
-    estimatedDepletionDate: friendly 
-      ? new Date(event.estDepletionTime.toNumber() * 1_000).toString() 
+    estimatedDepletionDate: friendly
+      ? new Date(event.estDepletionTime.toNumber() * 1_000).toString()
       : new Date(event.estDepletionTime.toNumber() * 1_000),
-      
+
     rateAmount: friendly ? event.rateAmountUnits.toNumber() : event.rateAmountUnits,
     rateIntervalInSeconds: friendly ? event.rateIntervalInSeconds.toNumber() : event.rateIntervalInSeconds,
     totalWithdrawalsAmount: friendly ? event.totalWithdrawalsUnits.toNumber() : event.totalWithdrawalsUnits,
     fundsLeftInStream: friendly ? event.fundsLeftInStream.toNumber() : event.fundsLeftInStream,
 
-    fundsSentToBeneficiary: friendly 
-      ? event.fundsSentToBeneficiary.toNumber() 
+    fundsSentToBeneficiary: friendly
+      ? event.fundsSentToBeneficiary.toNumber()
       : new BN(event.fundsSentToBeneficiary),
 
-    remainingAllocationAmount: friendly 
-      ? event.beneficiaryRemainingAllocation.toNumber() 
+    remainingAllocationAmount: friendly
+      ? event.beneficiaryRemainingAllocation.toNumber()
       : event.beneficiaryRemainingAllocation,
 
-    withdrawableAmount: friendly 
-      ? event.beneficiaryWithdrawableAmount.toNumber() 
+    withdrawableAmount: friendly
+      ? event.beneficiaryWithdrawableAmount.toNumber()
       : event.beneficiaryWithdrawableAmount,
 
     streamUnitsPerSecond: getStreamUnitsPerSecond(event),
     isManuallyPaused: event.isManualPause,
     status: event.status === 'Scheduled' ? 1 : (event.status === 'Running' ? 2 : 3),
     lastRetrievedBlockTime: friendly ? event.currentBlockTime.toNumber() : event.currentBlockTime,
-    lastRetrievedTimeInSeconds: friendly 
-      ? parseInt((Date.now() / 1_000).toString()) 
+    lastRetrievedTimeInSeconds: friendly
+      ? parseInt((Date.now() / 1_000).toString())
       : new BN(parseInt((Date.now() / 1_000).toString())),
 
     totalWithdrawals: friendly ? event.totalWithdrawalsUnits.toNumber() : event.totalWithdrawalsUnits,
@@ -473,7 +473,7 @@ const parseGetStreamData = (
     createdBlockTime: event.startUtc.toNumber(),
     upgradeRequired: false,
     data: event
-    
+
   } as Stream;
 
   return stream;
@@ -482,7 +482,7 @@ const parseGetStreamData = (
 const parseStreamItemData = (
   stream: any,
   address: PublicKey,
-  blockTime: number, 
+  blockTime: number,
   friendly: boolean = true
 
 ) => {
@@ -536,14 +536,14 @@ const parseStreamItemData = (
       cliffVestPercent: stream.cliffVestPercent,
       beneficiaryAddress: stream.beneficiaryAddress,
       beneficiaryAssociatedToken: stream.beneficiaryAssociatedToken,
-      treasuryAddress: stream.treasuryAddress,    
+      treasuryAddress: stream.treasuryAddress,
       allocationAssignedUnits: stream.allocationAssignedUnits,
       allocationReservedUnits: stream.allocationReservedUnits,
       totalWithdrawalsUnits: stream.totalWithdrawalsUnits,
       lastWithdrawalUnits: stream.lastWithdrawalUnits,
       lastWithdrawalSlot: stream.lastWithdrawalSlot,
       lastWithdrawalBlockTime: stream.lastWithdrawalBlockTime,
-      lastManualStopWithdrawableUnitsSnap: stream.lastManualStopWithdrawableUnitsSnap, 
+      lastManualStopWithdrawableUnitsSnap: stream.lastManualStopWithdrawableUnitsSnap,
       lastManualStopSlot: stream.lastManualStopSlot,
       lastManualStopBlockTime: stream.lastManualStopBlockTime,
       lastManualResumeRemainingAllocationUnitsSnap: stream.lastManualResumeRemainingAllocationUnitsSnap,
@@ -567,9 +567,9 @@ const parseStreamItemData = (
       entitledEarningsUnits: new BN(
         Math.max(0, getStreamNonStopEarningUnits(stream, timeDiff) - getStreamMissedEarningUnitsWhilePaused(stream))
       ),
-      withdrawableUnitsWhileRunning: 
+      withdrawableUnitsWhileRunning:
         new BN(
-          Math.max(getStreamNonStopEarningUnits(stream, timeDiff) - getStreamMissedEarningUnitsWhilePaused(stream)) + 
+          Math.max(getStreamNonStopEarningUnits(stream, timeDiff) - getStreamMissedEarningUnitsWhilePaused(stream)) +
           stream.totalWithdrawalsUnits.toNumber()
         ),
       beneficiaryRemainingAllocation: new BN(getStreamRemainingAllocation(stream)),
@@ -578,7 +578,7 @@ const parseStreamItemData = (
         Math.max(stream.lastAutoStopBlockTime.toNumber(), stream.lastManualStopBlockTime.toNumber())
       )
     },
-    
+
   } as Stream;
 
   return streamInfo;
@@ -599,7 +599,7 @@ const parseStreamActivityData = (
   }
 
   const coder = new BorshInstructionCoder(IDL as Idl);
-  
+
   let instruction = tx.transaction.message.instructions.filter((ix: any) => {
     try {
       let buffer = bs58.decode(ix.data);
@@ -624,14 +624,14 @@ const parseStreamActivityData = (
   // let info = program.coder.instruction.decode(buffer);
 
   const info = coder.decode(instruction.data, "base58"); // todo: remove dup code, rename
-  
+
   if (info && (info.name === 'createStream' || info.name === 'addFunds' || info.name === 'withdraw')) {
 
     let blockTime = (tx.blockTime as number) * 1000; // mult by 1000 to add milliseconds
     let action = info.name === 'createStream' || info.name === 'addFunds' ? "deposited" : "withdrew";
     let data = info.data as any;
     let amount = info.name === 'createStream' ? data.allocationAssignedUnits.toNumber() : data.amount.toNumber();
- 
+
     if (amount) {
       let mint: PublicKey | string;
 
@@ -675,12 +675,12 @@ const parseTreasuryData = (
 
   const nameBuffer = Buffer.from(treasury.name);
 
-  const treasuryAssocatedTokenMint = friendly 
-    ? (treasury.associatedTokenAddress as PublicKey).equals(PublicKey.default) ? "" : treasury.associatedTokenAddress.toBase58() 
+  const treasuryAssocatedTokenMint = friendly
+    ? (treasury.associatedTokenAddress as PublicKey).equals(PublicKey.default) ? "" : treasury.associatedTokenAddress.toBase58()
     : treasury.associatedTokenAddress;
 
-  const treasuryCreatedUtc = treasury.createdOnUtc.toString().length > 10 
-    ? parseInt(treasury.createdOnUtc.toString().substring(0, 10)) 
+  const treasuryCreatedUtc = treasury.createdOnUtc.toString().length > 10
+    ? parseInt(treasury.createdOnUtc.toString().substring(0, 10))
     : treasury.createdOnUtc.toNumber();
 
   return {
@@ -693,7 +693,7 @@ const parseTreasuryData = (
     labels: treasury.labels,
     mint: friendly ? treasury.mintAddress.toBase58() : treasury.mintAddress,
     autoClose: treasury.autoClose,
-    createdOnUtc: friendly 
+    createdOnUtc: friendly
       ? new Date(treasuryCreatedUtc * 1_000).toString()
       : new Date(treasuryCreatedUtc * 1_000),
 
@@ -706,7 +706,7 @@ const parseTreasuryData = (
     totalWithdrawals: treasury.totalWithdrawalsUnits.toNumber(),
     totalStreams: treasury.totalStreams.toNumber(),
     data: treasury
-    
+
   } as Treasury;
 }
 
@@ -718,7 +718,7 @@ const getStreamEstDepletionDate = (stream: any) => {
 
   let cliffAmount = getStreamCliffAmount(stream);
   let streamableAmount = Math.max(0, stream.allocationAssignedUnits.toNumber() - cliffAmount);
-  let rateAmount = stream.rateIntervalInSeconds.toNumber() === 0 
+  let rateAmount = stream.rateIntervalInSeconds.toNumber() === 0
     ? 0 : stream.rateAmountUnits.toNumber() / stream.rateIntervalInSeconds.toNumber();
 
   let streamableSeconds = streamableAmount / rateAmount;
@@ -733,9 +733,9 @@ const getStreamCliffAmount = (stream: any) => {
   let cliffAmount = stream.cliffVestAmountUnits.toNumber();
 
   if (stream.cliffVestPercent > 0) {
-    cliffAmount = 
-      stream.cliffVestPercent.toNumber() * 
-      stream.allocationAssignedUnits.toNumber() / 
+    cliffAmount =
+      stream.cliffVestPercent.toNumber() *
+      stream.allocationAssignedUnits.toNumber() /
       Constants.CLIFF_PERCENT_DENOMINATOR;
   }
 
@@ -787,7 +787,7 @@ const getStreamWithdrawableAmount = (stream: any, timeDiff: number = 0) => {
   // Check if PAUSED
   if (status === STREAM_STATUS.Paused) {
     let manuallyPaused = isStreamManuallyPaused(stream);
-    let withdrawableWhilePausedAmount = manuallyPaused 
+    let withdrawableWhilePausedAmount = manuallyPaused
       ? stream.lastManualStopWithdrawableUnitsSnap.toNumber()
       : stream.allocationAssignedUnits.toNumber() - stream.totalWithdrawalsUnits.toNumber();
 
@@ -833,7 +833,7 @@ const getStreamStatus = (stream: any, timeDiff: number) => {
   const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
 
   // Scheduled
-  if (startUtcInSeconds > now) { 
+  if (startUtcInSeconds > now) {
     return STREAM_STATUS.Schedule;
   }
 
@@ -899,8 +899,8 @@ const getStreamWithdrawableUnitsWhilePaused = (stream: any) => {
   if (isManuallyPaused) {
     withdrawableWhilePaused = stream.lastManualStopWithdrawableUnitsSnap.toNumber();
   } else {
-      withdrawableWhilePaused = stream.allocationAssignedUnits
-        .sub(stream.totalWithdrawalsUnits).toNumber();
+    withdrawableWhilePaused = stream.allocationAssignedUnits
+      .sub(stream.totalWithdrawalsUnits).toNumber();
   }
 
   return Math.max(0, withdrawableWhilePaused);
@@ -924,9 +924,9 @@ const getStreamNonStopEarningUnits = (stream: any, timeDiff: number) => {
 const getStreamMissedEarningUnitsWhilePaused = (stream: any) => {
   if (stream.rateIntervalInSeconds.toNumber() === 0) {
     return 0;
-  }  
+  }
 
-  let totalSecondsPaused = stream.lastKnownTotalSecondsInPausedStatus.toString().length > 10 
+  let totalSecondsPaused = stream.lastKnownTotalSecondsInPausedStatus.toString().length > 10
     ? parseInt(stream.startUtc.toString().substring(0, 10))
     : stream.lastKnownTotalSecondsInPausedStatus.toNumber();
 
@@ -937,3 +937,21 @@ const getStreamMissedEarningUnitsWhilePaused = (stream: any) => {
 
   return parseInt(withdrawableWhilePaused.toString());
 }
+
+const doSomething = async (connection: Connection, address: string) => {
+  let accountInfo: AccountInfo<Buffer | ParsedAccountData> | null = null;
+  try {
+    accountInfo = (await connection.getParsedAccountInfo(new PublicKey(address))).value;
+    console.log(accountInfo);
+  } catch (error) {
+    console.error(error);
+  }
+  if (accountInfo) {
+    if ((accountInfo as any).data["program"] &&
+      (accountInfo as any).data["program"] === "spl-token" &&
+      (accountInfo as any).data["parsed"] &&
+      (accountInfo as any).data["parsed"]["type"] &&
+      (accountInfo as any).data["parsed"]["type"] === "mint") {
+    }
+  }
+};

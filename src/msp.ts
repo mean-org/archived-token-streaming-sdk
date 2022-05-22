@@ -3,9 +3,9 @@
  */
 import { Commitment, Connection, ConnectionConfig, Keypair, PublicKey, Transaction, Signer, Finality, TransactionInstruction, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { BN, Idl, Program } from "@project-serum/anchor";
+import Anchor, { BN, Program } from "@project-serum/anchor";
 
-import { IDL, Msp } from './idl';
+import { Msp } from './idl';
 
 /**
  * MSP
@@ -1915,13 +1915,44 @@ export class MSP {
       case NETWORK_IDS.SOLANA_TESTNET:
       case NETWORK_IDS.SOLANA_DEVNET:
         //check the address validity
+        const isAddressValid = this.isValidSolanaAddress(address);
+        if (isAddressValid) {
+          //check address existency
+          const addressExist = false;
 
+          //check PDA
+          const isPDA = true;
+
+          //check mint address check          
+          const isMintAddress = false;
+
+          //check system program
+          const isSystemProgram = false;
+
+        } else {
+          result = WARNING_TYPES.INVALID_ADDRESS;
+        }
         break;
       default:
         result = WARNING_TYPES.UNKNOWN_NETWORK;
         break;
     }
     return result;
+  }
+
+  private isValidSolanaAddress(value: any): boolean {
+    if (typeof value === 'string') {
+      try {
+        // assume base 58 encoding by default
+        const decoded = Anchor.utils.bytes.bs58.decode(value);
+        if (decoded.length === 32) {
+          return true;
+        }
+      } catch (error) {
+        return false;
+      }
+    }
+    return false;
   }
 }
 

@@ -20,6 +20,7 @@ export class Constants {
  */
 export enum WARNING_TYPES {
     NO_WARNING,
+    INVALID_ADDRESS,
     WARNING_PDA,
     WARNING_SP,
     UNKNOWN_NETWORK = 1001
