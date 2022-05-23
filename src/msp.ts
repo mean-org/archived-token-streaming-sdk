@@ -1913,7 +1913,7 @@ export class MSP {
    * @returns one of the WARNING_TYPES as result
    */
   public async checkAddressForWarnings(address: string): Promise<WARNING_TYPES> {
-    let pkAddress = PublicKey.default;
+    let pkAddress: PublicKey;
     //check the address validity
     try {
       pkAddress = new PublicKey(address);
@@ -1929,8 +1929,12 @@ export class MSP {
     }
 
     //check address exists and owned by system program
-    const accountInfo = await this.connection.getAccountInfo(pkAddress);
-    if (!accountInfo || accountInfo.owner !== SystemProgram.programId) {
+    try {
+      const accountInfo = await this.connection.getAccountInfo(pkAddress);
+      if (!accountInfo || !accountInfo.owner.equals(SystemProgram.programId)) {
+        return WARNING_TYPES.WARNING;
+      }
+    } catch (error) {
       return WARNING_TYPES.WARNING;
     }
 
