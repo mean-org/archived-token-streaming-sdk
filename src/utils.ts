@@ -937,21 +937,3 @@ const getStreamMissedEarningUnitsWhilePaused = (stream: any) => {
 
   return parseInt(withdrawableWhilePaused.toString());
 }
-
-const doSomething = async (connection: Connection, address: string) => {
-  let accountInfo: AccountInfo<Buffer | ParsedAccountData> | null = null;
-  try {
-    accountInfo = (await connection.getParsedAccountInfo(new PublicKey(address))).value;
-    console.log(accountInfo);
-  } catch (error) {
-    console.error(error);
-  }
-  if (accountInfo) {
-    if ((accountInfo as any).data["program"] &&
-      (accountInfo as any).data["program"] === "spl-token" &&
-      (accountInfo as any).data["parsed"] &&
-      (accountInfo as any).data["parsed"]["type"] &&
-      (accountInfo as any).data["parsed"]["type"] === "mint") {
-    }
-  }
-};

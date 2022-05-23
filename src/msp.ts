@@ -3,7 +3,7 @@
  */
 import { Commitment, Connection, ConnectionConfig, Keypair, PublicKey, Transaction, Signer, Finality, TransactionInstruction, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import Anchor, { BN, Program } from "@project-serum/anchor";
+import { BN, Program } from "@project-serum/anchor";
 
 import { Msp } from './idl';
 
@@ -12,7 +12,7 @@ import { Msp } from './idl';
  */
 import { Stream, ListStreamParams, Treasury, TreasuryType, STREAM_STATUS } from "./types";
 import { createProgram, getStream, getStreamCached, getTreasury, getValidTreasuryAllocation, listStreamActivity, listStreams, listStreamsCached } from "./utils";
-import { Constants, NETWORK_IDS, WARNING_TYPES } from "./constants";
+import { Constants, WARNING_TYPES } from "./constants";
 import { Beneficiary, listTreasuries, StreamBeneficiary } from ".";
 import { u64Number } from "./u64n";
 
@@ -34,7 +34,6 @@ export class MSP {
     rpcUrl: string,
     walletAddress: string,
     commitment: Commitment | string = "finalized"
-
   ) {
 
     this.commitment = commitment as Commitment;
@@ -1908,51 +1907,34 @@ export class MSP {
     return tx;
   }
 
-  public async checkAddressForWarnings(address: string, networkId: number = NETWORK_IDS.SOLANA_MAINNET): Promise<number> {
-    let result = WARNING_TYPES.NO_WARNING;
-    switch (networkId) {
-      case NETWORK_IDS.SOLANA_MAINNET:
-      case NETWORK_IDS.SOLANA_TESTNET:
-      case NETWORK_IDS.SOLANA_DEVNET:
-        //check the address validity
-        const isAddressValid = this.isValidSolanaAddress(address);
-        if (isAddressValid) {
-          //check address existency
-          const addressExist = false;
-
-          //check PDA
-          const isPDA = true;
-
-          //check mint address check          
-          const isMintAddress = false;
-
-          //check system program
-          const isSystemProgram = false;
-
-        } else {
-          result = WARNING_TYPES.INVALID_ADDRESS;
-        }
-        break;
-      default:
-        result = WARNING_TYPES.UNKNOWN_NETWORK;
-        break;
+  /**
+   * Returns 
+   * @param address Solana public address
+   * @returns 
+   */
+  public async checkAddressForWarnings(address: string): Promise<number> {
+    let pkAddress = PublicKey.default;
+    //check the address validity
+    try {
+      pkAddress = new PublicKey(address);
+    } catch (error) {
+      console.warn(`Invalid Solana address: ${address}`);
+      return WARNING_TYPES.INVALID_ADDRESS;
     }
-    return result;
-  }
 
-  private isValidSolanaAddress(value: any): boolean {
-    if (typeof value === 'string') {
-      try {
-        // assume base 58 encoding by default
-        const decoded = Anchor.utils.bytes.bs58.decode(value);
-        if (decoded.length === 32) {
-          return true;
-        }
-      } catch (error) {
-        return false;
-      }
+    //check address PDA
+    const isAddressOnCurve = PublicKey.isOnCurve(pkAddress);
+    if (isAddressOnCurve) {
+      return WARNING_TYPES.WARNING;
     }
-    return false;
+
+    //check address exists and owned by system program
+    const accountInfo = await this.connection.getAccountInfo(pkAddress);
+    if (!accountInfo || accountInfo.owner !== SystemProgram.programId) {
+      return WARNING_TYPES.WARNING;
+    }
+
+    return WARNING_TYPES.NO_WARNING;
   }
 }
 

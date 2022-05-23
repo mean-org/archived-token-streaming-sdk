@@ -19,11 +19,9 @@ export class Constants {
  * Warning types of the given address
  */
 export enum WARNING_TYPES {
-    NO_WARNING,
-    INVALID_ADDRESS,
-    WARNING_PDA,
-    WARNING_SP,
-    UNKNOWN_NETWORK = 1001
+    NO_WARNING = 0,
+    INVALID_ADDRESS = 1,
+    WARNING = 2
 }
 
 /**
