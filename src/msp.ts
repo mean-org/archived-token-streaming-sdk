@@ -1908,11 +1908,11 @@ export class MSP {
   }
 
   /**
-   * Returns 
+   * Validates the given address
    * @param address Solana public address
-   * @returns 
+   * @returns one of the WARNING_TYPES as result
    */
-  public async checkAddressForWarnings(address: string): Promise<number> {
+  public async checkAddressForWarnings(address: string): Promise<WARNING_TYPES> {
     let pkAddress = PublicKey.default;
     //check the address validity
     try {
