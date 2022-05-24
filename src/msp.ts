@@ -12,7 +12,7 @@ import { Msp } from './idl';
  */
 import { Stream, ListStreamParams, Treasury, TreasuryType, STREAM_STATUS } from "./types";
 import { createProgram, createWrapSolInstructions, getStream, getStreamCached, getTreasury, getValidTreasuryAllocation, listStreamActivity, listStreams, listStreamsCached } from "./utils";
-import { Constants } from "./constants";
+import { Constants, WARNING_TYPES } from "./constants";
 import { Beneficiary, listTreasuries, StreamBeneficiary } from ".";
 import { u64Number } from "./u64n";
 
@@ -185,69 +185,78 @@ export class MSP {
     )
   }
 
-  public async transfer (
+  public async transfer(
     sender: PublicKey,
     beneficiary: PublicKey,
     mint: PublicKey,
     amount: number,
   ): Promise<Transaction> {
-
-    let ixs: TransactionInstruction[] = [];
     let txSigners: Signer[] = [];
-    const senderToken = await Token.getAssociatedTokenAddress(
-      ASSOCIATED_TOKEN_PROGRAM_ID,
-      TOKEN_PROGRAM_ID,
-      mint,
-      sender,
-      true
-    );
-
-    const senderTokenInfo = await this.connection.getAccountInfo(senderToken);
-    if (!senderTokenInfo) {
-      throw Error("Sender token account not found");
+    let ixs: TransactionInstruction[] = [];
+    
+    if (mint.equals(Constants.SOL_MINT)) {      
+      ixs.push(SystemProgram.transfer({
+        fromPubkey: sender,
+        toPubkey: beneficiary,
+        lamports: amount
+      }));
     }
-
-    let beneficiaryToken = beneficiary;
-    const beneficiaryAccountInfo = await this.connection.getAccountInfo(beneficiary);
-
-    if (!beneficiaryAccountInfo || !beneficiaryAccountInfo.owner.equals(TOKEN_PROGRAM_ID)) {
-      
-      beneficiaryToken = await Token.getAssociatedTokenAddress(
+    else {
+      const senderToken = await Token.getAssociatedTokenAddress(
         ASSOCIATED_TOKEN_PROGRAM_ID,
         TOKEN_PROGRAM_ID,
         mint,
-        beneficiary,
+        sender,
         true
       );
 
-      const beneficiaryTokenAccountInfo = await this.connection.getAccountInfo(beneficiaryToken);
-
-      if (!beneficiaryTokenAccountInfo) {
-        ixs.push(
-          Token.createAssociatedTokenAccountInstruction(
-            ASSOCIATED_TOKEN_PROGRAM_ID,
-            TOKEN_PROGRAM_ID,
-            mint,
-            beneficiaryToken,
-            beneficiary,
-            sender
-          )
-        );
+      const senderTokenInfo = await this.connection.getAccountInfo(senderToken);
+      if (!senderTokenInfo) {
+        throw Error("Sender token account not found");
       }
+
+      let beneficiaryToken = beneficiary;
+      const beneficiaryAccountInfo = await this.connection.getAccountInfo(beneficiary);
+
+      if (!beneficiaryAccountInfo || !beneficiaryAccountInfo.owner.equals(TOKEN_PROGRAM_ID)) {
+
+        beneficiaryToken = await Token.getAssociatedTokenAddress(
+          ASSOCIATED_TOKEN_PROGRAM_ID,
+          TOKEN_PROGRAM_ID,
+          mint,
+          beneficiary,
+          true
+        );
+
+        const beneficiaryTokenAccountInfo = await this.connection.getAccountInfo(beneficiaryToken);
+
+        if (!beneficiaryTokenAccountInfo) {
+          ixs.push(
+            Token.createAssociatedTokenAccountInstruction(
+              ASSOCIATED_TOKEN_PROGRAM_ID,
+              TOKEN_PROGRAM_ID,
+              mint,
+              beneficiaryToken,
+              beneficiary,
+              sender
+            )
+          );
+        }
+      }
+
+      ixs.push(
+        Token.createTransferInstruction(
+          TOKEN_PROGRAM_ID,
+          senderToken,
+          beneficiaryToken,
+          sender,
+          [],
+          amount
+        )
+      );
     }
 
-    ixs.push(
-      Token.createTransferInstruction(
-        TOKEN_PROGRAM_ID,
-        senderToken,
-        beneficiaryToken,
-        sender,
-        [],
-        amount
-      )
-    );
-
-    let tx = new Transaction().add(...ixs);
+    const tx = new Transaction().add(...ixs);
     tx.feePayer = sender;
     let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");
     tx.recentBlockhash = blockhash;
@@ -2119,6 +2128,40 @@ export class MSP {
         throw Error("Sender token account not found");
       }
     }
+  }
+
+  /**
+   * Validates the given address
+   * @param address Solana public address
+   * @returns one of the WARNING_TYPES as result
+   */
+  public async checkAddressForWarnings(address: string): Promise<WARNING_TYPES> {
+    let pkAddress: PublicKey;
+    //check the address validity
+    try {
+      pkAddress = new PublicKey(address);
+    } catch (error) {
+      console.warn(`Invalid Solana address: ${address}`);
+      return WARNING_TYPES.INVALID_ADDRESS;
+    }
+
+    //check address PDA
+    const isAddressOnCurve = PublicKey.isOnCurve(pkAddress);
+    if (isAddressOnCurve) {
+      return WARNING_TYPES.WARNING;
+    }
+
+    //check address exists and owned by system program
+    try {
+      const accountInfo = await this.connection.getAccountInfo(pkAddress);
+      if (!accountInfo || !accountInfo.owner.equals(SystemProgram.programId)) {
+        return WARNING_TYPES.WARNING;
+      }
+    } catch (error) {
+      return WARNING_TYPES.WARNING;
+    }
+
+    return WARNING_TYPES.NO_WARNING;
   }
 }
 
