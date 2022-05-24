@@ -214,15 +214,26 @@ export class MSP {
       if (!senderTokenInfo) {
         throw Error("Sender token account not found");
       }
-      
-      try {
-        await this.connection.getTokenAccountBalance(beneficiary);
-      } catch (error) {
-        const isTokenAccount = String(error).indexOf('not a Token account');
-        if (isTokenAccount !== -1) {
-          throw Error("Reciever is not a token account");
-        }
-      }
+     
+      /**
+       * The basic idea is, it it is no native sol (the else leg) 
+       * 
+       * case 1: if the beneficiary address is a wallet, we find what the associated token account is 
+       * (using wallet address + token mint) and we send the funds there
+       * 
+       * case 2: the beneficiary wallet is already a token account for the provided token mint, so we send the funds there, 
+       * 
+       * case 3: none of the first so the beneficiary address is not valid for this transfer
+       * 
+      */
+      // try {
+      //   await this.connection.getTokenAccountBalance(beneficiary);
+      // } catch (error) {
+      //   const isTokenAccount = String(error).indexOf('not a Token account');
+      //   if (isTokenAccount !== -1) {
+      //     throw Error("Reciever is not a token account");
+      //   }
+      // }
 
       let beneficiaryToken = beneficiary;
       const beneficiaryAccountInfo = await this.connection.getAccountInfo(beneficiary);
