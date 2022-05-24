@@ -3,7 +3,7 @@
  */
 import { Commitment, Connection, ConnectionConfig, Keypair, PublicKey, Transaction, Signer, Finality, TransactionInstruction, SystemProgram, SYSVAR_RENT_PUBKEY, AccountInfo } from "@solana/web3.js";
 import { ASSOCIATED_TOKEN_PROGRAM_ID, NATIVE_MINT as NATIVE_WSOL_MINT, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { BN, Idl, Program } from "@project-serum/anchor";
+import { BN, Program } from "@project-serum/anchor";
 
 import { Msp } from './idl';
 
@@ -213,6 +213,15 @@ export class MSP {
       const senderTokenInfo = await this.connection.getAccountInfo(senderToken);
       if (!senderTokenInfo) {
         throw Error("Sender token account not found");
+      }
+      
+      try {
+        await this.connection.getTokenAccountBalance(beneficiary);
+      } catch (error) {
+        const isTokenAccount = String(error).indexOf('not a Token account');
+        if (isTokenAccount !== -1) {
+          throw Error("Reciever is not a token account");
+        }
       }
 
       let beneficiaryToken = beneficiary;
