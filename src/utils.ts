@@ -4,22 +4,16 @@ import {
   PublicKey, 
   ConfirmOptions, 
   Finality, 
-  ParsedConfirmedTransaction, 
   PartiallyDecodedInstruction, 
-  GetProgramAccountsFilter, 
-  ParsedInstruction, 
   LAMPORTS_PER_SOL, 
-  ParsedInnerInstruction, 
-  Transaction, 
-  Enum, 
-  TokenAmount, 
   ConfirmedSignaturesForAddress2Options, 
   Keypair, 
   TransactionInstruction, 
   SystemProgram, 
-  AccountInfo 
+  AccountInfo, 
+  ParsedTransactionWithMeta
 } from "@solana/web3.js";
-import { BN, BorshInstructionCoder, Idl, Program, Provider } from "@project-serum/anchor";
+import { BN, BorshInstructionCoder, Idl, Program } from "@project-serum/anchor";
 /**
  * MSP
  */
@@ -605,7 +599,7 @@ const parseStreamItemData = (
 const parseStreamActivityData = (
   program: Program<Msp>,
   signature: string,
-  tx: ParsedConfirmedTransaction,
+  tx: ParsedTransactionWithMeta,
   friendly: boolean = true
 
 ): StreamActivity => {

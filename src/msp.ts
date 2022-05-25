@@ -1605,13 +1605,13 @@ export class MSP {
       if (
         autoWSol &&
         treasuryAssociatedTokenMint.equals(NATIVE_WSOL_MINT) &&
-        treasurer.equals(destination)
+        destination.equals(treasurer)
       ) {
         const closeWSolIx = Token.createCloseAccountInstruction(
           TOKEN_PROGRAM_ID,
-          beneficiaryToken,
-          beneficiary,
-          beneficiary,
+          destinationToken,
+          destination,
+          destination,
           []
         );
         ixs.push(closeWSolIx);
