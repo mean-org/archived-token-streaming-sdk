@@ -487,7 +487,6 @@ export class MSP {
     cliffVestAmount?: number,
     cliffVestPercent?: number,
     feePayedByTreasurer: boolean = false
-
   ): Promise<Transaction> {
 
     if (treasurer.equals(beneficiary)) {
@@ -1121,9 +1120,8 @@ export class MSP {
     payer: PublicKey,
     contributor: PublicKey,
     treasury: PublicKey,
-    treasuryAssociatedTokenMint: PublicKey,
+    mint: PublicKey, // it can be the special value: Constants.SOL_MINT
     amount: number,
-    autoWSol: boolean = false,
   ): Promise<Transaction> {
 
     if (!amount) {
@@ -1136,11 +1134,17 @@ export class MSP {
       throw Error("Treasury account not found");
     }
 
+    let autoWSol = false;
+    if(mint.equals(Constants.SOL_MINT)) {
+      mint = NATIVE_WSOL_MINT;
+      autoWSol = true;
+    }
+
     const treasuryMint = new PublicKey(treasuryInfo.mint as string);
     const contributorToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
-      treasuryAssociatedTokenMint,
+      mint,
       contributor,
       true
     );
@@ -1171,7 +1175,7 @@ export class MSP {
     const treasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
-      treasuryAssociatedTokenMint,
+      mint,
       treasury,
       true
     );
@@ -1179,7 +1183,7 @@ export class MSP {
     const feeTreasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
-      treasuryAssociatedTokenMint,
+      mint,
       Constants.FEE_TREASURY,
       true
     );
@@ -1196,7 +1200,7 @@ export class MSP {
             contributorTreasuryToken: contributorTreasuryToken,
             treasury: treasury,
             treasuryToken: treasuryToken,
-            associatedToken: treasuryAssociatedTokenMint,
+            associatedToken: mint,
             treasuryMint: treasuryMint,
             feeTreasury: Constants.FEE_TREASURY,
             feeTreasuryToken: feeTreasuryToken,
@@ -1302,8 +1306,8 @@ export class MSP {
   public async withdraw (
     payer: PublicKey,
     stream: PublicKey,
-    amount: number
-
+    amount: number,
+    autoWSol: boolean = false,
   ): Promise<Transaction> {
 
     if (!amount) {
@@ -1378,7 +1382,7 @@ export class MSP {
     ixs.push(withdrawIx);
 
     // unwrap all on exit
-    if (treasuryAssociatedTokenMint.equals(NATIVE_WSOL_MINT)) {
+    if (autoWSol && treasuryAssociatedTokenMint.equals(NATIVE_WSOL_MINT)) {
       const closeWSolIx = Token.createCloseAccountInstruction(
         TOKEN_PROGRAM_ID,
         beneficiaryToken,
