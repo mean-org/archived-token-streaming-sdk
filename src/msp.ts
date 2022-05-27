@@ -1491,7 +1491,7 @@ export class MSP {
     destination: PublicKey,
     stream: PublicKey,
     autoCloseTreasury: boolean = false,
-    autoWSol: boolean = true,
+    autoWSol: boolean = false,
   ): Promise<Transaction> {
 
     const streamInfo = await this.getStream(stream) as Stream;
@@ -1634,7 +1634,7 @@ export class MSP {
     payer: PublicKey,
     destination: PublicKey,
     treasury: PublicKey  , 
-    autoWSol: boolean = true,
+    autoWSol: boolean = false,
   ): Promise<Transaction> {
 
     const treasuryInfo = await getTreasury(this.program, treasury);
@@ -2027,7 +2027,7 @@ export class MSP {
     destination: PublicKey,
     treasury: PublicKey,
     amount: number,
-    autoWSol: boolean = true,
+    autoWSol: boolean = false,
   ): Promise<Transaction> {
 
     const treasuryInfo = await getTreasury(this.program, treasury);
