@@ -2,6 +2,7 @@
  * Solana
  */
 import { Commitment, PublicKey } from "@solana/web3.js";
+import BN from "bn.js";
 
 declare global {
   export interface String {
@@ -68,7 +69,7 @@ export interface ListStreamParams {
 }
 
 /**
- * Stream activity
+ * Stream activity (Friendly version with PublicKeys converted to string)
  */
 export type StreamActivity = {
   signature: string;
@@ -77,6 +78,19 @@ export type StreamActivity = {
   amount: number;
   mint: string;
   blockTime: number;
+  utcDate: string;
+};
+
+/**
+ * Stream activity
+ */
+export type StreamActivityRaw = {
+  signature: string;
+  initializer: PublicKey | undefined;
+  action: string;
+  amount: BN | undefined;
+  mint: PublicKey | undefined;
+  blockTime: number | undefined;
   utcDate: string;
 };
 
