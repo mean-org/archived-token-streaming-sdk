@@ -140,15 +140,15 @@ export const listStreams = async (
     if (item.account !== undefined) {
       let parsedStream = parseStreamItemData(item.account, item.publicKey, blockTime, friendly);
       let info = Object.assign({ }, parsedStream);
-      let signatures = await program.provider.connection.getConfirmedSignaturesForAddress2(
-        friendly ? new PublicKey(info.id as string) : (info.id as PublicKey),
-        { limit: 1 }, 
-        'confirmed'
-      );
+      // let signatures = await program.provider.connection.getConfirmedSignaturesForAddress2(
+      //   friendly ? new PublicKey(info.id as string) : (info.id as PublicKey),
+      //   { limit: 1 }, 
+      //   'confirmed'
+      // );
 
-      if (signatures.length > 0) {
-        info.createdBlockTime = signatures[0].blockTime as number;
-      }
+      // if (signatures.length > 0) {
+      //   info.createdBlockTime = signatures[0].blockTime as number;
+      // }
 
       streamInfoList.push(info);
     }
@@ -543,7 +543,8 @@ const parseStreamItemData = (
     totalWithdrawals: friendly ? stream.totalWithdrawalsUnits.toNumber() : stream.totalWithdrawalsUnits,
     feePayedByTreasurer: stream.feePayedByTreasurer,
     transactionSignature: '',
-    createdBlockTime: 0,
+    // createdBlockTime: 0,
+    createdBlockTime: stream.createdTs?.toNumber() ?? startUtc,
     upgradeRequired: false,
     data: {
       version: stream.version,
