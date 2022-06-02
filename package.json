@@ -27,7 +27,6 @@
     "build": "tsc",
     "clean": "rm -r lib",
     "clean:win": "rmdir /s lib",
-    "publish": "npm publish --access public",
     "start": "ts-node main.ts"
   },
   "dependencies": {
