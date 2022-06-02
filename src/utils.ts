@@ -446,15 +446,15 @@ const parseGetStreamData = (
 ) => {
 
   const nameBuffer = Buffer.from(event.name);
-  const createdOnUtcInMilliseconds = event.createdOnUtc.toNumber() * 1000;
+  const createdOnUtcInMilliseconds = event.createdOnUtc ? event.createdOnUtc.toNumber() * 1000 : 0;
   const startUtcInMilliseconds = parseInt((event.startUtc.toNumber() * 1_000).toString());
+  const effectiveCreatedOnUticInMilliseconds = createdOnUtcInMilliseconds > 0 ? createdOnUtcInMilliseconds : startUtcInMilliseconds;
 
   const stream = {
     id: friendly ? address.toBase58() : address,
     version: event.version,
     initialized: event.initialized,
     name: new TextDecoder().decode(nameBuffer),
-    createdOnUtc: !friendly ? new Date(createdOnUtcInMilliseconds).toString() : new Date(createdOnUtcInMilliseconds),
     startUtc: !friendly ? new Date(startUtcInMilliseconds).toString() : new Date(startUtcInMilliseconds),
     treasurer: friendly ? event.treasurerAddress.toBase58() : event.treasurerAddress,
     treasury: friendly ? event.treasuryAddress.toBase58() : event.treasuryAddress,
@@ -500,7 +500,8 @@ const parseGetStreamData = (
 
     totalWithdrawals: friendly ? event.totalWithdrawalsUnits.toNumber() : event.totalWithdrawalsUnits,
     feePayedByTreasurer: event.feePayedByTreasurer,
-    createdBlockTime: event.startUtc.toNumber(),
+    createdBlockTime: effectiveCreatedOnUticInMilliseconds,
+    createdOnUtc: !friendly ? new Date(effectiveCreatedOnUticInMilliseconds).toString() : new Date(effectiveCreatedOnUticInMilliseconds),
     upgradeRequired: false,
     data: event
     
@@ -517,17 +518,17 @@ const parseStreamItemData = (
 
 ) => {
 
-  let nameBuffer = Buffer.from(stream.name);
-  const createdOnUtcInMilliseconds = stream.createdOnUtc.toNumber() * 1000;
-  let startUtcInMilliseconds = getStreamStartUtcInSeconds(stream) * 1_000;
+  const nameBuffer = Buffer.from(stream.name);
+  const createdOnUtcInMilliseconds = stream.createdOnUtc ? stream.createdOnUtc.toNumber() * 1000 : 0;
+  const startUtcInMilliseconds = getStreamStartUtcInSeconds(stream) * 1_000;
+  const effectiveCreatedOnUticInMilliseconds = createdOnUtcInMilliseconds > 0 ? createdOnUtcInMilliseconds : startUtcInMilliseconds;
   let timeDiff = parseInt((Date.now() / 1_000).toString()) - blockTime;
 
-  let streamInfo = {
+  const streamInfo = {
     id: friendly ? address.toBase58() : address,
     version: stream.version,
     initialized: stream.initialized,
     name: new TextDecoder().decode(nameBuffer),
-    createdOnUtc: !friendly ? new Date(createdOnUtcInMilliseconds).toString() : new Date(createdOnUtcInMilliseconds),
     startUtc: !friendly ? new Date(startUtcInMilliseconds).toString() : new Date(startUtcInMilliseconds),
     treasurer: friendly ? stream.treasurerAddress.toBase58() : stream.treasurerAddress,
     treasury: friendly ? stream.treasuryAddress.toBase58() : stream.treasuryAddress,
@@ -554,8 +555,8 @@ const parseStreamItemData = (
     totalWithdrawals: friendly ? stream.totalWithdrawalsUnits.toNumber() : stream.totalWithdrawalsUnits,
     feePayedByTreasurer: stream.feePayedByTreasurer,
     transactionSignature: '',
-    // createdBlockTime: 0,
-    createdBlockTime: stream.createdOnUtc?.toNumber() ?? startUtcInMilliseconds,
+    createdBlockTime: createdOnUtcInMilliseconds > 0 ? createdOnUtcInMilliseconds : startUtcInMilliseconds,
+    createdOnUtc: !friendly ? new Date(effectiveCreatedOnUticInMilliseconds).toString() : new Date(effectiveCreatedOnUticInMilliseconds),
     upgradeRequired: false,
     data: {
       version: stream.version,
