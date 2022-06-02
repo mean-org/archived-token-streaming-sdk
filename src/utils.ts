@@ -431,6 +431,13 @@ const getFilteredStreamAccounts = async (
   return accounts;
 }
 
+/**
+ * Parses the event returned by the get_stream getter in the mps program.
+ * @param event 
+ * @param address stream address
+ * @param friendly 
+ * @returns Stream
+ */
 const parseGetStreamData = (
   event: any,
   address: PublicKey,
@@ -438,15 +445,17 @@ const parseGetStreamData = (
 
 ) => {
 
-  let nameBuffer = Buffer.from(event.name);
-  let startUtc = parseInt((event.startUtc.toNumber() * 1_000).toString());
+  const nameBuffer = Buffer.from(event.name);
+  const createdOnUtcInMilliseconds = event.createdOnUtc.toNumber() * 1000;
+  const startUtcInMilliseconds = parseInt((event.startUtc.toNumber() * 1_000).toString());
 
   const stream = {
     id: friendly ? address.toBase58() : address,
     version: event.version,
     initialized: event.initialized,
     name: new TextDecoder().decode(nameBuffer),
-    startUtc: !friendly ? new Date(startUtc).toString() : new Date(startUtc),
+    createdOnUtc: !friendly ? new Date(createdOnUtcInMilliseconds).toString() : new Date(createdOnUtcInMilliseconds),
+    startUtc: !friendly ? new Date(startUtcInMilliseconds).toString() : new Date(startUtcInMilliseconds),
     treasurer: friendly ? event.treasurerAddress.toBase58() : event.treasurerAddress,
     treasury: friendly ? event.treasuryAddress.toBase58() : event.treasuryAddress,
     beneficiary: friendly ? event.beneficiaryAddress.toBase58() : event.beneficiaryAddress,
@@ -509,7 +518,8 @@ const parseStreamItemData = (
 ) => {
 
   let nameBuffer = Buffer.from(stream.name);
-  let startUtc = getStreamStartUtcInSeconds(stream) * 1_000;
+  const createdOnUtcInMilliseconds = stream.createdOnUtc.toNumber() * 1000;
+  let startUtcInMilliseconds = getStreamStartUtcInSeconds(stream) * 1_000;
   let timeDiff = parseInt((Date.now() / 1_000).toString()) - blockTime;
 
   let streamInfo = {
@@ -517,7 +527,8 @@ const parseStreamItemData = (
     version: stream.version,
     initialized: stream.initialized,
     name: new TextDecoder().decode(nameBuffer),
-    startUtc: !friendly ? new Date(startUtc).toString() : new Date(startUtc),
+    createdOnUtc: !friendly ? new Date(createdOnUtcInMilliseconds).toString() : new Date(createdOnUtcInMilliseconds),
+    startUtc: !friendly ? new Date(startUtcInMilliseconds).toString() : new Date(startUtcInMilliseconds),
     treasurer: friendly ? stream.treasurerAddress.toBase58() : stream.treasurerAddress,
     treasury: friendly ? stream.treasuryAddress.toBase58() : stream.treasuryAddress,
     beneficiary: friendly ? stream.beneficiaryAddress.toBase58() : stream.beneficiaryAddress,
@@ -526,7 +537,7 @@ const parseStreamItemData = (
     cliffVestPercent: friendly ? stream.cliffVestPercent.toNumber() / 10_000 : stream.cliffVestPercent.div(new BN(10_000)),
     allocationAssigned: friendly ? stream.allocationAssignedUnits.toNumber() : stream.allocationAssignedUnits,
     // allocationReserved: friendly ? stream.allocationReservedUnits.toNumber() : stream.allocationReservedUnits,
-    secondsSinceStart: friendly ? (blockTime - getStreamStartUtcInSeconds(stream)) : new BN(blockTime).sub(new BN(startUtc)),
+    secondsSinceStart: friendly ? (blockTime - getStreamStartUtcInSeconds(stream)) : new BN(blockTime).sub(new BN(startUtcInMilliseconds)),
     estimatedDepletionDate: friendly ? getStreamEstDepletionDate(stream).toString() : getStreamEstDepletionDate(stream),
     rateAmount: friendly ? stream.rateAmountUnits.toNumber() : stream.rateAmountUnits,
     rateIntervalInSeconds: friendly ? stream.rateIntervalInSeconds.toNumber() : stream.rateIntervalInSeconds,
@@ -544,7 +555,7 @@ const parseStreamItemData = (
     feePayedByTreasurer: stream.feePayedByTreasurer,
     transactionSignature: '',
     // createdBlockTime: 0,
-    createdBlockTime: stream.createdTs?.toNumber() ?? startUtc,
+    createdBlockTime: stream.createdOnUtc?.toNumber() ?? startUtcInMilliseconds,
     upgradeRequired: false,
     data: {
       version: stream.version,

@@ -156,6 +156,7 @@ export enum STREAM_STATUS {
   treasurer: PublicKey | string,
   rateAmount: number,
   rateIntervalInSeconds: number,    
+  createdOnUtc: Date | string,
   startUtc: Date | string,
   cliffVestAmount: number,
   cliffVestPercent: number,
