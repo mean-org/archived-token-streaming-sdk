@@ -1,6 +1,6 @@
 {
   "name": "@mean-dao/msp",
-  "version": "2.5.3-alpha.0",
+  "version": "2.5.3",
   "description": "MSP Typescript SDK",
   "private": false,
   "main": "lib/index.js",
@@ -27,7 +27,6 @@
     "build": "tsc",
     "clean": "rm -r lib",
     "clean:win": "rmdir /s lib",
-    "publish": "npm publish --access public",
     "start": "ts-node main.ts"
   },
   "dependencies": {

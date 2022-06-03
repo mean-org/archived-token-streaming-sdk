@@ -2,6 +2,7 @@
  * Solana
  */
 import { Commitment, PublicKey } from "@solana/web3.js";
+import BN from "bn.js";
 
 declare global {
   export interface String {
@@ -68,7 +69,7 @@ export interface ListStreamParams {
 }
 
 /**
- * Stream activity
+ * Stream activity (Friendly version with PublicKeys converted to string)
  */
 export type StreamActivity = {
   signature: string;
@@ -77,6 +78,19 @@ export type StreamActivity = {
   amount: number;
   mint: string;
   blockTime: number;
+  utcDate: string;
+};
+
+/**
+ * Stream activity
+ */
+export type StreamActivityRaw = {
+  signature: string;
+  initializer: PublicKey | undefined;
+  action: string;
+  amount: BN | undefined;
+  mint: PublicKey | undefined;
+  blockTime: number | undefined;
   utcDate: string;
 };
 
@@ -141,7 +155,7 @@ export enum STREAM_STATUS {
   name: string,
   treasurer: PublicKey | string,
   rateAmount: number,
-  rateIntervalInSeconds: number,    
+  rateIntervalInSeconds: number, 
   startUtc: Date | string,
   cliffVestAmount: number,
   cliffVestPercent: number,
@@ -151,7 +165,8 @@ export enum STREAM_STATUS {
   allocationAssigned: number,
   // allocationReserved: number,
   totalWithdrawalsAmount: number,
-  createdBlockTime: number,
+  createdBlockTime: number,   
+  createdOnUtc: Date | string,
   lastRetrievedBlockTime: number,
   lastRetrievedTimeInSeconds: number,
   upgradeRequired: boolean,

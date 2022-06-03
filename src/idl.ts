@@ -1,5 +1,5 @@
 export type Msp = {
-  "version": "2.5.0",
+  "version": "2.5.2",
   "name": "msp",
   "instructions": [
     {
@@ -902,6 +902,10 @@ export type Msp = {
           {
             "name": "startUtcInSeconds",
             "type": "u64"
+          },
+          {
+            "name": "createdOnUtc",
+            "type": "u64"
           }
         ]
       }
@@ -1256,6 +1260,11 @@ export type Msp = {
         },
         {
           "name": "lastKnownStopBlockTime",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "createdOnUtc",
           "type": "u64",
           "index": false
         }
@@ -1477,7 +1486,7 @@ export type Msp = {
 };
 
 export const IDL: Msp = {
-  "version": "2.5.0",
+  "version": "2.5.2",
   "name": "msp",
   "instructions": [
     {
@@ -2380,6 +2389,10 @@ export const IDL: Msp = {
           {
             "name": "startUtcInSeconds",
             "type": "u64"
+          },
+          {
+            "name": "createdOnUtc",
+            "type": "u64"
           }
         ]
       }
@@ -2734,6 +2747,11 @@ export const IDL: Msp = {
         },
         {
           "name": "lastKnownStopBlockTime",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "createdOnUtc",
           "type": "u64",
           "index": false
         }
