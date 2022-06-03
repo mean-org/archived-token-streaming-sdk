@@ -447,7 +447,7 @@ const parseGetStreamData = (
 
   const nameBuffer = Buffer.from(event.name);
   const createdOnUtcInSeconds = event.createdOnUtc ? event.createdOnUtc.toNumber() : 0;
-  const startUtcInSeconds = event.startUtc.toNumber() * 1_000;
+  const startUtcInSeconds = event.startUtc.toNumber();
   const effectiveCreatedOnUtcInSeconds = createdOnUtcInSeconds > 0 ? createdOnUtcInSeconds : event.startUtc.toNumber();
 
   const stream = {
@@ -520,7 +520,7 @@ const parseStreamItemData = (
 
   const nameBuffer = Buffer.from(stream.name);
   const createdOnUtcInSeconds = stream.createdOnUtc ? stream.createdOnUtc.toNumber() : 0;
-  const startUtcInSeconds = getStreamStartUtcInSeconds(stream) * 1_000;
+  const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
   const effectiveCreatedOnUticInSeconds = createdOnUtcInSeconds > 0 ? createdOnUtcInSeconds : startUtcInSeconds;
   let timeDiff = parseInt((Date.now() / 1_000).toString()) - blockTime;
 
