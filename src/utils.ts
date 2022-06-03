@@ -653,11 +653,13 @@ function parseStreamTransactions(
             if (!decodedIx) continue;
 
             const ixName = decodedIx.name;
+            // console.log(`ixName: ${ixName}`);
             if (['createStream', 'allocate', 'withdraw'].indexOf(ixName) === -1) continue;
 
             const ixAccountMetas = ix.accounts.map(pk => { return { pubkey: pk, isSigner: false, isWritable: false } });
 
             const formattedIx = coder.format(decodedIx, ixAccountMetas);
+            // console.log(formattedIx);
             // console.table(formattedIx?.accounts.map(a => { return { name: a.name, pk: a.pubkey.toBase58() } }));
 
             const stream = formattedIx?.accounts.find(a => a.name === 'Stream')?.pubkey;
@@ -729,11 +731,13 @@ function parseStreamTransactions(
             if (!decodedIx) continue;
 
             const ixName = decodedIx.name;
+            // console.log(`ixName: ${ixName}`);
             if (['createStream', 'addFunds', 'withdraw'].indexOf(ixName) === -1) continue;
 
             const ixAccountMetas = ix.accounts.map(pk => { return { pubkey: pk, isSigner: false, isWritable: false } });
 
             const formattedIx = coder.format(decodedIx, ixAccountMetas);
+            // console.log(formattedIx);
             // console.table(formattedIx?.accounts.map(a => { return { name: a.name, pk: a.pubkey.toBase58() } }));
 
             const stream = formattedIx?.accounts.find(a => a.name === 'Stream')?.pubkey;
@@ -749,12 +753,20 @@ function parseStreamTransactions(
             let amountBN: BN | undefined;
 
             if (decodedIx.name === 'createStream') {
+              if(ixAccountMetas.length !== 14) {
+                // console.log(`this createStream instruction corresponds to an IDL that is not supported`);
+                continue;
+              }
               initializer = formattedIx?.accounts.find(a => a.name === 'Treasurer')?.pubkey;
               mint = formattedIx?.accounts.find(a => a.name === 'Associated Token')?.pubkey;
               const parsedAmount = formattedIx?.args.find(a => a.name === 'allocationAssignedUnits')?.data;
               amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
             }
             else if (decodedIx.name === 'addFunds') {
+              if(ixAccountMetas.length !== 14) {
+                // console.log(`this addFunds instruction corresponds to an IDL that is not supported`);
+                continue;
+              }
               const allocationType = formattedIx?.args.find(a => a.name === 'allocationType')?.data;
               if(allocationType !== '1'){
                 continue;
@@ -766,6 +778,10 @@ function parseStreamTransactions(
               amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
             }
             else if (decodedIx.name === 'withdraw') {
+              if(ixAccountMetas.length !== 13) {
+                // console.log(`this withdraw instruction corresponds to an IDL that is not supported`);
+                continue;
+              }
               initializer = formattedIx?.accounts.find(a => a.name === 'Beneficiary')?.pubkey;
               mint = formattedIx?.accounts.find(a => a.name === 'Associated Token')?.pubkey;
               const parsedAmount = formattedIx?.args.find(a => a.name === 'amount')?.data;
