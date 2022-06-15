@@ -621,6 +621,9 @@ const parseStreamItemData = (
 
 let idl_legacy_after_1645224519: any = null;
 let idl_legacy_before_1645224519: any = null;
+const idlPaths: string[] = [
+  './msp_idl_001',
+]
 const idls: { [fileVersion: number]: any } = {};
 
 async function parseStreamInstructionAfter1645224519(
@@ -819,23 +822,18 @@ async function parseVersionedStreamInstruction(
     return null;
   }
 
-  if(idlFileVersion <= 0 || idlFileVersion > 255){
+  if(idlFileVersion <= 0 || idlFileVersion > LATEST_IDL_FILE_VERSION){
     return null;
   }
 
-  let idlFileVersionStr = idlFileVersion.toString();
-  if(idlFileVersion < 10) {
-    idlFileVersionStr = '00' + idlFileVersionStr;
-  } else if(idlFileVersion < 200) {
-    idlFileVersionStr = '0' + idlFileVersionStr;
-  }
-
-  const idlFileName = `msp_idl_${idlFileVersionStr}`;
-
   try {
     if (!idls[idlFileVersion]) {
-      const importedIdl = await import(`./${idlFileName}`);
-      idls[idlFileVersion] = importedIdl.IDL;
+      if (idlFileVersion === 1) { // TODO: to avoid this if else, find a way to do dynamic imports passign concatenated paths
+        const importedIdl = await import('./msp_idl_001');
+        idls[idlFileVersion] = importedIdl.IDL;
+      } else {
+        return null;
+      }
     }
     
     const coder = new BorshInstructionCoder(idls[idlFileVersion] as Idl);
