@@ -5,7 +5,7 @@ import { Commitment, Connection, ConnectionConfig, Keypair, PublicKey, Transacti
 import { ASSOCIATED_TOKEN_PROGRAM_ID, NATIVE_MINT as NATIVE_WSOL_MINT, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { BN, Program } from "@project-serum/anchor";
 
-import { Msp } from './idl';
+import { Msp } from './idl/msp_idl_001';
 
 /**
  * MSP

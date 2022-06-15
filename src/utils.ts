@@ -19,8 +19,7 @@ import { BN, BorshInstructionCoder, Idl, Program } from "@project-serum/anchor";
 import { Constants } from "./constants";
 import { StreamActivity, Stream, MSP_ACTIONS, TransactionFees, StreamActivityRaw } from "./types";
 import { STREAM_STATUS, Treasury, TreasuryType } from "./types";
-import { IDL, Msp } from './idl';
-import IDL_1645224519 from './idl_1645224519'; // IDL prior to 2022-02-18T21.48.39
+import { IDL, Msp } from './idl/msp_idl_001'; // point to the latest IDL
 import { bs58 } from "@project-serum/anchor/dist/cjs/utils/bytes";
 import { AnchorProvider, Wallet } from "@project-serum/anchor/dist/cjs/provider";
 import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, NATIVE_MINT, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
@@ -203,7 +202,7 @@ export const listStreamActivity = async (
   let txs = await program.provider.connection.getParsedTransactions(signatures.map((s: any) => s.signature), finality);
 
   if (txs && txs.length) {
-    activityRaw = parseStreamTransactions(address, txs as ParsedTransactionWithMeta[]);
+    activityRaw = await parseStreamTransactions(address, txs as ParsedTransactionWithMeta[]);
 
     activityRaw.sort(
       (a, b) => (b.blockTime ?? 0) - (a.blockTime ?? 0)
@@ -618,196 +617,327 @@ const parseStreamItemData = (
   return streamInfo;
 }
 
-function parseStreamTransactions(
+let idl_legacy_after_1645224519: any = null;
+let idl_legacy_before_1645224519: any = null;
+const idls: { [fileVersion: number]: any } = {};
+
+async function parseStreamInstructionAfter1645224519(
+  ix: PartiallyDecodedInstruction,
+  streamAddress: PublicKey,
+  transactionSignature: string,
+  transactionBlockTimeInSeconds: number,
+): Promise<StreamActivityRaw | null> {
+
+  if (!ix.programId.equals(Constants.MSP)) {
+    return null;
+  }
+
+  try {
+    if (!idl_legacy_after_1645224519) {
+      const importedIdl = await import("./idl/msp_idl_legacy_after_1645224519");
+      idl_legacy_after_1645224519 = importedIdl.IDL;
+    }
+    
+    const coder = new BorshInstructionCoder(idl_legacy_after_1645224519 as Idl);
+
+
+    const decodedIx = coder.decode(ix.data, "base58");
+    if (!decodedIx) return null;
+
+    const ixName = decodedIx.name;
+    // console.log(`ixName: ${ixName}`);
+    if (['createStream', 'allocate', 'withdraw'].indexOf(ixName) === -1) return null;
+
+    const ixAccountMetas = ix.accounts.map(pk => { return { pubkey: pk, isSigner: false, isWritable: false } });
+
+    const formattedIx = coder.format(decodedIx, ixAccountMetas);
+    // console.log(formattedIx);
+    // console.table(formattedIx?.accounts.map(a => { return { name: a.name, pk: a.pubkey.toBase58() } }));
+
+    const stream = formattedIx?.accounts.find(a => a.name === 'Stream')?.pubkey;
+    if (!stream || !stream.equals(streamAddress)) {
+      return null;
+    }
+
+    let blockTime = (transactionBlockTimeInSeconds as number) * 1000; // mult by 1000 to add milliseconds
+    let action = decodedIx.name === 'createStream' || decodedIx.name === 'allocate' ? "deposited" : "withdrew";
+
+    let initializer: PublicKey | undefined;
+    let mint: PublicKey | undefined;
+    let amountBN: BN | undefined;
+
+    if (decodedIx.name === 'createStream') {
+      initializer = formattedIx?.accounts.find(a => a.name === 'Treasurer')?.pubkey;
+      mint = formattedIx?.accounts.find(a => a.name === 'Associated Token')?.pubkey;
+      const parsedAmount = formattedIx?.args.find(a => a.name === 'allocationAssignedUnits')?.data;
+      amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
+    }
+    else if (decodedIx.name === 'allocate') {
+      initializer = formattedIx?.accounts.find(a => a.name === 'Treasurer')?.pubkey;
+      mint = formattedIx?.accounts.find(a => a.name === 'Associated Token')?.pubkey;
+      const parsedAmount = formattedIx?.args.find(a => a.name === 'amount')?.data;
+      amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
+    }
+    else if (decodedIx.name === 'withdraw') {
+      initializer = formattedIx?.accounts.find(a => a.name === 'Beneficiary')?.pubkey;
+      mint = formattedIx?.accounts.find(a => a.name === 'Associated Token')?.pubkey;
+      const parsedAmount = formattedIx?.args.find(a => a.name === 'amount')?.data;
+      amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
+    }
+
+    const activity: StreamActivityRaw =
+    {
+      signature: transactionSignature,
+      initializer: initializer,
+      blockTime,
+      utcDate: new Date(blockTime).toUTCString(),
+      action,
+      // TODO: Here the 'amount' might not be accurate, we need to emit events instead
+      amount: amountBN,
+      mint,
+    };
+
+    return activity;
+
+  } catch (error) {
+    console.log(error);
+    return null;
+  }
+}
+
+async function parseStreamInstructionBefore1645224519(
+  ix: PartiallyDecodedInstruction,
+  streamAddress: PublicKey,
+  transactionSignature: string,
+  transactionBlockTimeInSeconds: number,
+): Promise<StreamActivityRaw | null> {
+
+  if (!ix.programId.equals(Constants.MSP)) {
+    return null;
+  }
+
+  try {
+
+    if (!idl_legacy_before_1645224519) {
+      idl_legacy_before_1645224519 = await import("./idl/msp_idl_legacy_before_1645224519");
+    }
+
+    const coder = new BorshInstructionCoder(idl_legacy_before_1645224519 as Idl);
+
+    const decodedIx = coder.decode(ix.data, "base58");
+    if (!decodedIx) return null;
+
+    const ixName = decodedIx.name;
+    // console.log(`ixName: ${ixName}`);
+    if (['createStream', 'addFunds', 'withdraw'].indexOf(ixName) === -1) return null;
+
+    const ixAccountMetas = ix.accounts.map(pk => { return { pubkey: pk, isSigner: false, isWritable: false } });
+
+    const formattedIx = coder.format(decodedIx, ixAccountMetas);
+    // console.log(formattedIx);
+    // console.table(formattedIx?.accounts.map(a => { return { name: a.name, pk: a.pubkey.toBase58() } }));
+
+    const stream = formattedIx?.accounts.find(a => a.name === 'Stream')?.pubkey;
+    if (!stream || !stream.equals(streamAddress)) {
+      return null;
+    }
+
+    let blockTime = (transactionBlockTimeInSeconds as number) * 1000; // mult by 1000 to add milliseconds
+    let action = decodedIx.name === 'createStream' || decodedIx.name === 'addFunds' ? "deposited" : "withdrew";
+
+    let initializer: PublicKey | undefined;
+    let mint: PublicKey | undefined;
+    let amountBN: BN | undefined;
+
+    if (decodedIx.name === 'createStream') {
+      if (ixAccountMetas.length !== 14) {
+        // console.log(`this createStream instruction corresponds to an IDL that is not supported`);
+        return null;
+      }
+      initializer = formattedIx?.accounts.find(a => a.name === 'Treasurer')?.pubkey;
+      mint = formattedIx?.accounts.find(a => a.name === 'Associated Token')?.pubkey;
+      const parsedAmount = formattedIx?.args.find(a => a.name === 'allocationAssignedUnits')?.data;
+      amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
+    }
+    else if (decodedIx.name === 'addFunds') {
+      if (ixAccountMetas.length !== 14) {
+        // console.log(`this addFunds instruction corresponds to an IDL that is not supported`);
+        return null;
+      }
+      const allocationType = formattedIx?.args.find(a => a.name === 'allocationType')?.data;
+      if (allocationType !== '1') {
+        return null;
+      }
+
+      initializer = formattedIx?.accounts.find(a => a.name === 'Treasurer')?.pubkey;
+      mint = formattedIx?.accounts.find(a => a.name === 'Associated Token')?.pubkey;
+      const parsedAmount = formattedIx?.args.find(a => a.name === 'amount')?.data;
+      amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
+    }
+    else if (decodedIx.name === 'withdraw') {
+      if (ixAccountMetas.length !== 13) {
+        // console.log(`this withdraw instruction corresponds to an IDL that is not supported`);
+        return null;
+      }
+      initializer = formattedIx?.accounts.find(a => a.name === 'Beneficiary')?.pubkey;
+      mint = formattedIx?.accounts.find(a => a.name === 'Associated Token')?.pubkey;
+      const parsedAmount = formattedIx?.args.find(a => a.name === 'amount')?.data;
+      amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
+    }
+
+    const activity: StreamActivityRaw =
+    {
+      signature: transactionSignature,
+      initializer: initializer,
+      blockTime,
+      utcDate: new Date(blockTime).toUTCString(),
+      action,
+      // TODO: Here the 'amount' might not be accurate, we need to emit events instead
+      amount: amountBN,
+      mint,
+    };
+
+    return activity;
+
+  } catch (error) {
+    console.log(error);
+    return null;
+  }
+}
+
+async function parseVersionedStreamInstruction(
+  ix: PartiallyDecodedInstruction,
+  streamAddress: PublicKey,
+  transactionSignature: string,
+  transactionBlockTimeInSeconds: number,
+  idlFileVersion: number,
+): Promise<StreamActivityRaw | null> {
+
+  if (!ix.programId.equals(Constants.MSP)) {
+    return null;
+  }
+
+  if(idlFileVersion <= 0 || idlFileVersion > 255){
+    return null;
+  }
+
+  let idlFileVersionStr = idlFileVersion.toString();
+  if(idlFileVersion < 10) {
+    idlFileVersionStr = '00' + idlFileVersionStr;
+  } else if(idlFileVersion < 200) {
+    idlFileVersionStr = '0' + idlFileVersionStr;
+  }
+
+  const idlFileName = `msp_idl_${idlFileVersionStr}`;
+
+  try {
+    if (!idls[idlFileVersion]) {
+      const importedIdl = await import(`./idl/${idlFileName}`);
+      idls[idlFileVersion] = importedIdl.IDL;
+    }
+    
+    const coder = new BorshInstructionCoder(idls[idlFileVersion] as Idl);
+
+    const decodedIx = coder.decode(ix.data, "base58");
+    if (!decodedIx) return null;
+
+    const ixName = decodedIx.name;
+    // console.log(`ixName: ${ixName}`);
+    if (['createStream', 'allocate', 'withdraw'].indexOf(ixName) === -1) return null;
+
+    const ixAccountMetas = ix.accounts.map(pk => { return { pubkey: pk, isSigner: false, isWritable: false } });
+
+    const formattedIx = coder.format(decodedIx, ixAccountMetas);
+    // console.log(formattedIx);
+    // console.table(formattedIx?.accounts.map(a => { return { name: a.name, pk: a.pubkey.toBase58() } }));
+
+    const stream = formattedIx?.accounts.find(a => a.name === 'Stream')?.pubkey;
+    if (!stream || !stream.equals(streamAddress)) {
+      return null;
+    }
+
+    let blockTime = (transactionBlockTimeInSeconds as number) * 1000; // mult by 1000 to add milliseconds
+    let action = decodedIx.name === 'createStream' || decodedIx.name === 'allocate' ? "deposited" : "withdrew";
+
+    let initializer: PublicKey | undefined;
+    let mint: PublicKey | undefined;
+    let amountBN: BN | undefined;
+
+    if (decodedIx.name === 'createStream') {
+      initializer = formattedIx?.accounts.find(a => a.name === 'Treasurer')?.pubkey;
+      mint = formattedIx?.accounts.find(a => a.name === 'Associated Token')?.pubkey;
+      const parsedAmount = formattedIx?.args.find(a => a.name === 'allocationAssignedUnits')?.data;
+      amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
+    }
+    else if (decodedIx.name === 'allocate') {
+      initializer = formattedIx?.accounts.find(a => a.name === 'Treasurer')?.pubkey;
+      mint = formattedIx?.accounts.find(a => a.name === 'Associated Token')?.pubkey;
+      const parsedAmount = formattedIx?.args.find(a => a.name === 'amount')?.data;
+      amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
+    }
+    else if (decodedIx.name === 'withdraw') {
+      initializer = formattedIx?.accounts.find(a => a.name === 'Beneficiary')?.pubkey;
+      mint = formattedIx?.accounts.find(a => a.name === 'Associated Token')?.pubkey;
+      const parsedAmount = formattedIx?.args.find(a => a.name === 'amount')?.data;
+      amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
+    }
+
+    const activity: StreamActivityRaw =
+    {
+      signature: transactionSignature,
+      initializer: initializer,
+      blockTime,
+      utcDate: new Date(blockTime).toUTCString(),
+      action,
+      // TODO: Here the 'amount' might not be accurate, we need to emit events instead
+      amount: amountBN,
+      mint,
+    };
+
+    return activity;
+
+  } catch (error) {
+    console.log(error);
+    return null;
+  }
+}
+
+async function parseStreamTransactions(
   streamAddress: PublicKey,
   transactions: ParsedTransactionWithMeta[],
-  ): StreamActivityRaw[] {
-  
+): Promise<StreamActivityRaw[]> {
+
   const parsedActivities: StreamActivityRaw[] = [];
 
-  if(!transactions || transactions.length === 0)
+  if (!transactions || transactions.length === 0)
     return [];
 
   for (let i = 0; i < transactions.length; i++) {
     const tx = transactions[i];
     const signature = tx.transaction.signatures[0];
 
-    let coderLatest: BorshInstructionCoder | null = null; // borsh coder to be use for transactions done after blocktime 1645224519 115553056
-    let coder1645224519: BorshInstructionCoder | null = null; // borsh coder to be use for transactions done until blocktime 1645224519
-    
-    if(!tx.blockTime || tx.blockTime >= 1645224519) {
-      if(!coderLatest) {
-        coderLatest = new BorshInstructionCoder(IDL as Idl);
+    for (let j = 0; j < tx.transaction.message.instructions.length; j++) {
+
+      const ix = tx.transaction.message.instructions[j] as PartiallyDecodedInstruction;
+      if (!ix || !ix.data) continue;
+
+      const decodedIxData = bs58.decode(ix.data);
+      const ixIdlFileVersion = decodedIxData.length >= 9 ? decodedIxData.slice(8, 9)[0] : 0;
+      
+      let activity: StreamActivityRaw | null = null;
+      if(ixIdlFileVersion > 0 && ixIdlFileVersion <= 1){ // TODO: hardcoded
+        activity = await parseVersionedStreamInstruction(ix, streamAddress, signature, tx.blockTime ?? 0, ixIdlFileVersion)
+      } else if (!tx.blockTime || tx.blockTime >= 1645224519) {
+        activity = await parseStreamInstructionAfter1645224519(ix, streamAddress, signature, tx.blockTime ?? 0);
       }
-      const coder = coderLatest;
-
-      for (let j = 0; j < tx.transaction.message.instructions.length; j++) {
-
-        const ix = tx.transaction.message.instructions[j] as PartiallyDecodedInstruction;
-        if(!ix || !ix.data) continue;
-
-        try {
-          if (ix.programId.equals(Constants.MSP)) {
-
-            const decodedIx = coder.decode(ix.data, "base58");
-            if (!decodedIx) continue;
-
-            const ixName = decodedIx.name;
-            // console.log(`ixName: ${ixName}`);
-            if (['createStream', 'allocate', 'withdraw'].indexOf(ixName) === -1) continue;
-
-            const ixAccountMetas = ix.accounts.map(pk => { return { pubkey: pk, isSigner: false, isWritable: false } });
-
-            const formattedIx = coder.format(decodedIx, ixAccountMetas);
-            // console.log(formattedIx);
-            // console.table(formattedIx?.accounts.map(a => { return { name: a.name, pk: a.pubkey.toBase58() } }));
-
-            const stream = formattedIx?.accounts.find(a => a.name === 'Stream')?.pubkey;
-            if(!stream || !stream.equals(streamAddress)){
-              continue;
-            }
-
-            let blockTime = (tx.blockTime as number) * 1000; // mult by 1000 to add milliseconds
-            let action = decodedIx.name === 'createStream' || decodedIx.name === 'allocate' ? "deposited" : "withdrew";
-
-            let initializer: PublicKey | undefined;
-            let mint: PublicKey | undefined;
-            let amountBN: BN | undefined;
-
-            if (decodedIx.name === 'createStream') {
-              initializer = formattedIx?.accounts.find(a => a.name === 'Treasurer')?.pubkey;
-              mint = formattedIx?.accounts.find(a => a.name === 'Associated Token')?.pubkey;
-              const parsedAmount = formattedIx?.args.find(a => a.name === 'allocationAssignedUnits')?.data;
-              amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
-            }
-            else if (decodedIx.name === 'allocate') {
-              initializer = formattedIx?.accounts.find(a => a.name === 'Treasurer')?.pubkey;
-              mint = formattedIx?.accounts.find(a => a.name === 'Associated Token')?.pubkey;
-              const parsedAmount = formattedIx?.args.find(a => a.name === 'amount')?.data;
-              amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
-            }
-            else if (decodedIx.name === 'withdraw') {
-              initializer = formattedIx?.accounts.find(a => a.name === 'Beneficiary')?.pubkey;
-              mint = formattedIx?.accounts.find(a => a.name === 'Associated Token')?.pubkey;
-              const parsedAmount = formattedIx?.args.find(a => a.name === 'amount')?.data;
-              amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
-            }
-
-            const activity: StreamActivityRaw =
-            {
-              signature,
-              initializer: initializer,
-              blockTime,
-              utcDate: new Date(blockTime).toUTCString(),
-              action,
-              // TODO: Here the 'amount' might not be accurate, we need to emit events instead
-              amount: amountBN,
-              mint,
-            };
-
-            parsedActivities.push(activity);
-
-          }
-        } catch (error) {
-          console.log(error);
-        }
+      else {
+        activity = await parseStreamInstructionBefore1645224519(ix, streamAddress, signature, tx.blockTime ?? 0);
       }
 
-    } else {
-      if(!coder1645224519) {
-        coder1645224519 = new BorshInstructionCoder(IDL_1645224519 as Idl);
+      if(!activity) {
+        continue;
       }
-      const coder = coder1645224519;
-
-      for (let j = 0; j < tx.transaction.message.instructions.length; j++) {
-
-        const ix = tx.transaction.message.instructions[j] as PartiallyDecodedInstruction;
-        if(!ix || !ix.data) continue;
-
-        try {
-          if (ix.programId.equals(Constants.MSP)) {
-
-            const decodedIx = coder.decode(ix.data, "base58");
-            if (!decodedIx) continue;
-
-            const ixName = decodedIx.name;
-            // console.log(`ixName: ${ixName}`);
-            if (['createStream', 'addFunds', 'withdraw'].indexOf(ixName) === -1) continue;
-
-            const ixAccountMetas = ix.accounts.map(pk => { return { pubkey: pk, isSigner: false, isWritable: false } });
-
-            const formattedIx = coder.format(decodedIx, ixAccountMetas);
-            // console.log(formattedIx);
-            // console.table(formattedIx?.accounts.map(a => { return { name: a.name, pk: a.pubkey.toBase58() } }));
-
-            const stream = formattedIx?.accounts.find(a => a.name === 'Stream')?.pubkey;
-            if(!stream || !stream.equals(streamAddress)){
-              continue;
-            }
-
-            let blockTime = (tx.blockTime as number) * 1000; // mult by 1000 to add milliseconds
-            let action = decodedIx.name === 'createStream' || decodedIx.name === 'addFunds' ? "deposited" : "withdrew";
-
-            let initializer: PublicKey | undefined;
-            let mint: PublicKey | undefined;
-            let amountBN: BN | undefined;
-
-            if (decodedIx.name === 'createStream') {
-              if(ixAccountMetas.length !== 14) {
-                // console.log(`this createStream instruction corresponds to an IDL that is not supported`);
-                continue;
-              }
-              initializer = formattedIx?.accounts.find(a => a.name === 'Treasurer')?.pubkey;
-              mint = formattedIx?.accounts.find(a => a.name === 'Associated Token')?.pubkey;
-              const parsedAmount = formattedIx?.args.find(a => a.name === 'allocationAssignedUnits')?.data;
-              amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
-            }
-            else if (decodedIx.name === 'addFunds') {
-              if(ixAccountMetas.length !== 14) {
-                // console.log(`this addFunds instruction corresponds to an IDL that is not supported`);
-                continue;
-              }
-              const allocationType = formattedIx?.args.find(a => a.name === 'allocationType')?.data;
-              if(allocationType !== '1'){
-                continue;
-              }
-
-              initializer = formattedIx?.accounts.find(a => a.name === 'Treasurer')?.pubkey;
-              mint = formattedIx?.accounts.find(a => a.name === 'Associated Token')?.pubkey;
-              const parsedAmount = formattedIx?.args.find(a => a.name === 'amount')?.data;
-              amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
-            }
-            else if (decodedIx.name === 'withdraw') {
-              if(ixAccountMetas.length !== 13) {
-                // console.log(`this withdraw instruction corresponds to an IDL that is not supported`);
-                continue;
-              }
-              initializer = formattedIx?.accounts.find(a => a.name === 'Beneficiary')?.pubkey;
-              mint = formattedIx?.accounts.find(a => a.name === 'Associated Token')?.pubkey;
-              const parsedAmount = formattedIx?.args.find(a => a.name === 'amount')?.data;
-              amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
-            }
-
-            const activity: StreamActivityRaw =
-            {
-              signature,
-              initializer: initializer,
-              blockTime,
-              utcDate: new Date(blockTime).toUTCString(),
-              action,
-              // TODO: Here the 'amount' might not be accurate, we need to emit events instead
-              amount: amountBN,
-              mint,
-            };
-
-            parsedActivities.push(activity);
-
-          }
-        } catch (error) {
-          console.log(error);
-        }
-      }
-
+      parsedActivities.push(activity);
     }
 
   }
