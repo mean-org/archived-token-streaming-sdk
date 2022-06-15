@@ -19,7 +19,7 @@ import { BN, BorshInstructionCoder, Idl, Program } from "@project-serum/anchor";
 import { Constants } from "./constants";
 import { StreamActivity, Stream, MSP_ACTIONS, TransactionFees, StreamActivityRaw } from "./types";
 import { STREAM_STATUS, Treasury, TreasuryType } from "./types";
-import { IDL, Msp } from './idl/msp_idl_001'; // point to the latest IDL
+import { IDL, Msp } from './msp_idl_001'; // point to the latest IDL
 import { bs58 } from "@project-serum/anchor/dist/cjs/utils/bytes";
 import { AnchorProvider, Wallet } from "@project-serum/anchor/dist/cjs/provider";
 import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, NATIVE_MINT, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
@@ -634,7 +634,7 @@ async function parseStreamInstructionAfter1645224519(
 
   try {
     if (!idl_legacy_after_1645224519) {
-      const importedIdl = await import("./idl/msp_idl_legacy_after_1645224519");
+      const importedIdl = await import("./msp_idl_legacy_after_1645224519");
       idl_legacy_after_1645224519 = importedIdl.IDL;
     }
     
@@ -719,7 +719,7 @@ async function parseStreamInstructionBefore1645224519(
   try {
 
     if (!idl_legacy_before_1645224519) {
-      idl_legacy_before_1645224519 = await import("./idl/msp_idl_legacy_before_1645224519");
+      idl_legacy_before_1645224519 = await import("./msp_idl_legacy_before_1645224519");
     }
 
     const coder = new BorshInstructionCoder(idl_legacy_before_1645224519 as Idl);
@@ -832,7 +832,7 @@ async function parseVersionedStreamInstruction(
 
   try {
     if (!idls[idlFileVersion]) {
-      const importedIdl = await import(`./idl/${idlFileName}`);
+      const importedIdl = await import(`./${idlFileName}`);
       idls[idlFileVersion] = importedIdl.IDL;
     }
     
