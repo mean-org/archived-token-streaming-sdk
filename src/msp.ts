@@ -15,6 +15,7 @@ import { createProgram, createWrapSolInstructions, getStream, getStreamCached, g
 import { Constants, WARNING_TYPES } from "./constants";
 import { Beneficiary, listTreasuries, StreamBeneficiary } from ".";
 import { u64Number } from "./u64n";
+import { LATEST_IDL_FILE_VERSION } from "./constants"
 
 /**
  * API class with functions to interact with the Money Streaming Program using Solana Web3 JS API
@@ -191,7 +192,6 @@ export class MSP {
     mint: PublicKey,
     amount: number,
   ): Promise<Transaction> {
-    let txSigners: Signer[] = [];
     let ixs: TransactionInstruction[] = [];
     
     if (mint.equals(Constants.SOL_MINT)) {      
@@ -344,6 +344,7 @@ export class MSP {
     // Create treasury
     ixs.push(
       this.program.instruction.createTreasury(
+        LATEST_IDL_FILE_VERSION,
         new BN(slot),
         streamName ?? "",
         TreasuryType.Open,
@@ -403,6 +404,7 @@ export class MSP {
     // Add Funds
     ixs.push(
       this.program.instruction.addFunds(
+        LATEST_IDL_FILE_VERSION,
         new BN(amount),
         {
           accounts: {
@@ -433,6 +435,7 @@ export class MSP {
     // Create Stream
     ixs.push(
       this.program.instruction.createStream(
+        LATEST_IDL_FILE_VERSION,
         streamName ?? "",
         new BN(startUtcInSeconds),
         new BN(0), // rate amount units
@@ -545,6 +548,7 @@ export class MSP {
     // Create treasury
     ixs.push(
       this.program.instruction.createTreasury(
+        LATEST_IDL_FILE_VERSION,
         new BN(slot),
         streamName,
         TreasuryType.Open,
@@ -591,6 +595,7 @@ export class MSP {
     // Add Funds
     ixs.push(
       this.program.instruction.addFunds(
+        LATEST_IDL_FILE_VERSION,
         new BN(allocationAssigned),
         {
           accounts: {
@@ -620,6 +625,7 @@ export class MSP {
     // Create Stream
     ixs.push(
       this.program.instruction.createStream(
+        LATEST_IDL_FILE_VERSION,
         streamName,
         new BN(startUtcInSeconds),
         new BN(rateAmount ?? 0), // rate amount units
@@ -697,6 +703,7 @@ export class MSP {
     );
 
     let tx = this.program.transaction.createTreasury(
+      LATEST_IDL_FILE_VERSION,
       new BN(slot),
       label,
       type,
@@ -820,6 +827,7 @@ export class MSP {
 
     // Create Stream
     let tx = this.program.transaction.createStream(
+      LATEST_IDL_FILE_VERSION,
       streamName,
       new BN(startUtcInSeconds),
       new BN(rateAmount as number),
@@ -926,6 +934,7 @@ export class MSP {
 
         let streamAccount = Keypair.generate();
         let ix = this.program.instruction.createStream(
+          LATEST_IDL_FILE_VERSION,
           beneficiary.streamName,
           new BN(startUtcInSeconds),
           new BN(rateAmount as number),
@@ -1049,6 +1058,7 @@ export class MSP {
 
     ixs.push(
       this.program.instruction.addFunds(
+        LATEST_IDL_FILE_VERSION,
         new BN(amount),
         {
           accounts: {
@@ -1084,6 +1094,7 @@ export class MSP {
 
     ixs.push(
       this.program.instruction.allocate(
+        LATEST_IDL_FILE_VERSION,
         allocationAmountBn,
         {
           accounts: {
@@ -1191,6 +1202,7 @@ export class MSP {
 
     ixs.push(
       this.program.instruction.addFunds(
+        LATEST_IDL_FILE_VERSION,
         new BN(amount),
         {
           accounts: {
@@ -1277,6 +1289,7 @@ export class MSP {
     );
 
     let tx = this.program.transaction.allocate(
+      LATEST_IDL_FILE_VERSION,
       new BN(amount),
       {
         accounts: {
@@ -1360,6 +1373,7 @@ export class MSP {
     const txSigners: Signer[] = [];
 
     let withdrawIx = this.program.instruction.withdraw(
+      LATEST_IDL_FILE_VERSION,
       new BN(amount),
       {
         accounts: {
@@ -1429,6 +1443,7 @@ export class MSP {
     const associatedToken = new PublicKey(streamInfo.associatedToken as string);
 
     let tx = this.program.transaction.pauseStream(
+      LATEST_IDL_FILE_VERSION,
       {
         accounts: {
           initializer: treasurer, // TODO: payer = payer, inititlizer = treasurer (change initializer to treasurer in MSP)
@@ -1469,6 +1484,7 @@ export class MSP {
     const associatedToken = new PublicKey(streamInfo.associatedToken as string);
 
     let tx = this.program.transaction.resumeStream(
+      LATEST_IDL_FILE_VERSION,
       {
         accounts: {
           initializer: treasurer, // TODO: payer = payer, inititlizer = treasurer (change initializer to treasurer in MSP)
@@ -1541,6 +1557,7 @@ export class MSP {
 
     let ixs: TransactionInstruction[] = [
       this.program.instruction.closeStream(
+        LATEST_IDL_FILE_VERSION,
         {
           accounts: {
             payer: payer,
@@ -1583,6 +1600,7 @@ export class MSP {
 
       ixs.push(
         this.program.instruction.closeTreasury(
+          LATEST_IDL_FILE_VERSION,
           {
             accounts: {
               payer: payer,
@@ -1689,6 +1707,7 @@ export class MSP {
     const txSigners: Signer[] = [];
 
     let closeTreasuryIx = this.program.instruction.closeTreasury(
+      LATEST_IDL_FILE_VERSION,
       {
         accounts: {
           payer: payer,
@@ -1766,6 +1785,7 @@ export class MSP {
     const totalStreams = (await this.program.account.stream.all(memcmpFilters)).length;
 
     let tx = this.program.transaction.refreshTreasuryData(
+      LATEST_IDL_FILE_VERSION,
       new BN(totalStreams),
       {
         accounts: {
@@ -1804,6 +1824,7 @@ export class MSP {
     }
 
     let tx = this.program.transaction.transferStream(
+      LATEST_IDL_FILE_VERSION,
       newBeneficiary,
       {
         accounts: {
@@ -1878,6 +1899,7 @@ export class MSP {
 
     // Create Stream
     let tx = this.program.transaction.createStream(
+      LATEST_IDL_FILE_VERSION,
       streamName,
       new BN(startUtcInSeconds),
       new BN(rateAmount as number),
@@ -1980,6 +2002,7 @@ export class MSP {
         if (streamBeneficiary.address.toBase58() === treasurer.toBase58()) { continue; }
 
         let ix = this.program.instruction.createStream(
+          LATEST_IDL_FILE_VERSION,
           streamBeneficiary.streamName,
           new BN(startUtcInSeconds),
           new BN(rateAmount as number),
@@ -2067,6 +2090,7 @@ export class MSP {
     const txSigners: Signer[] = [];
 
     let treasuryWithdrawIx = this.program.instruction.treasuryWithdraw(
+      LATEST_IDL_FILE_VERSION,
       new BN(amount),
       {
         accounts: {

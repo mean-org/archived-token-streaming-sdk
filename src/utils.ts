@@ -16,7 +16,7 @@ import { BN, BorshInstructionCoder, Idl, Program } from "@project-serum/anchor";
 /**
  * MSP
  */
-import { Constants } from "./constants";
+import { Constants, LATEST_IDL_FILE_VERSION } from "./constants";
 import { StreamActivity, Stream, MSP_ACTIONS, TransactionFees, StreamActivityRaw } from "./types";
 import { STREAM_STATUS, Treasury, TreasuryType } from "./types";
 import { IDL, Msp } from './msp_idl_001'; // point to the latest IDL
@@ -70,7 +70,9 @@ export const getStream = async (
   
   try {
 
-    const streamEventResponse = await program.simulate.getStream({
+    const streamEventResponse = await program.simulate.getStream(
+      LATEST_IDL_FILE_VERSION,
+      {
       accounts: {
         stream: address
       }
