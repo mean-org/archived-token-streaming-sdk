@@ -85,6 +85,12 @@ export type Msp = {
         {
           "name": "solFeePayedByTreasury",
           "type": "bool"
+        },
+        {
+          "name": "category",
+          "type": {
+            "defined": "Category"
+          }
         }
       ]
     },
@@ -198,6 +204,160 @@ export type Msp = {
         {
           "name": "feePayedByTreasurer",
           "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "createStreamTemplate",
+      "accounts": [
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "treasurer",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "treasury",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "template",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "idlFileVersion",
+          "type": "u8"
+        },
+        {
+          "name": "startUtc",
+          "type": "u64"
+        },
+        {
+          "name": "rateAmountUnits",
+          "type": "u64"
+        },
+        {
+          "name": "rateIntervalInSeconds",
+          "type": "u64"
+        },
+        {
+          "name": "cliffVestAmountUnits",
+          "type": "u64"
+        },
+        {
+          "name": "cliffVestPercent",
+          "type": "u64"
+        },
+        {
+          "name": "feePayedByTreasurer",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "createStreamWithTemplate",
+      "accounts": [
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "initializer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "treasurer",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "treasury",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "treasuryToken",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "associatedToken",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "beneficiary",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "template",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "stream",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "feeTreasury",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "feeTreasuryToken",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "idlFileVersion",
+          "type": "u8"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "allocationAssignedUnits",
+          "type": "u64"
         }
       ]
     },
@@ -963,6 +1123,46 @@ export type Msp = {
           {
             "name": "createdOnUtc",
             "type": "u64"
+          },
+          {
+            "name": "category",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "streamTemplate",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "version",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "startUtcInSeconds",
+            "type": "u64"
+          },
+          {
+            "name": "cliffVestAmountUnits",
+            "type": "u64"
+          },
+          {
+            "name": "rateAmountUnits",
+            "type": "u64"
+          },
+          {
+            "name": "rateIntervalInSeconds",
+            "type": "u64"
+          },
+          {
+            "name": "feePayedByTreasurer",
+            "type": "bool"
           }
         ]
       }
@@ -1058,12 +1258,30 @@ export type Msp = {
           {
             "name": "solFeePayedByTreasury",
             "type": "bool"
+          },
+          {
+            "name": "category",
+            "type": "u8"
           }
         ]
       }
     }
   ],
   "types": [
+    {
+      "name": "Category",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Default"
+          },
+          {
+            "name": "Vesting"
+          }
+        ]
+      }
+    },
     {
       "name": "StreamStatus",
       "type": {
@@ -1543,6 +1761,16 @@ export type Msp = {
       "code": 6042,
       "name": "InvalidIdlFileVersion",
       "msg": "Invalid IDL file version"
+    },
+    {
+      "code": 6043,
+      "name": "InvalidTemplateVersion",
+      "msg": "Invalid template version"
+    },
+    {
+      "code": 6044,
+      "name": "InvalidTemplateSize",
+      "msg": "Invalid template size"
     }
   ]
 };
@@ -1634,6 +1862,12 @@ export const IDL: Msp = {
         {
           "name": "solFeePayedByTreasury",
           "type": "bool"
+        },
+        {
+          "name": "category",
+          "type": {
+            "defined": "Category"
+          }
         }
       ]
     },
@@ -1747,6 +1981,160 @@ export const IDL: Msp = {
         {
           "name": "feePayedByTreasurer",
           "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "createStreamTemplate",
+      "accounts": [
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "treasurer",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "treasury",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "template",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "idlFileVersion",
+          "type": "u8"
+        },
+        {
+          "name": "startUtc",
+          "type": "u64"
+        },
+        {
+          "name": "rateAmountUnits",
+          "type": "u64"
+        },
+        {
+          "name": "rateIntervalInSeconds",
+          "type": "u64"
+        },
+        {
+          "name": "cliffVestAmountUnits",
+          "type": "u64"
+        },
+        {
+          "name": "cliffVestPercent",
+          "type": "u64"
+        },
+        {
+          "name": "feePayedByTreasurer",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "createStreamWithTemplate",
+      "accounts": [
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "initializer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "treasurer",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "treasury",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "treasuryToken",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "associatedToken",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "beneficiary",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "template",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "stream",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "feeTreasury",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "feeTreasuryToken",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "idlFileVersion",
+          "type": "u8"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "allocationAssignedUnits",
+          "type": "u64"
         }
       ]
     },
@@ -2512,6 +2900,46 @@ export const IDL: Msp = {
           {
             "name": "createdOnUtc",
             "type": "u64"
+          },
+          {
+            "name": "category",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "streamTemplate",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "version",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "startUtcInSeconds",
+            "type": "u64"
+          },
+          {
+            "name": "cliffVestAmountUnits",
+            "type": "u64"
+          },
+          {
+            "name": "rateAmountUnits",
+            "type": "u64"
+          },
+          {
+            "name": "rateIntervalInSeconds",
+            "type": "u64"
+          },
+          {
+            "name": "feePayedByTreasurer",
+            "type": "bool"
           }
         ]
       }
@@ -2607,12 +3035,30 @@ export const IDL: Msp = {
           {
             "name": "solFeePayedByTreasury",
             "type": "bool"
+          },
+          {
+            "name": "category",
+            "type": "u8"
           }
         ]
       }
     }
   ],
   "types": [
+    {
+      "name": "Category",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Default"
+          },
+          {
+            "name": "Vesting"
+          }
+        ]
+      }
+    },
     {
       "name": "StreamStatus",
       "type": {
@@ -3092,6 +3538,16 @@ export const IDL: Msp = {
       "code": 6042,
       "name": "InvalidIdlFileVersion",
       "msg": "Invalid IDL file version"
+    },
+    {
+      "code": 6043,
+      "name": "InvalidTemplateVersion",
+      "msg": "Invalid template version"
+    },
+    {
+      "code": 6044,
+      "name": "InvalidTemplateSize",
+      "msg": "Invalid template size"
     }
   ]
 };
