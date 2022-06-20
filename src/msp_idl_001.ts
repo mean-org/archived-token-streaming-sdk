@@ -246,10 +246,6 @@ export type Msp = {
           "type": "u64"
         },
         {
-          "name": "rateAmountUnits",
-          "type": "u64"
-        },
-        {
           "name": "rateIntervalInSeconds",
           "type": "u64"
         },
@@ -354,6 +350,10 @@ export type Msp = {
         {
           "name": "name",
           "type": "string"
+        },
+        {
+          "name": "rateAmountUnits",
+          "type": "u64"
         },
         {
           "name": "allocationAssignedUnits",
@@ -1150,10 +1150,6 @@ export type Msp = {
           },
           {
             "name": "cliffVestAmountUnits",
-            "type": "u64"
-          },
-          {
-            "name": "rateAmountUnits",
             "type": "u64"
           },
           {
@@ -2023,10 +2019,6 @@ export const IDL: Msp = {
           "type": "u64"
         },
         {
-          "name": "rateAmountUnits",
-          "type": "u64"
-        },
-        {
           "name": "rateIntervalInSeconds",
           "type": "u64"
         },
@@ -2131,6 +2123,10 @@ export const IDL: Msp = {
         {
           "name": "name",
           "type": "string"
+        },
+        {
+          "name": "rateAmountUnits",
+          "type": "u64"
         },
         {
           "name": "allocationAssignedUnits",
@@ -2927,10 +2923,6 @@ export const IDL: Msp = {
           },
           {
             "name": "cliffVestAmountUnits",
-            "type": "u64"
-          },
-          {
-            "name": "rateAmountUnits",
             "type": "u64"
           },
           {

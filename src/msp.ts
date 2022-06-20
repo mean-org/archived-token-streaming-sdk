@@ -53,6 +53,8 @@ import { Constants, WARNING_TYPES } from './constants';
 import { LATEST_IDL_FILE_VERSION } from './constants';
 import { Beneficiary, listTreasuries, StreamBeneficiary } from '.';
 import { u64Number } from './u64n';
+import { StreamTemplate } from './types';
+import { findStreamTemplateAddress } from './utils';
 
 /**
  * API class with functions to interact with the Money Streaming Program using Solana Web3 JS API
@@ -208,6 +210,17 @@ export class MSP {
     friendly = true,
   ): Promise<Treasury[]> {
     return listTreasuries(this.program, treasurer, friendly);
+  }
+
+  public async getStreamTemplate(
+    treasury: PublicKey,
+    friendly = true,
+  ): Promise<StreamTemplate> {
+    const [template] = await findStreamTemplateAddress(
+      treasury,
+      this.program.programId,
+    );
+    return getStreamTemplate(this.program, template, friendly);
   }
 
   public async transfer(
@@ -957,7 +970,6 @@ export class MSP {
     type: TreasuryType,
     solFeePayedByTreasury: boolean,
     treasuryAssociatedTokenMint: PublicKey,
-    rateAmount: number,
     rateIntervalInSeconds: number,
     startUtc?: Date,
     cliffVestAmount?: number,
@@ -1031,8 +1043,8 @@ export class MSP {
     const startUtcInSeconds = parseInt((startDate.getTime() / 1000).toString());
 
     // Template address
-    const [template] = await anchor.web3.PublicKey.findProgramAddress(
-      [anchor.utils.bytes.utf8.encode('template'), treasury.toBuffer()],
+    const [template] = await findStreamTemplateAddress(
+      treasury,
       this.program.programId,
     );
 
@@ -1040,7 +1052,6 @@ export class MSP {
     const ix2 = this.program.instruction.createStreamTemplate(
       LATEST_IDL_FILE_VERSION,
       new BN(startUtcInSeconds),
-      new BN(rateAmount),
       new BN(rateIntervalInSeconds),
       new BN(cliffVestAmount as number),
       new BN(cliffVestPercentValue),
@@ -1075,6 +1086,7 @@ export class MSP {
     treasury: PublicKey,
     beneficiary: PublicKey,
     treasuryAssociatedTokenMint: PublicKey,
+    rateAmount: number,
     allocationAssigned: number,
     startUtc?: Date,
   ): Promise<[Transaction, PublicKey]> {
@@ -1095,8 +1107,8 @@ export class MSP {
     }
 
     // Get the template
-    const [template] = await anchor.web3.PublicKey.findProgramAddress(
-      [anchor.utils.bytes.utf8.encode('template'), treasury.toBuffer()],
+    const [template] = await findStreamTemplateAddress(
+      treasury,
       this.program.programId,
     );
     const templateInfo = await getStreamTemplate(this.program, template);
@@ -1131,6 +1143,7 @@ export class MSP {
     const tx = this.program.transaction.createStreamWithTemplate(
       LATEST_IDL_FILE_VERSION,
       new BN(startUtcInSeconds),
+      new BN(rateAmount),
       new BN(allocationAssigned),
       {
         accounts: {

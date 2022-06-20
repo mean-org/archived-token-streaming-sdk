@@ -52,7 +52,6 @@ describe('Tests creating a vesting treasury\n', async () => {
       TreasuryType.Open,
       false,
       Constants.SOL_MINT,
-      100 * LAMPORTS_PER_SOL,
       3600,
       new Date(),
     );
@@ -74,6 +73,10 @@ describe('Tests creating a vesting treasury\n', async () => {
     await sendAndConfirmRawTransaction(connection, addFundsTxSerialized, { commitment: 'confirmed' });
     console.log('Funds added\n');
 
+    console.log('Fetching template data');
+    const template = await msp.getStreamTemplate(treasury);
+    console.log(`Template: ${JSON.stringify(template, null, 2)}\n`);
+
     console.log('Creating a vesting stream');
     const [createStreamTx, stream] = await msp.createStreamWithTemplate(
       user1Wallet.publicKey,
@@ -82,6 +85,7 @@ describe('Tests creating a vesting treasury\n', async () => {
       user2Wallet.publicKey,
       NATIVE_MINT,
       LAMPORTS_PER_SOL,
+      100 * LAMPORTS_PER_SOL,
     );
     createStreamTx.partialSign(user1Wallet);
     const createStreamTxSerialized = createStreamTx.serialize({

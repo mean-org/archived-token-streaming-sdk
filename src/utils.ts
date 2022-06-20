@@ -1,17 +1,17 @@
 import {
-  Commitment,
-  Connection,
-  PublicKey,
-  ConfirmOptions,
-  Finality,
-  PartiallyDecodedInstruction,
-  LAMPORTS_PER_SOL,
-  ConfirmedSignaturesForAddress2Options,
-  Keypair,
-  TransactionInstruction,
-  SystemProgram,
   AccountInfo,
+  Commitment,
+  ConfirmedSignaturesForAddress2Options,
+  ConfirmOptions,
+  Connection,
+  Finality,
+  Keypair,
+  LAMPORTS_PER_SOL,
   ParsedTransactionWithMeta,
+  PartiallyDecodedInstruction,
+  PublicKey,
+  SystemProgram,
+  TransactionInstruction,
 } from '@solana/web3.js';
 import { BN, BorshInstructionCoder, Idl, Program } from '@project-serum/anchor';
 /**
@@ -19,13 +19,14 @@ import { BN, BorshInstructionCoder, Idl, Program } from '@project-serum/anchor';
  */
 import { Constants, LATEST_IDL_FILE_VERSION } from './constants';
 import {
-  StreamActivity,
-  Stream,
   MSP_ACTIONS,
-  TransactionFees,
+  Stream,
+  StreamActivity,
   StreamActivityRaw,
+  TransactionFees,
 } from './types';
 import { STREAM_STATUS, Treasury, TreasuryType } from './types';
+import { StreamTemplate } from './types';
 import { IDL, Msp } from './msp_idl_001'; // point to the latest IDL
 import { bs58 } from '@project-serum/anchor/dist/cjs/utils/bytes';
 import {
@@ -39,7 +40,7 @@ import {
   Token,
   TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
-import { StreamTemplate } from './types';
+import * as anchor from '@project-serum/anchor';
 
 String.prototype.toPublicKey = function (): PublicKey {
   return new PublicKey(this.toString());
@@ -273,9 +274,17 @@ export const getStreamTemplate = async (
   friendly = true,
 ): Promise<StreamTemplate> => {
   const template = await program.account.streamTemplate.fetch(address);
-  const parsedTemplate = parseStreamTemplateData(template, address, friendly);
+  return parseStreamTemplateData(template, address, friendly);
+};
 
-  return parsedTemplate;
+export const findStreamTemplateAddress = async (
+  treasury: PublicKey,
+  programId: PublicKey,
+): Promise<[PublicKey, number]> => {
+  return anchor.web3.PublicKey.findProgramAddress(
+    [anchor.utils.bytes.utf8.encode('template'), treasury.toBuffer()],
+    programId,
+  );
 };
 
 export const listTreasuries = async (
@@ -1230,9 +1239,6 @@ const parseStreamTemplateData = (
     id: friendly ? address.toBase58() : address,
     version: template.version,
     bump: template.bump,
-    rateAmount: friendly
-      ? template.rateAmountUnits.toNumber()
-      : template.rateAmountUnits,
     rateIntervalInSeconds: friendly
       ? template.rateIntervalInSeconds.toNumber()
       : template.rateIntervalInSeconds,

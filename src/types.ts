@@ -134,7 +134,6 @@ export type StreamTemplate = {
   id: PublicKey | string;
   version: number;
   bump: number;
-  rateAmount: number;
   rateIntervalInSeconds: number;
   startUtc: Date | string;
   cliffVestAmount: number;
