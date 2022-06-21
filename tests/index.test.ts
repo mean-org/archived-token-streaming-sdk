@@ -8,6 +8,7 @@ import { Constants, MSP, TreasuryType } from '../src';
 import { NATIVE_MINT } from '@solana/spl-token';
 import {PublicKey} from "@solana/web3.js";
 import {Transaction} from "@solana/web3.js";
+import {TimeUnit} from "../src/types";
 
 const endpoint = 'http://localhost:8899';
 // deploy msp locally
@@ -52,7 +53,8 @@ describe('Tests creating a vesting treasury\n', async () => {
       TreasuryType.Open,
       false,
       Constants.SOL_MINT,
-      3600,
+      12,
+      TimeUnit.Month,
       new Date(),
     );
     await sendAndConfirmTransaction(connection, createVestingTreasuryTx, [user1Wallet], { commitment: 'confirmed' });
@@ -84,8 +86,8 @@ describe('Tests creating a vesting treasury\n', async () => {
       treasury,
       user2Wallet.publicKey,
       NATIVE_MINT,
-      LAMPORTS_PER_SOL,
       100 * LAMPORTS_PER_SOL,
+      'test_stream',
     );
     createStreamTx.partialSign(user1Wallet);
     const createStreamTxSerialized = createStreamTx.serialize({

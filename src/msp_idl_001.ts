@@ -250,7 +250,7 @@ export type Msp = {
           "type": "u64"
         },
         {
-          "name": "cliffVestAmountUnits",
+          "name": "durationNumberOfUnits",
           "type": "u64"
         },
         {
@@ -1149,11 +1149,15 @@ export type Msp = {
             "type": "u64"
           },
           {
-            "name": "cliffVestAmountUnits",
+            "name": "cliffVestPercent",
             "type": "u64"
           },
           {
             "name": "rateIntervalInSeconds",
+            "type": "u64"
+          },
+          {
+            "name": "durationNumberOfUnits",
             "type": "u64"
           },
           {
@@ -2023,7 +2027,7 @@ export const IDL: Msp = {
           "type": "u64"
         },
         {
-          "name": "cliffVestAmountUnits",
+          "name": "durationNumberOfUnits",
           "type": "u64"
         },
         {
@@ -2922,11 +2926,15 @@ export const IDL: Msp = {
             "type": "u64"
           },
           {
-            "name": "cliffVestAmountUnits",
+            "name": "cliffVestPercent",
             "type": "u64"
           },
           {
             "name": "rateIntervalInSeconds",
+            "type": "u64"
+          },
+          {
+            "name": "durationNumberOfUnits",
             "type": "u64"
           },
           {

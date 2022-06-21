@@ -134,9 +134,10 @@ export type StreamTemplate = {
   id: PublicKey | string;
   version: number;
   bump: number;
-  rateIntervalInSeconds: number;
   startUtc: Date | string;
-  cliffVestAmount: number;
+  cliffVestPercent: number;
+  rateIntervalInSeconds: number;
+  durationNumberOfUnits: number;
   feePayedByTreasurer: boolean;
 };
 
@@ -217,3 +218,15 @@ export enum Category {
   default = 0,
   vesting = 1,
 }
+
+// Preferred Time Unit
+export enum TimeUnit {
+  Second = 0,
+  Minute = 60,
+  Hour = 3600,
+  Day = 86400,
+  Week = 604800,
+  Month = 2629750,
+  Year = 31557000,
+}
+

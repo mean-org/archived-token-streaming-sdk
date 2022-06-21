@@ -41,6 +41,7 @@ import {
   TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 import * as anchor from '@project-serum/anchor';
+import { TimeUnit } from './types';
 
 String.prototype.toPublicKey = function (): PublicKey {
   return new PublicKey(this.toString());
@@ -1239,15 +1240,14 @@ const parseStreamTemplateData = (
     id: friendly ? address.toBase58() : address,
     version: template.version,
     bump: template.bump,
+    durationNumberOfUnits: template.durationNumberOfUnits.toNumber(),
     rateIntervalInSeconds: friendly
       ? template.rateIntervalInSeconds.toNumber()
       : template.rateIntervalInSeconds,
     startUtc: !friendly
       ? new Date(template.startUtcInSeconds * 1000).toString()
       : new Date(template.startUtcInSeconds * 1000),
-    cliffVestAmount: friendly
-      ? template.cliffVestAmountUnits.toNumber()
-      : template.cliffVestAmountUnits,
+    cliffVestPercent: template.cliffVestPercent,
     feePayedByTreasurer: template.feePayedByTreasurer,
   } as StreamTemplate;
 };

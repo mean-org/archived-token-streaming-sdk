@@ -22,7 +22,6 @@ import {
   TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 import { BN, Program } from '@project-serum/anchor';
-import * as anchor from '@project-serum/anchor';
 
 import { Msp } from './msp_idl_001';
 
@@ -37,6 +36,8 @@ import {
   TreasuryType,
 } from './types';
 import { Category } from './types';
+import { StreamTemplate } from './types';
+import { TimeUnit } from './types';
 import {
   createProgram,
   createWrapSolInstructions,
@@ -49,12 +50,11 @@ import {
   listStreamsCached,
 } from './utils';
 import { getStreamTemplate } from './utils';
+import { findStreamTemplateAddress } from './utils';
 import { Constants, WARNING_TYPES } from './constants';
 import { LATEST_IDL_FILE_VERSION } from './constants';
 import { Beneficiary, listTreasuries, StreamBeneficiary } from '.';
 import { u64Number } from './u64n';
-import { StreamTemplate } from './types';
-import { findStreamTemplateAddress } from './utils';
 
 /**
  * API class with functions to interact with the Money Streaming Program using Solana Web3 JS API
@@ -970,12 +970,15 @@ export class MSP {
     type: TreasuryType,
     solFeePayedByTreasury: boolean,
     treasuryAssociatedTokenMint: PublicKey,
-    rateIntervalInSeconds: number,
+    duration: number,
+    durationUnit: TimeUnit,
     startUtc?: Date,
-    cliffVestAmount?: number,
-    cliffVestPercent?: number,
+    cliffVestPercent = 0,
     feePayedByTreasurer?: boolean,
   ): Promise<[Transaction, PublicKey]> {
+    // convert duration to seconds
+    const rateIntervalInSeconds: number = durationUnit as number;
+
     const slot = await this.connection.getSlot(
       (this.commitment as Commitment) || 'finalized',
     );
@@ -1053,7 +1056,7 @@ export class MSP {
       LATEST_IDL_FILE_VERSION,
       new BN(startUtcInSeconds),
       new BN(rateIntervalInSeconds),
-      new BN(cliffVestAmount as number),
+      new BN(duration),
       new BN(cliffVestPercentValue),
       feePayedByTreasurer ?? false,
       {
@@ -1086,9 +1089,8 @@ export class MSP {
     treasury: PublicKey,
     beneficiary: PublicKey,
     treasuryAssociatedTokenMint: PublicKey,
-    rateAmount: number,
     allocationAssigned: number,
-    startUtc?: Date,
+    streamName = '',
   ): Promise<[Transaction, PublicKey]> {
     if (treasurer.equals(beneficiary)) {
       throw Error('Beneficiary can not be the same Treasurer');
@@ -1116,6 +1118,11 @@ export class MSP {
       throw Error("Stream template doesn't exist");
     }
 
+    // Calculate rate amount
+    const rateAmount =
+      (allocationAssigned * (1 - templateInfo.cliffVestPercent / 1_000_000)) /
+      templateInfo.durationNumberOfUnits;
+
     // Get the treasury token account
     const treasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -1133,16 +1140,12 @@ export class MSP {
       true,
     );
 
-    const now = new Date();
-    const startDate =
-      startUtc && startUtc.getTime() >= now.getTime() ? startUtc : now;
-    const startUtcInSeconds = parseInt((startDate.getTime() / 1000).toString());
     const streamAccount = Keypair.generate();
 
     // Create Stream
     const tx = this.program.transaction.createStreamWithTemplate(
       LATEST_IDL_FILE_VERSION,
-      new BN(startUtcInSeconds),
+      streamName,
       new BN(rateAmount),
       new BN(allocationAssigned),
       {
