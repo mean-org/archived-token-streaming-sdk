@@ -972,6 +972,7 @@ export class MSP {
     treasuryAssociatedTokenMint: PublicKey,
     duration: number,
     durationUnit: TimeUnit,
+    fundingAmount: number,
     startUtc?: Date,
     cliffVestPercent = 0,
     feePayedByTreasurer?: boolean,
@@ -1036,6 +1037,17 @@ export class MSP {
         },
       },
     );
+
+    if (fundingAmount > 0) {
+      const txAdd = await this.addFunds(
+        payer,
+        payer,
+        treasury,
+        treasuryAssociatedTokenMint,
+        fundingAmount,
+      );
+      tx.add(txAdd);
+    }
 
     const cliffVestPercentValue = cliffVestPercent
       ? cliffVestPercent * Constants.CLIFF_PERCENT_NUMERATOR

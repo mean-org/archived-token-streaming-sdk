@@ -55,6 +55,7 @@ describe('Tests creating a vesting treasury\n', async () => {
       Constants.SOL_MINT,
       12,
       TimeUnit.Month,
+      0,
       new Date(),
     );
     await sendAndConfirmTransaction(connection, createVestingTreasuryTx, [user1Wallet], { commitment: 'confirmed' });
