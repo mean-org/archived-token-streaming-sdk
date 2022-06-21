@@ -1046,7 +1046,7 @@ export class MSP {
         treasuryAssociatedTokenMint,
         fundingAmount,
       );
-      tx.add(txAdd);
+      tx.add(...txAdd.instructions);
     }
 
     const cliffVestPercentValue = cliffVestPercent
