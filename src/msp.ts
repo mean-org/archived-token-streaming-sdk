@@ -1039,14 +1039,88 @@ export class MSP {
     );
 
     if (fundingAmount > 0) {
-      const txAdd = await this.addFunds(
-        payer,
-        payer,
-        treasury,
-        treasuryAssociatedTokenMint,
-        fundingAmount,
+      let autoWSol = false;
+      if (treasuryAssociatedTokenMint.equals(Constants.SOL_MINT)) {
+        treasuryAssociatedTokenMint = NATIVE_WSOL_MINT;
+        autoWSol = true;
+      }
+
+      const contributorToken = await Token.getAssociatedTokenAddress(
+          ASSOCIATED_TOKEN_PROGRAM_ID,
+          TOKEN_PROGRAM_ID,
+          treasuryAssociatedTokenMint,
+          payer,
+          true,
       );
-      tx.add(...txAdd.instructions);
+
+      const contributorTokenInfo = await this.connection.getAccountInfo(
+          contributorToken,
+          'recent',
+      );
+
+      const ixs: TransactionInstruction[] = [];
+      const txSigners: Signer[] = [];
+
+      await this.ensureAutoWrapSolInstructions(
+          autoWSol,
+          fundingAmount,
+          payer,
+          contributorToken,
+          contributorTokenInfo,
+          ixs,
+          txSigners,
+      );
+
+      const contributorTreasuryToken = await Token.getAssociatedTokenAddress(
+          ASSOCIATED_TOKEN_PROGRAM_ID,
+          TOKEN_PROGRAM_ID,
+          treasuryMint,
+          payer,
+          true,
+      );
+
+      const treasuryToken = await Token.getAssociatedTokenAddress(
+          ASSOCIATED_TOKEN_PROGRAM_ID,
+          TOKEN_PROGRAM_ID,
+          treasuryAssociatedTokenMint,
+          treasury,
+          true,
+      );
+
+      const feeTreasuryToken = await Token.getAssociatedTokenAddress(
+          ASSOCIATED_TOKEN_PROGRAM_ID,
+          TOKEN_PROGRAM_ID,
+          treasuryAssociatedTokenMint,
+          Constants.FEE_TREASURY,
+          true,
+      );
+
+      ixs.push(
+          this.program.instruction.addFunds(
+              LATEST_IDL_FILE_VERSION,
+              new BN(fundingAmount),
+              {
+                accounts: {
+                  payer: payer,
+                  contributor: payer,
+                  contributorToken: contributorToken,
+                  contributorTreasuryToken: contributorTreasuryToken,
+                  treasury: treasury,
+                  treasuryToken: treasuryToken,
+                  associatedToken: treasuryAssociatedTokenMint,
+                  treasuryMint: treasuryMint,
+                  feeTreasury: Constants.FEE_TREASURY,
+                  feeTreasuryToken: feeTreasuryToken,
+                  associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+                  tokenProgram: TOKEN_PROGRAM_ID,
+                  systemProgram: SystemProgram.programId,
+                  rent: SYSVAR_RENT_PUBKEY,
+                },
+              },
+          ),
+      );
+
+      tx.add(...ixs);
     }
 
     const cliffVestPercentValue = cliffVestPercent
