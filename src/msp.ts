@@ -1038,76 +1038,76 @@ export class MSP {
       }
 
       const contributorToken = await Token.getAssociatedTokenAddress(
-          ASSOCIATED_TOKEN_PROGRAM_ID,
-          TOKEN_PROGRAM_ID,
-          treasuryAssociatedTokenMint,
-          payer,
-          true,
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+        TOKEN_PROGRAM_ID,
+        treasuryAssociatedTokenMint,
+        payer,
+        true,
       );
 
       const contributorTokenInfo = await this.connection.getAccountInfo(
-          contributorToken,
-          'recent',
+        contributorToken,
+        'recent',
       );
 
       const ixs: TransactionInstruction[] = [];
       const txSigners: Signer[] = [];
 
       await this.ensureAutoWrapSolInstructions(
-          autoWSol,
-          fundingAmount,
-          payer,
-          contributorToken,
-          contributorTokenInfo,
-          ixs,
-          txSigners,
+        autoWSol,
+        fundingAmount,
+        payer,
+        contributorToken,
+        contributorTokenInfo,
+        ixs,
+        txSigners,
       );
 
       const contributorTreasuryToken = await Token.getAssociatedTokenAddress(
-          ASSOCIATED_TOKEN_PROGRAM_ID,
-          TOKEN_PROGRAM_ID,
-          treasuryMint,
-          payer,
-          true,
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+        TOKEN_PROGRAM_ID,
+        treasuryMint,
+        payer,
+        true,
       );
 
       const treasuryToken = await Token.getAssociatedTokenAddress(
-          ASSOCIATED_TOKEN_PROGRAM_ID,
-          TOKEN_PROGRAM_ID,
-          treasuryAssociatedTokenMint,
-          treasury,
-          true,
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+        TOKEN_PROGRAM_ID,
+        treasuryAssociatedTokenMint,
+        treasury,
+        true,
       );
 
       const feeTreasuryToken = await Token.getAssociatedTokenAddress(
-          ASSOCIATED_TOKEN_PROGRAM_ID,
-          TOKEN_PROGRAM_ID,
-          treasuryAssociatedTokenMint,
-          Constants.FEE_TREASURY,
-          true,
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+        TOKEN_PROGRAM_ID,
+        treasuryAssociatedTokenMint,
+        Constants.FEE_TREASURY,
+        true,
       );
 
       ixs.push(
-          this.program.instruction.addFunds(
-              LATEST_IDL_FILE_VERSION,
-              new BN(fundingAmount),
-              {
-                accounts: {
-                  payer: payer,
-                  contributor: payer,
-                  contributorToken: contributorToken,
-                  treasury: treasury,
-                  treasuryToken: treasuryToken,
-                  associatedToken: treasuryAssociatedTokenMint,
-                  feeTreasury: Constants.FEE_TREASURY,
-                  feeTreasuryToken: feeTreasuryToken,
-                  associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-                  tokenProgram: TOKEN_PROGRAM_ID,
-                  systemProgram: SystemProgram.programId,
-                  rent: SYSVAR_RENT_PUBKEY,
-                },
-              },
-          ),
+        this.program.instruction.addFunds(
+          LATEST_IDL_FILE_VERSION,
+          new BN(fundingAmount),
+          {
+            accounts: {
+              payer: payer,
+              contributor: payer,
+              contributorToken: contributorToken,
+              treasury: treasury,
+              treasuryToken: treasuryToken,
+              associatedToken: treasuryAssociatedTokenMint,
+              feeTreasury: Constants.FEE_TREASURY,
+              feeTreasuryToken: feeTreasuryToken,
+              associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+              tokenProgram: TOKEN_PROGRAM_ID,
+              systemProgram: SystemProgram.programId,
+              rent: SYSVAR_RENT_PUBKEY,
+            },
+          },
+        ),
       );
 
       tx.add(...ixs);
@@ -1844,16 +1844,13 @@ export class MSP {
 
     const associatedToken = new PublicKey(streamInfo.associatedToken as string);
 
-    let tx = this.program.transaction.pauseStream(
-      LATEST_IDL_FILE_VERSION,
-      {
-        accounts: {
-          initializer: treasurer, // TODO: payer = payer, inititlizer = treasurer (change initializer to treasurer in MSP)
-          treasury: treasury,
-          stream: stream
-        }
-      }
-    );
+    const tx = this.program.transaction.pauseStream(LATEST_IDL_FILE_VERSION, {
+      accounts: {
+        initializer: treasurer, // TODO: payer = payer, inititlizer = treasurer (change initializer to treasurer in MSP)
+        treasury: treasury,
+        stream: stream,
+      },
+    });
 
     tx.feePayer = payer;
     const { blockhash } = await this.connection.getRecentBlockhash(
@@ -1884,16 +1881,13 @@ export class MSP {
 
     const associatedToken = new PublicKey(streamInfo.associatedToken as string);
 
-    let tx = this.program.transaction.resumeStream(
-      LATEST_IDL_FILE_VERSION,
-      {
-        accounts: {
-          initializer: treasurer, // TODO: payer = payer, inititlizer = treasurer (change initializer to treasurer in MSP)
-          treasury: treasury,
-          stream: stream
-        }
-      }
-    );
+    const tx = this.program.transaction.resumeStream(LATEST_IDL_FILE_VERSION, {
+      accounts: {
+        initializer: treasurer, // TODO: payer = payer, inititlizer = treasurer (change initializer to treasurer in MSP)
+        treasury: treasury,
+        stream: stream,
+      },
+    });
 
     tx.feePayer = payer;
     const { blockhash } = await this.connection.getRecentBlockhash(
@@ -1998,26 +1992,23 @@ export class MSP {
       );
 
       ixs.push(
-        this.program.instruction.closeTreasury(
-          LATEST_IDL_FILE_VERSION,
-          {
-            accounts: {
-              payer: payer,
-              treasurer: treasurer,
-              destinationAuthority: destination,
-              destinationTokenAccount: destinationToken,
-              associatedToken: treasuryAssociatedTokenMint,
-              treasury: treasury,
-              treasuryToken: treasuryToken,
-              feeTreasury: Constants.FEE_TREASURY,
-              feeTreasuryToken: feeTreasuryToken,
-              associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-              tokenProgram: TOKEN_PROGRAM_ID,
-              systemProgram: SystemProgram.programId,
-              rent: SYSVAR_RENT_PUBKEY
-            }
-          }
-        )
+        this.program.instruction.closeTreasury(LATEST_IDL_FILE_VERSION, {
+          accounts: {
+            payer: payer,
+            treasurer: treasurer,
+            destinationAuthority: destination,
+            destinationTokenAccount: destinationToken,
+            associatedToken: treasuryAssociatedTokenMint,
+            treasury: treasury,
+            treasuryToken: treasuryToken,
+            feeTreasury: Constants.FEE_TREASURY,
+            feeTreasuryToken: feeTreasuryToken,
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+            rent: SYSVAR_RENT_PUBKEY,
+          },
+        }),
       );
 
       // unwrap all on exit and only if destination is also a signer

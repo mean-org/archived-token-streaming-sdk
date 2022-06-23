@@ -785,10 +785,7 @@ const parseStreamItemData = (
 
 let idl_legacy_after_1645224519: any = null;
 let idl_legacy_before_1645224519: any = null;
-const idlPaths: string[] = [
-  './msp_idl_001',
-  './msp_idl_002',
-]
+const idlPaths: string[] = ['./msp_idl_001', './msp_idl_002'];
 const idls: { [fileVersion: number]: any } = {};
 
 async function parseStreamInstructionAfter1645224519(
