@@ -343,6 +343,7 @@ export class MSP {
     startUtc?: Date,
     streamName?: string,
     feePayedByTreasurer = false,
+    category: Category = Category.default,
   ): Promise<Transaction> {
     let autoWSol = false;
     if (mint.equals(Constants.SOL_MINT)) {
@@ -422,6 +423,7 @@ export class MSP {
         TreasuryType.Open,
         true, // autoclose = true
         false, // sol fee payed by treasury
+        { [Category[category]]: {} },
         {
           accounts: {
             payer: treasurer,
@@ -561,6 +563,7 @@ export class MSP {
     cliffVestAmount?: number,
     cliffVestPercent?: number,
     feePayedByTreasurer = false,
+    category: Category = Category.default,
   ): Promise<Transaction> {
     if (treasurer.equals(beneficiary)) {
       throw Error('Beneficiary can not be the same Treasurer');
@@ -635,6 +638,7 @@ export class MSP {
         TreasuryType.Open,
         true, // autoclose = true
         false, // sol fee payed by treasury
+        { [Category[category]]: {} },
         {
           accounts: {
             payer: treasurer,
