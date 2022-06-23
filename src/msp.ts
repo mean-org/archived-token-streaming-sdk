@@ -5,7 +5,7 @@ import { Commitment, Connection, ConnectionConfig, Keypair, PublicKey, Transacti
 import { ASSOCIATED_TOKEN_PROGRAM_ID, NATIVE_MINT as NATIVE_WSOL_MINT, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { BN, Program } from "@project-serum/anchor";
 
-import { Msp } from './msp_idl_001';
+import { Msp } from './msp_idl_002';
 
 /**
  * MSP
@@ -355,7 +355,6 @@ export class MSP {
             payer: treasurer,
             treasurer: treasurer,
             treasury: treasury,
-            treasuryMint: treasuryMint,
             treasuryToken: treasuryToken,
             associatedToken: mint,
             feeTreasury: Constants.FEE_TREASURY,
@@ -411,11 +410,9 @@ export class MSP {
             payer: treasurer,
             contributor: treasurer,
             contributorToken: treasurerToken,
-            contributorTreasuryToken: treasurerTreasuryToken,
             treasury: treasury,
             treasuryToken: treasuryToken,
             associatedToken: mint,
-            treasuryMint: treasuryMint,
             feeTreasury: Constants.FEE_TREASURY,
             feeTreasuryToken: feeTreasuryToken,
             associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -559,7 +556,6 @@ export class MSP {
             payer: treasurer,
             treasurer: treasurer,
             treasury: treasury,
-            treasuryMint: treasuryMint,
             treasuryToken: treasuryToken,
             associatedToken: mint,
             feeTreasury: Constants.FEE_TREASURY,
@@ -602,11 +598,9 @@ export class MSP {
             payer: treasurer,
             contributor: treasurer,
             contributorToken: treasurerToken,
-            contributorTreasuryToken: treasurerTreasuryToken,
             treasury: treasury,
             treasuryToken: treasuryToken,
             associatedToken: mint,
-            treasuryMint: treasuryMint,
             feeTreasury: Constants.FEE_TREASURY,
             feeTreasuryToken: feeTreasuryToken,
             associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -714,7 +708,6 @@ export class MSP {
           payer: payer,
           treasurer: treasurer,
           treasury: treasury,
-          treasuryMint: treasuryMint,
           treasuryToken: treasuryToken,
           associatedToken: associatedTokenMint,
           feeTreasury: Constants.FEE_TREASURY,
@@ -1065,11 +1058,9 @@ export class MSP {
             payer: payer,
             contributor: contributor,
             contributorToken: contributorToken,
-            contributorTreasuryToken: contributorTreasuryToken,
             treasury: treasury,
             treasuryToken: treasuryToken,
             associatedToken: treasuryAssociatedTokenMint,
-            treasuryMint: treasuryMint,
             feeTreasury: Constants.FEE_TREASURY,
             feeTreasuryToken: feeTreasuryToken,
             associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -1209,11 +1200,9 @@ export class MSP {
             payer: payer,
             contributor: contributor,
             contributorToken: contributorToken,
-            contributorTreasuryToken: contributorTreasuryToken,
             treasury: treasury,
             treasuryToken: treasuryToken,
             associatedToken: mint,
-            treasuryMint: treasuryMint,
             feeTreasury: Constants.FEE_TREASURY,
             feeTreasuryToken: feeTreasuryToken,
             associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -1448,7 +1437,6 @@ export class MSP {
         accounts: {
           initializer: treasurer, // TODO: payer = payer, inititlizer = treasurer (change initializer to treasurer in MSP)
           treasury: treasury,
-          associatedToken: associatedToken,
           stream: stream
         }
       }
@@ -1489,7 +1477,6 @@ export class MSP {
         accounts: {
           initializer: treasurer, // TODO: payer = payer, inititlizer = treasurer (change initializer to treasurer in MSP)
           treasury: treasury,
-          associatedToken: associatedToken,
           stream: stream
         }
       }
@@ -1605,13 +1592,11 @@ export class MSP {
             accounts: {
               payer: payer,
               treasurer: treasurer,
-              treasurerTreasuryToken: treasurerTreasuryToken,
               destinationAuthority: destination,
               destinationTokenAccount: destinationToken,
               associatedToken: treasuryAssociatedTokenMint,
               treasury: treasury,
               treasuryToken: treasuryToken,
-              treasuryMint: treasuryMint,
               feeTreasury: Constants.FEE_TREASURY,
               feeTreasuryToken: feeTreasuryToken,
               associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -1712,13 +1697,11 @@ export class MSP {
         accounts: {
           payer: payer,
           treasurer: treasurer,
-          treasurerTreasuryToken: treasurerTreasuryToken,
           destinationAuthority: destination,
           destinationTokenAccount: destinationToken,
           associatedToken: treasuryAssociatedTokenMint,
           treasury: treasury,
           treasuryToken: treasuryToken,
-          treasuryMint: treasuryMint,
           feeTreasury: Constants.FEE_TREASURY,
           feeTreasuryToken: feeTreasuryToken,
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -1786,7 +1769,6 @@ export class MSP {
 
     let tx = this.program.transaction.refreshTreasuryData(
       LATEST_IDL_FILE_VERSION,
-      new BN(totalStreams),
       {
         accounts: {
           treasurer: treasurer,
