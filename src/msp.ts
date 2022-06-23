@@ -208,8 +208,10 @@ export class MSP {
   public async listTreasuries(
     treasurer: PublicKey | undefined,
     friendly = true,
+    excludeAutoClose?: boolean,
+    category?: Category,
   ): Promise<Treasury[]> {
-    return listTreasuries(this.program, treasurer, friendly);
+    return listTreasuries(this.program, treasurer, friendly, excludeAutoClose, category);
   }
 
   public async getStreamTemplate(

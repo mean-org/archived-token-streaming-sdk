@@ -19,6 +19,7 @@ import { BN, BorshInstructionCoder, Idl, Program } from '@project-serum/anchor';
  */
 import { Constants, LATEST_IDL_FILE_VERSION } from './constants';
 import {
+  Category,
   MSP_ACTIONS,
   Stream,
   StreamActivity,
@@ -292,6 +293,8 @@ export const listTreasuries = async (
   program: Program<Msp>,
   treasurer?: PublicKey | undefined,
   friendly = true,
+  excludeAutoClose?: boolean,
+  category?: Category,
 ): Promise<Treasury[]> => {
   const treasuries: Treasury[] = [];
   const memcmpFilters: any[] = [];
@@ -299,6 +302,18 @@ export const listTreasuries = async (
   if (treasurer) {
     memcmpFilters.push({
       memcmp: { offset: 8 + 43, bytes: treasurer.toBase58() },
+    });
+  }
+
+  if(excludeAutoClose) {
+    memcmpFilters.push({
+      memcmp: { offset: 216, bytes: bs58.encode([0]) },
+    });
+  }
+
+  if(category) {
+    memcmpFilters.push({
+      memcmp: { offset: 218, bytes: bs58.encode([category]) },
     });
   }
 
