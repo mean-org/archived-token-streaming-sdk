@@ -261,6 +261,7 @@ export enum SubCategory {
   advisor = 1,
   development = 2,
   foundation = 3,
+  investor = 4,
   marketing = 5,
   partnership = 6,
   seed = 7,
