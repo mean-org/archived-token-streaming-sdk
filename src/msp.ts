@@ -48,9 +48,9 @@ import {
   getTreasury,
   getValidTreasuryAllocation,
   listStreamActivity,
-  listVestingTreasuryActivity,
   listStreams,
   listStreamsCached,
+  listVestingTreasuryActivity,
 } from './utils';
 import { getStreamTemplate } from './utils';
 import { findStreamTemplateAddress } from './utils';
@@ -1201,6 +1201,74 @@ export class MSP {
       commitment,
       friendly,
     );
+  }
+
+  /**
+   * Gets the flowing rate of a vesting contract.
+   * @param vestingTreasury The address of the treasury
+   * @returns a tuple of the amount and the time unit [20, TimeUnit.Week] == 20/week
+   */
+  public async getVestingFlowRate(
+    vestingTreasury: PublicKey,
+  ): Promise<[number, TimeUnit]> {
+    const treasuryInfo = await getTreasury(
+      this.program,
+      vestingTreasury,
+      false,
+    );
+
+    if (!treasuryInfo) {
+      throw Error("Treasury doesn't exist");
+    }
+
+    // Get the template
+    const [templateAddress] = await findStreamTemplateAddress(
+      vestingTreasury,
+      this.program.programId,
+    );
+    const templateInfo = await getStreamTemplate(
+      this.program,
+      templateAddress,
+      false,
+    );
+    if (!templateInfo) {
+      throw Error("Stream template doesn't exist");
+    }
+
+    const totalDuration =
+      templateInfo.rateIntervalInSeconds * templateInfo.durationNumberOfUnits;
+    const now = new Date();
+    const startDate = templateInfo.startUtc as Date;
+    if ((now.getTime() - startDate.getTime()) / 1000 > totalDuration) {
+      // vesting period has ended
+      return [0, templateInfo.rateIntervalInSeconds as TimeUnit];
+    }
+
+    const streams = await listStreams(
+      this.program,
+      treasuryInfo.treasurer as PublicKey,
+      treasuryInfo.id as PublicKey,
+      undefined,
+      false,
+    );
+    let total = 0;
+    for (const stream of streams) {
+      switch (stream.status) {
+        case STREAM_STATUS.Paused:
+          continue;
+      }
+      if (stream.remainingAllocationAmount <= 0) {
+        // all streamed
+        continue;
+      }
+      const rateAmount =
+        (stream.allocationAssigned *
+          (1 - templateInfo.cliffVestPercent / 1_000_000)) /
+        templateInfo.durationNumberOfUnits;
+      total = total + rateAmount;
+    }
+
+    return [total, templateInfo.rateIntervalInSeconds as TimeUnit];
   }
 
   /**

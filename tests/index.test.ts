@@ -89,7 +89,7 @@ describe('Tests creating a vesting treasury\n', async () => {
       treasury,
       user2Wallet.publicKey,
       NATIVE_MINT,
-      100 * LAMPORTS_PER_SOL,
+      120 * LAMPORTS_PER_SOL,
       'test_stream',
     );
     createStreamTx.partialSign(user1Wallet);
@@ -106,7 +106,7 @@ describe('Tests creating a vesting treasury\n', async () => {
       treasury,
       user2Wallet.publicKey,
       NATIVE_MINT,
-      50 * LAMPORTS_PER_SOL,
+      60 * LAMPORTS_PER_SOL,
       'test_stream_2',
     );
     createStreamTx2.partialSign(user1Wallet);
@@ -142,6 +142,9 @@ describe('Tests creating a vesting treasury\n', async () => {
         true
     );
     console.log(JSON.stringify(res, null, 2) + '\n');
+    console.log("Getting vesting flow rate");
+    const [rate, unit] = await msp.getVestingFlowRate(treasury);
+    console.log(`Streaming ${rate/LAMPORTS_PER_SOL} SOL per ${TimeUnit[unit]}`);
   });
 });
 

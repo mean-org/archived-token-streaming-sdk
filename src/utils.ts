@@ -1264,7 +1264,7 @@ const parseStreamTemplateData = (
     rateIntervalInSeconds: friendly
       ? template.rateIntervalInSeconds.toNumber()
       : template.rateIntervalInSeconds,
-    startUtc: !friendly
+    startUtc: friendly
       ? new Date(template.startUtcInSeconds * 1000).toString()
       : new Date(template.startUtcInSeconds * 1000),
     cliffVestPercent: template.cliffVestPercent,
