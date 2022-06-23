@@ -25,6 +25,8 @@ import {
   StreamActivity,
   StreamActivityRaw,
   TransactionFees,
+  VestingTreasuryActivity,
+  VestingTreasuryActivityRaw,
 } from './types';
 import { STREAM_STATUS, Treasury, TreasuryType } from './types';
 import { StreamTemplate } from './types';
@@ -1700,4 +1702,196 @@ export async function createWrapSolInstructions(
 export function sleep(ms: number) {
   console.log('Sleeping for', ms / 1000, 'seconds');
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export const listVestingTreasuryActivity = async (
+  program: Program<Msp>,
+  address: PublicKey,
+  before = '',
+  limit = 10,
+  commitment?: Finality | undefined,
+  friendly = true,
+): Promise<VestingTreasuryActivityRaw[] | VestingTreasuryActivity[]> => {
+  let activityRaw: VestingTreasuryActivityRaw[] = [];
+  const finality = commitment !== undefined ? commitment : 'finalized';
+  const filter = { limit: limit } as ConfirmedSignaturesForAddress2Options;
+  if (before) {
+    filter['before'] = before;
+  }
+  const signatures =
+    await program.provider.connection.getConfirmedSignaturesForAddress2(
+      address,
+      filter,
+      finality,
+    );
+  const txs = await program.provider.connection.getParsedTransactions(
+    signatures.map((s: any) => s.signature),
+    finality,
+  );
+  if (txs && txs.length) {
+    activityRaw = await parseVestingTreasuryTransactions(
+      program.programId,
+      address,
+      txs as ParsedTransactionWithMeta[],
+    );
+
+    activityRaw.sort((a, b) => (b.blockTime ?? 0) - (a.blockTime ?? 0));
+  }
+
+  if (!friendly) return activityRaw;
+
+  const activity = activityRaw.map(i => {
+    return {
+      signature: i.signature,
+      initializer: i.initializer?.toBase58(),
+      benificeiry: i.benificeiry?.toBase58(),
+      action: i.action,
+      amount: i.amount ? parseFloat(i.amount.toNumber().toFixed(9)) : 0,
+      mint: i.mint?.toBase58(),
+      blockTime: i.blockTime,
+      utcDate: i.utcDate,
+    } as VestingTreasuryActivity;
+  });
+
+  return activity;
+};
+
+async function parseVestingTreasuryTransactions(
+  programId: PublicKey,
+  treasuryAddress: PublicKey,
+  transactions: ParsedTransactionWithMeta[],
+): Promise<VestingTreasuryActivityRaw[]> {
+  const parsedActivities: VestingTreasuryActivityRaw[] = [];
+
+  if (!transactions || transactions.length === 0) return [];
+
+  for (let i = 0; i < transactions.length; i++) {
+    const tx = transactions[i];
+    const signature = tx.transaction.signatures[0];
+
+    for (let j = 0; j < tx.transaction.message.instructions.length; j++) {
+      const ix = tx.transaction.message.instructions[
+        j
+      ] as PartiallyDecodedInstruction;
+      if (!ix || !ix.data) continue;
+
+      const decodedIxData = bs58.decode(ix.data);
+      const ixIdlFileVersion =
+        decodedIxData.length >= 9 ? decodedIxData.slice(8, 9)[0] : 0;
+
+      let activity: VestingTreasuryActivityRaw | null = null;
+      activity = await parseVestingTreasuryInstruction(
+        ix,
+        treasuryAddress,
+        signature,
+        tx.blockTime ?? 0,
+        ixIdlFileVersion,
+        programId,
+      );
+      if (!activity) {
+        continue;
+      }
+      parsedActivities.push(activity);
+    }
+  }
+
+  return parsedActivities;
+}
+
+async function parseVestingTreasuryInstruction(
+  ix: PartiallyDecodedInstruction,
+  treasuryAddress: PublicKey,
+  transactionSignature: string,
+  transactionBlockTimeInSeconds: number,
+  idlFileVersion: number,
+  programId: PublicKey,
+): Promise<VestingTreasuryActivityRaw | null> {
+  if (!ix.programId.equals(programId)) {
+    return null;
+  }
+
+  // todo improve for future idl versions
+  if (idlFileVersion !== 2) {
+    return null;
+  }
+
+  try {
+    const importedIdl = await import('./msp_idl_002');
+    idls[idlFileVersion] = importedIdl.IDL;
+
+    const coder = new BorshInstructionCoder(idls[idlFileVersion] as Idl);
+
+    const decodedIx = coder.decode(ix.data, 'base58');
+    if (!decodedIx) return null;
+
+    const ixName = decodedIx.name;
+    // console.log(`ixName: ${ixName}`);
+    if (['createStreamWithTemplate', 'addFunds'].indexOf(ixName) === -1)
+      return null;
+
+    const ixAccountMetas = ix.accounts.map(pk => {
+      return { pubkey: pk, isSigner: false, isWritable: false };
+    });
+
+    const formattedIx = coder.format(decodedIx, ixAccountMetas);
+    // console.log(formattedIx);
+    // console.table(formattedIx?.accounts.map(a => { return { name: a.name, pk: a.pubkey.toBase58() } }));
+    const treasury = formattedIx?.accounts.find(
+      a => a.name === 'Treasury',
+    )?.pubkey;
+    if (!treasury || !treasury.equals(treasuryAddress)) {
+      return null;
+    }
+
+    const blockTime = (transactionBlockTimeInSeconds as number) * 1000; // mult by 1000 to add milliseconds
+    let action: 'createStream' | 'addFunds' = 'createStream';
+    let initializer: PublicKey | undefined;
+    let mint: PublicKey | undefined;
+    let amountBN: BN | undefined;
+    let benificeiry: PublicKey | undefined;
+
+    if (decodedIx.name === 'createStreamWithTemplate') {
+      action = 'createStream';
+      initializer = formattedIx?.accounts.find(
+        a => a.name === 'Treasurer',
+      )?.pubkey;
+      mint = formattedIx?.accounts.find(
+        a => a.name === 'Associated Token',
+      )?.pubkey;
+      benificeiry = formattedIx?.accounts.find(
+        a => a.name === 'Beneficiary',
+      )?.pubkey;
+      const parsedAmount = formattedIx?.args.find(
+        a => a.name === 'allocationAssignedUnits',
+      )?.data;
+      amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
+    } else if (decodedIx.name === 'addFunds') {
+      action = 'addFunds';
+      initializer = formattedIx?.accounts.find(
+        a => a.name === 'Treasurer',
+      )?.pubkey;
+      mint = formattedIx?.accounts.find(
+        a => a.name === 'Associated Token',
+      )?.pubkey;
+      const parsedAmount = formattedIx?.args.find(
+        a => a.name === 'amount',
+      )?.data;
+      amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
+    }
+
+    const activity: VestingTreasuryActivityRaw = {
+      signature: transactionSignature,
+      initializer: initializer,
+      blockTime,
+      benificeiry,
+      utcDate: new Date(blockTime).toUTCString(),
+      action,
+      amount: amountBN,
+      mint,
+    };
+    return activity;
+  } catch (error) {
+    console.log(error);
+    return null;
+  }
 }

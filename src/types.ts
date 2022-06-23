@@ -95,6 +95,38 @@ export type StreamActivityRaw = {
 };
 
 /**
+ *  Vesting treasury activity (Friendly version with PublicKeys converted to string)
+ */
+export type VestingTreasuryActivity = {
+  signature: string;
+  action: 'createStream' | 'addFunds';
+  initializer?: string;
+  mint?: string;
+  blockTime?: number;
+  // createStream - allocation amount
+  // addFunds - deposited amount
+  amount?: number;
+  benificeiry?: string; // create stream
+  utcDate: string;
+};
+
+/**
+ *  Vesting treasury activity
+ */
+export type VestingTreasuryActivityRaw = {
+  signature: string;
+  action: 'createStream' | 'addFunds';
+  initializer?: PublicKey;
+  mint?: PublicKey;
+  blockTime?: number;
+  // createStream - allocation amount
+  // addFunds - deposited amount
+  amount?: BN;
+  benificeiry?: PublicKey; // create stream
+  utcDate: string;
+};
+
+/**
  * Treasury type
  */
 export enum TreasuryType {

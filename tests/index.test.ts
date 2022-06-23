@@ -1,13 +1,15 @@
 import {Keypair} from '@solana/web3.js';
 import {Connection} from '@solana/web3.js';
-import {LAMPORTS_PER_SOL, sendAndConfirmRawTransaction, sendAndConfirmTransaction} from '@solana/web3.js';
+import {LAMPORTS_PER_SOL, sendAndConfirmRawTransaction, sendAndConfirmTransaction, SystemProgram} from '@solana/web3.js';
 import {PublicKey} from "@solana/web3.js";
 import {Transaction} from "@solana/web3.js";
 import {Constants, MSP, TreasuryType} from '../src';
-import {Category} from "../src";
+import * as fs from 'fs-extra';
+import {homedir} from 'os';
+import {join} from 'path';
 
 import {NATIVE_MINT} from '@solana/spl-token';
-import {TimeUnit} from "../src/types";
+import {Category, TimeUnit} from "../src/types";
 import {expect} from "chai";
 
 const endpoint = 'http://localhost:8899';
@@ -23,24 +25,22 @@ describe('Tests creating a vesting treasury\n', async () => {
   before(async () => {
     user1Wallet = Keypair.generate();
     user2Wallet = Keypair.generate();
+    const root = await getDefaultKeyPair();
     connection = new Connection(endpoint, 'confirmed');
-    await connection.confirmTransaction(
-      await connection.requestAirdrop(
-        user1Wallet.publicKey,
-        1000 * LAMPORTS_PER_SOL,
-      ),
-      'confirmed',
-    );
-    console.log("Balance user1: : ", await connection.getBalance(user1Wallet.publicKey));
-
-    await connection.confirmTransaction(
-      await connection.requestAirdrop(
-        user2Wallet.publicKey,
-        1000 * LAMPORTS_PER_SOL,
-      ),
-      'confirmed',
-    );
-    console.log("Balance user2: : ", await connection.getBalance(user2Wallet.publicKey));
+    const tx = new Transaction();
+    tx.add(SystemProgram.transfer({
+      fromPubkey: root.publicKey,
+      lamports: 1000 * LAMPORTS_PER_SOL,
+      toPubkey: user1Wallet.publicKey
+    }));
+    tx.add(SystemProgram.transfer({
+      fromPubkey: root.publicKey,
+      lamports: 1000 * LAMPORTS_PER_SOL,
+      toPubkey: user2Wallet.publicKey
+    }));
+    await sendAndConfirmTransaction(connection, tx, [root], { commitment: 'confirmed' });
+    console.log("Balance user1: : ", await connection.getBalance(user1Wallet.publicKey, 'confirmed'));
+    console.log("Balance user2: : ", await connection.getBalance(user2Wallet.publicKey, 'confirmed'));
 
     msp = new MSP(endpoint, user1Wallet.publicKey.toBase58(), 'confirmed',
         new PublicKey("2nZ8KDGdPBexJwWznPZosioWJzNBSM3doUXUYdo37ndN"));
@@ -82,7 +82,7 @@ describe('Tests creating a vesting treasury\n', async () => {
     const template = await msp.getStreamTemplate(treasury);
     console.log(`Template: ${JSON.stringify(template, null, 2)}\n`);
 
-    console.log('Creating a vesting stream');
+    console.log('Creating vesting stream: 1');
     const [createStreamTx, stream] = await msp.createStreamWithTemplate(
       user1Wallet.publicKey,
       user1Wallet.publicKey,
@@ -97,7 +97,24 @@ describe('Tests creating a vesting treasury\n', async () => {
       verifySignatures: true,
     });
     await sendAndConfirmRawTransaction(connection, createStreamTxSerialized, { commitment: 'confirmed' });
-    console.log(`Stream created: ${stream.toBase58()}\n`);
+    console.log(`Stream1 created: ${stream.toBase58()}\n`);
+
+    console.log('Creating vesting stream: 2');
+    const [createStreamTx2, stream2] = await msp.createStreamWithTemplate(
+      user1Wallet.publicKey,
+      user1Wallet.publicKey,
+      treasury,
+      user2Wallet.publicKey,
+      NATIVE_MINT,
+      50 * LAMPORTS_PER_SOL,
+      'test_stream_2',
+    );
+    createStreamTx2.partialSign(user1Wallet);
+    const createStreamTx2Serialized = createStreamTx2.serialize({
+      verifySignatures: true,
+    });
+    await sendAndConfirmRawTransaction(connection, createStreamTx2Serialized, { commitment: 'confirmed' });
+    console.log(`Stream2 created: ${stream2.toBase58()}\n`);
 
     console.log("Creating a non-vesting treasury");
     const createTreasuryTx = await msp.createTreasury(
@@ -107,7 +124,7 @@ describe('Tests creating a vesting treasury\n', async () => {
         "",
         TreasuryType.Open
     );
-    await sendAndConfirmTransaction(connection, createTreasuryTx, [user1Wallet], { commitment: 'confirmed' });
+    const createNonVestingTreasuryTx = await sendAndConfirmTransaction(connection, createTreasuryTx, [user1Wallet], { commitment: 'confirmed' });
     console.log("Non vesting treasury created\n");
 
     console.log("Filtering treasury by category");
@@ -115,8 +132,24 @@ describe('Tests creating a vesting treasury\n', async () => {
     expect(filtered.length).eq(1);
     expect(filtered.at(0)!.id).eq(treasury.toBase58());
     console.log("Filter success.");
+
+    console.log("Getting vesting treasury activities");
+    const res = await msp.listVestingTreasuryActivity(
+        treasury,
+        createNonVestingTreasuryTx,
+        10,
+        'confirmed',
+        true
+    );
+    console.log(JSON.stringify(res, null, 2) + '\n');
   });
 });
+
+const getDefaultKeyPair = async (): Promise<Keypair> => {
+  const id = await fs.readJSON(join(homedir(), '.config/solana/id.json'));
+  const bytes = Uint8Array.from(id);
+  return Keypair.fromSecretKey(bytes);
+};
 
 const _printSerializedTx = (tx: Transaction, requireAllSignatures = false, verifySignatures = false) => {
   console.log(tx.serialize({

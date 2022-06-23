@@ -34,6 +34,8 @@ import {
   STREAM_STATUS,
   Treasury,
   TreasuryType,
+  VestingTreasuryActivity,
+  VestingTreasuryActivityRaw,
 } from './types';
 import { Category } from './types';
 import { StreamTemplate } from './types';
@@ -46,6 +48,7 @@ import {
   getTreasury,
   getValidTreasuryAllocation,
   listStreamActivity,
+  listVestingTreasuryActivity,
   listStreams,
   listStreamsCached,
 } from './utils';
@@ -1166,6 +1169,38 @@ export class MSP {
     tx.recentBlockhash = blockhash;
 
     return [tx, treasury];
+  }
+
+  /**
+   *
+   * @param id The address of the treasury
+   * @param before The signature to start searching backwards from.
+   * @param limit The max amount of elements to retrieve
+   * @param commitment Commitment to query the treasury activity
+   * @param friendly The data will be displayed in a user readable format
+   * @returns
+   */
+  public async listVestingTreasuryActivity(
+    id: PublicKey,
+    before: string,
+    limit = 10,
+    commitment?: Finality | undefined,
+    friendly = true,
+  ): Promise<VestingTreasuryActivity[] | VestingTreasuryActivityRaw[]> {
+    const accountInfo = await this.connection.getAccountInfo(id, commitment);
+
+    if (!accountInfo) {
+      throw Error("Treasury doesn't exists");
+    }
+
+    return listVestingTreasuryActivity(
+      this.program,
+      id,
+      before,
+      limit,
+      commitment,
+      friendly,
+    );
   }
 
   /**
