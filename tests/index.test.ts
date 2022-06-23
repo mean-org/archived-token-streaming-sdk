@@ -1,9 +1,15 @@
 import {Keypair} from '@solana/web3.js';
 import {Connection} from '@solana/web3.js';
-import {LAMPORTS_PER_SOL, sendAndConfirmRawTransaction, sendAndConfirmTransaction, SystemProgram} from '@solana/web3.js';
+import {
+  LAMPORTS_PER_SOL,
+  sendAndConfirmRawTransaction,
+  sendAndConfirmTransaction,
+  SystemProgram
+} from '@solana/web3.js';
 import {PublicKey} from "@solana/web3.js";
 import {Transaction} from "@solana/web3.js";
 import {Constants, MSP, TreasuryType} from '../src';
+import {SubCategory} from "../src";
 import * as fs from 'fs-extra';
 import {homedir} from 'os';
 import {join} from 'path';
@@ -58,6 +64,7 @@ describe('Tests creating a vesting treasury\n', async () => {
       12,
       TimeUnit.Month,
       0,
+      SubCategory.seed,
       new Date(),
     );
     await sendAndConfirmTransaction(connection, createVestingTreasuryTx, [user1Wallet], { commitment: 'confirmed' });
@@ -128,10 +135,16 @@ describe('Tests creating a vesting treasury\n', async () => {
     console.log("Non vesting treasury created\n");
 
     console.log("Filtering treasury by category");
-    const filtered = await msp.listTreasuries(user1Wallet.publicKey, true, false, Category.vesting);
-    expect(filtered.length).eq(1);
-    expect(filtered.at(0)!.id).eq(treasury.toBase58());
-    console.log("Filter success.");
+    const filtered_cat = await msp.listTreasuries(user1Wallet.publicKey, true, false, Category.vesting);
+    expect(filtered_cat.length).eq(1);
+    expect(filtered_cat.at(0)!.id).eq(treasury.toBase58());
+    console.log("Filter by category success.");
+
+    console.log("Filtering treasury by sub category");
+    const filtered_sub = await msp.listTreasuries(user1Wallet.publicKey, true, false, undefined, SubCategory.seed);
+    expect(filtered_sub.length).eq(1);
+    expect(filtered_sub.at(0)!.id).eq(treasury.toBase58());
+    console.log("Filter by sub category success.");
 
     console.log("Getting vesting treasury activities");
     const res = await msp.listVestingTreasuryActivity(

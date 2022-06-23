@@ -86,6 +86,12 @@ export type Msp = {
           "type": {
             "defined": "Category"
           }
+        },
+        {
+          "name": "subCategory",
+          "type": {
+            "defined": "SubCategory"
+          }
         }
       ]
     },
@@ -1088,6 +1094,10 @@ export type Msp = {
           {
             "name": "category",
             "type": "u8"
+          },
+          {
+            "name": "subCategory",
+            "type": "u8"
           }
         ]
       }
@@ -1223,6 +1233,10 @@ export type Msp = {
           {
             "name": "category",
             "type": "u8"
+          },
+          {
+            "name": "subCategory",
+            "type": "u8"
           }
         ]
       }
@@ -1239,6 +1253,41 @@ export type Msp = {
           },
           {
             "name": "Vesting"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SubCategory",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Default"
+          },
+          {
+            "name": "Advisor"
+          },
+          {
+            "name": "Development"
+          },
+          {
+            "name": "Foundation"
+          },
+          {
+            "name": "Investor"
+          },
+          {
+            "name": "Marketing"
+          },
+          {
+            "name": "Partnership"
+          },
+          {
+            "name": "Seed"
+          },
+          {
+            "name": "Team"
           }
         ]
       }
@@ -1829,6 +1878,12 @@ export const IDL: Msp = {
           "type": {
             "defined": "Category"
           }
+        },
+        {
+          "name": "subCategory",
+          "type": {
+            "defined": "SubCategory"
+          }
         }
       ]
     },
@@ -2831,6 +2886,10 @@ export const IDL: Msp = {
           {
             "name": "category",
             "type": "u8"
+          },
+          {
+            "name": "subCategory",
+            "type": "u8"
           }
         ]
       }
@@ -2966,6 +3025,10 @@ export const IDL: Msp = {
           {
             "name": "category",
             "type": "u8"
+          },
+          {
+            "name": "subCategory",
+            "type": "u8"
           }
         ]
       }
@@ -2982,6 +3045,41 @@ export const IDL: Msp = {
           },
           {
             "name": "Vesting"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SubCategory",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Default"
+          },
+          {
+            "name": "Advisor"
+          },
+          {
+            "name": "Development"
+          },
+          {
+            "name": "Foundation"
+          },
+          {
+            "name": "Investor"
+          },
+          {
+            "name": "Marketing"
+          },
+          {
+            "name": "Partnership"
+          },
+          {
+            "name": "Seed"
+          },
+          {
+            "name": "Team"
           }
         ]
       }

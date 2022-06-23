@@ -32,6 +32,7 @@ import {
   ListStreamParams,
   Stream,
   STREAM_STATUS,
+  SubCategory,
   Treasury,
   TreasuryType,
   VestingTreasuryActivity,
@@ -213,6 +214,7 @@ export class MSP {
     friendly = true,
     excludeAutoClose?: boolean,
     category?: Category,
+    subCategory?: SubCategory,
   ): Promise<Treasury[]> {
     return listTreasuries(
       this.program,
@@ -220,6 +222,7 @@ export class MSP {
       friendly,
       excludeAutoClose,
       category,
+      subCategory,
     );
   }
 
@@ -347,6 +350,7 @@ export class MSP {
     streamName?: string,
     feePayedByTreasurer = false,
     category: Category = Category.default,
+    subCategory: SubCategory = SubCategory.default,
   ): Promise<Transaction> {
     let autoWSol = false;
     if (mint.equals(Constants.SOL_MINT)) {
@@ -427,6 +431,7 @@ export class MSP {
         true, // autoclose = true
         false, // sol fee payed by treasury
         { [Category[category]]: {} },
+        { [SubCategory[subCategory]]: {} },
         {
           accounts: {
             payer: treasurer,
@@ -567,6 +572,7 @@ export class MSP {
     cliffVestPercent?: number,
     feePayedByTreasurer = false,
     category: Category = Category.default,
+    subCategory: SubCategory = SubCategory.default,
   ): Promise<Transaction> {
     if (treasurer.equals(beneficiary)) {
       throw Error('Beneficiary can not be the same Treasurer');
@@ -642,6 +648,7 @@ export class MSP {
         true, // autoclose = true
         false, // sol fee payed by treasury
         { [Category[category]]: {} },
+        { [SubCategory[subCategory]]: {} },
         {
           accounts: {
             payer: treasurer,
@@ -765,6 +772,7 @@ export class MSP {
     type: TreasuryType,
     solFeePayedByTreasury = false,
     category: Category = Category.default,
+    subCategory: SubCategory = SubCategory.default,
   ): Promise<Transaction> {
     const slot = await this.connection.getSlot(
       (this.commitment as Commitment) || 'finalized',
@@ -807,6 +815,7 @@ export class MSP {
       false, // autoclose = false
       solFeePayedByTreasury,
       { [Category[category]]: {} },
+      { [SubCategory[subCategory]]: {} },
       {
         accounts: {
           payer: payer,
@@ -981,6 +990,7 @@ export class MSP {
     duration: number,
     durationUnit: TimeUnit,
     fundingAmount: number,
+    vestingCategory: SubCategory,
     startUtc?: Date,
     cliffVestPercent = 0,
     feePayedByTreasurer?: boolean,
@@ -1029,6 +1039,7 @@ export class MSP {
       false, // autoclose = false
       solFeePayedByTreasury,
       { [Category[Category.vesting]]: {} },
+      { [SubCategory[vestingCategory]]: {} },
       {
         accounts: {
           payer: payer,

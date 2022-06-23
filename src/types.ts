@@ -156,6 +156,8 @@ export type Treasury = {
   createdOnUtc: Date | string;
   treasuryType: TreasuryType;
   autoClose: boolean;
+  category: Category;
+  subCategory: SubCategory;
   data: any;
 };
 
@@ -225,6 +227,8 @@ export type Stream = {
   streamUnitsPerSecond: number;
   isManuallyPaused: boolean;
   feePayedByTreasurer: boolean;
+  category: Category;
+  subCategory: SubCategory;
   data: any;
 };
 
@@ -249,6 +253,18 @@ export type StreamBeneficiary = {
 export enum Category {
   default = 0,
   vesting = 1,
+}
+
+// Sub categories of vesting accounts
+export enum SubCategory {
+  default = 0,
+  advisor = 1,
+  development = 2,
+  foundation = 3,
+  marketing = 5,
+  partnership = 6,
+  seed = 7,
+  team = 8,
 }
 
 // Preferred Time Unit

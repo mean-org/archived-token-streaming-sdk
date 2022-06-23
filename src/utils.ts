@@ -45,6 +45,7 @@ import {
 } from '@solana/spl-token';
 import * as anchor from '@project-serum/anchor';
 import { TimeUnit } from './types';
+import { SubCategory } from './types';
 
 String.prototype.toPublicKey = function (): PublicKey {
   return new PublicKey(this.toString());
@@ -297,6 +298,7 @@ export const listTreasuries = async (
   friendly = true,
   excludeAutoClose?: boolean,
   category?: Category,
+  subCategory?: SubCategory,
 ): Promise<Treasury[]> => {
   const treasuries: Treasury[] = [];
   const memcmpFilters: any[] = [];
@@ -316,6 +318,12 @@ export const listTreasuries = async (
   if (category) {
     memcmpFilters.push({
       memcmp: { offset: 218, bytes: bs58.encode([category]) },
+    });
+  }
+
+  if (subCategory) {
+    memcmpFilters.push({
+      memcmp: { offset: 219, bytes: bs58.encode([subCategory]) },
     });
   }
 
@@ -610,6 +618,8 @@ const parseGetStreamData = (
     createdOnUtc: !friendly
       ? new Date(effectiveCreatedOnUtcInSeconds * 1000).toString()
       : new Date(effectiveCreatedOnUtcInSeconds * 1000),
+    category: event.category as Category,
+    subCategory: event.subCategory as SubCategory,
     upgradeRequired: false,
     data: event,
   } as Stream;
@@ -700,6 +710,8 @@ const parseStreamItemData = (
       ? stream.totalWithdrawalsUnits.toNumber()
       : stream.totalWithdrawalsUnits,
     feePayedByTreasurer: stream.feePayedByTreasurer,
+    category: stream.category as Category,
+    subCategory: stream.subCategory as SubCategory,
     transactionSignature: '',
     createdBlockTime:
       createdOnUtcInSeconds > 0 ? createdOnUtcInSeconds : startUtcInSeconds,
@@ -1247,6 +1259,8 @@ const parseTreasuryData = (
     allocationAssigned: treasury.allocationAssignedUnits.toNumber(),
     totalWithdrawals: treasury.totalWithdrawalsUnits.toNumber(),
     totalStreams: treasury.totalStreams.toNumber(),
+    category: treasury.category as Category,
+    subCategory: treasury.subCategory as SubCategory,
     data: treasury,
   } as Treasury;
 };
