@@ -211,7 +211,13 @@ export class MSP {
     excludeAutoClose?: boolean,
     category?: Category,
   ): Promise<Treasury[]> {
-    return listTreasuries(this.program, treasurer, friendly, excludeAutoClose, category);
+    return listTreasuries(
+      this.program,
+      treasurer,
+      friendly,
+      excludeAutoClose,
+      category,
+    );
   }
 
   public async getStreamTemplate(

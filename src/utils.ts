@@ -305,13 +305,13 @@ export const listTreasuries = async (
     });
   }
 
-  if(excludeAutoClose) {
+  if (excludeAutoClose) {
     memcmpFilters.push({
       memcmp: { offset: 216, bytes: bs58.encode([0]) },
     });
   }
 
-  if(category) {
+  if (category) {
     memcmpFilters.push({
       memcmp: { offset: 218, bytes: bs58.encode([category]) },
     });
