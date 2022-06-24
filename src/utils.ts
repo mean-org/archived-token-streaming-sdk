@@ -19,7 +19,7 @@ import { BN, BorshInstructionCoder, Idl, Program } from "@project-serum/anchor";
 import { Constants, LATEST_IDL_FILE_VERSION } from "./constants";
 import { StreamActivity, Stream, MSP_ACTIONS, TransactionFees, StreamActivityRaw } from "./types";
 import { STREAM_STATUS, Treasury, TreasuryType } from "./types";
-import { IDL, Msp } from './msp_idl_002'; // point to the latest IDL
+import { IDL, Msp } from './msp_idl_003'; // point to the latest IDL
 import { bs58 } from "@project-serum/anchor/dist/cjs/utils/bytes";
 import { AnchorProvider, Wallet } from "@project-serum/anchor/dist/cjs/provider";
 import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, NATIVE_MINT, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
@@ -624,6 +624,7 @@ let idl_legacy_before_1645224519: any = null;
 const idlPaths: string[] = [
   './msp_idl_001',
   './msp_idl_002',
+  './msp_idl_003',
 ]
 const idls: { [fileVersion: number]: any } = {};
 
@@ -835,7 +836,10 @@ async function parseVersionedStreamInstruction(
       } else if (idlFileVersion === 2) {
         const importedIdl = await import('./msp_idl_002');
         idls[idlFileVersion] = importedIdl.IDL;
-      } else {
+      } else if (idlFileVersion === 3) {
+        const importedIdl = await import('./msp_idl_003');
+        idls[idlFileVersion] = importedIdl.IDL;
+      }else {
         return null;
       }
     }

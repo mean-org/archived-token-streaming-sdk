@@ -5,7 +5,7 @@ import { Commitment, Connection, ConnectionConfig, Keypair, PublicKey, Transacti
 import { ASSOCIATED_TOKEN_PROGRAM_ID, NATIVE_MINT as NATIVE_WSOL_MINT, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { BN, Program } from "@project-serum/anchor";
 
-import { Msp } from './msp_idl_002';
+import { Msp } from './msp_idl_003';
 
 /**
  * MSP
@@ -444,7 +444,6 @@ export class MSP {
         {
           accounts: {
             payer: treasurer,
-            initializer: treasurer,
             treasurer: treasurer,
             treasury: treasury,
             treasuryToken: treasuryToken,
@@ -631,7 +630,6 @@ export class MSP {
         {
           accounts: {
             payer: treasurer,
-            initializer: treasurer,
             treasurer: treasurer,
             treasury: treasury,
             treasuryToken: treasuryToken,
@@ -832,7 +830,6 @@ export class MSP {
       {
         accounts: {
           payer: payer,
-          initializer: payer,
           treasurer: treasurer,
           treasury: treasury,
           treasuryToken: treasuryToken,
@@ -939,7 +936,6 @@ export class MSP {
           {
             accounts: {
               payer: payer,
-              initializer: payer,
               treasurer: treasurer,
               treasury: treasury,
               treasuryToken: treasuryToken,
@@ -1893,7 +1889,6 @@ export class MSP {
       {
         accounts: {
           payer: payer,
-          initializer: payer,
           treasurer: treasurer,
           treasury: treasury,
           treasuryToken: treasuryToken,
@@ -1996,7 +1991,6 @@ export class MSP {
           {
             accounts: {
               payer: payer,
-              initializer: payer,
               treasurer: treasurer,
               treasury: treasury,
               treasuryToken: treasuryToken,
