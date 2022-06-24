@@ -562,7 +562,7 @@ const parseGetStreamData = (
     version: event.version,
     initialized: event.initialized,
     name: new TextDecoder().decode(nameBuffer),
-    startUtc: !friendly
+    startUtc: friendly
       ? new Date(startUtcInSeconds * 1000).toString()
       : new Date(startUtcInSeconds * 1000),
     treasurer: friendly
@@ -640,7 +640,7 @@ const parseGetStreamData = (
       : event.totalWithdrawalsUnits,
     feePayedByTreasurer: event.feePayedByTreasurer,
     createdBlockTime: effectiveCreatedOnUtcInSeconds,
-    createdOnUtc: !friendly
+    createdOnUtc: friendly
       ? new Date(effectiveCreatedOnUtcInSeconds * 1000).toString()
       : new Date(effectiveCreatedOnUtcInSeconds * 1000),
     category: event.category as Category,
@@ -672,7 +672,7 @@ const parseStreamItemData = (
     version: stream.version,
     initialized: stream.initialized,
     name: new TextDecoder().decode(nameBuffer),
-    startUtc: !friendly
+    startUtc: friendly
       ? new Date(startUtcInSeconds * 1000).toString()
       : new Date(startUtcInSeconds * 1000),
     treasurer: friendly
@@ -740,7 +740,7 @@ const parseStreamItemData = (
     transactionSignature: '',
     createdBlockTime:
       createdOnUtcInSeconds > 0 ? createdOnUtcInSeconds : startUtcInSeconds,
-    createdOnUtc: !friendly
+    createdOnUtc: friendly
       ? new Date(effectiveCreatedOnUticInSeconds).toString()
       : new Date(effectiveCreatedOnUticInSeconds),
     upgradeRequired: false,
