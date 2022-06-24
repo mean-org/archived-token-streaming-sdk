@@ -101,14 +101,17 @@ export type StreamActivityRaw = {
  */
 export type VestingTreasuryActivity = {
   signature: string;
-  action: 'createStream' | 'addFunds';
+  action: 'createStream' | 'addFunds' | 'withdraw';
   initializer?: string;
   mint?: string;
   blockTime?: number;
   // createStream - allocation amount
   // addFunds - deposited amount
+  // withdraw - withdrawn amount
   amount?: number;
-  benificeiry?: string; // create stream
+  beneficiary?: string; // create stream
+  destination?: string; // withdraw
+  destinationTokenAccount?: PublicKey; // withdrawn associated token account
   utcDate: string;
 };
 
@@ -117,14 +120,17 @@ export type VestingTreasuryActivity = {
  */
 export type VestingTreasuryActivityRaw = {
   signature: string;
-  action: 'createStream' | 'addFunds';
+  action: 'createStream' | 'addFunds' | 'withdraw';
   initializer?: PublicKey;
   mint?: PublicKey;
   blockTime?: number;
   // createStream - allocation amount
   // addFunds - deposited amount
+  // withdraw - withdrawn amount
   amount?: BN;
-  benificeiry?: PublicKey; // create stream
+  beneficiary?: PublicKey; // create stream
+  destination?: PublicKey; // withdraw
+  destinationTokenAccount?: PublicKey; // withdrawn associated token account
   utcDate: string;
 };
 

@@ -123,6 +123,17 @@ describe('Tests creating a vesting treasury\n', async () => {
     await sendAndConfirmRawTransaction(connection, createStreamTx2Serialized, { commitment: 'confirmed' });
     console.log(`Stream2 created: ${stream2.toBase58()}\n`);
 
+    console.log('Withdraw from treasury');
+    const withdrawTx = await msp.treasuryWithdraw(user1Wallet.publicKey,
+        user1Wallet.publicKey,
+        treasury, LAMPORTS_PER_SOL);
+    withdrawTx.partialSign(user1Wallet);
+    const withdrawTxSerialized = withdrawTx.serialize({
+        verifySignatures: true,
+    });
+    await sendAndConfirmRawTransaction(connection, withdrawTxSerialized, { commitment: 'confirmed' });
+    console.log('Withdrawed from treasury\n');
+
     console.log("Creating a non-vesting treasury");
     const [createTreasuryTx, treasuryNonVesting] = await msp.createTreasury2(
         user1Wallet.publicKey,
@@ -232,6 +243,12 @@ describe('Tests creating a vesting treasury\n', async () => {
         true
     );
     console.log(JSON.stringify(res, null, 2) + '\n');
+
+    console.log("Getting vesting stream activities");
+    const res2 = await msp.listStreamActivity(stream, createNonVestingTreasuryTx, 10, 'confirmed', true);
+    console.log(JSON.stringify(res2, null, 2) + '\n');
+
+
     console.log("Getting vesting flow rate");
     const [rate, unit] = await msp.getVestingFlowRate(treasury);
     console.log(`Streaming ${rate/LAMPORTS_PER_SOL} SOL per ${TimeUnit[unit]}`);

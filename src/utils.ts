@@ -245,6 +245,7 @@ export const listStreamActivity = async (
     activityRaw = await parseStreamTransactions(
       address,
       txs as ParsedTransactionWithMeta[],
+      program.programId,
     );
 
     activityRaw.sort((a, b) => (b.blockTime ?? 0) - (a.blockTime ?? 0));
@@ -848,8 +849,9 @@ async function parseStreamInstructionAfter1645224519(
   streamAddress: PublicKey,
   transactionSignature: string,
   transactionBlockTimeInSeconds: number,
+  programId: PublicKey,
 ): Promise<StreamActivityRaw | null> {
-  if (!ix.programId.equals(Constants.MSP)) {
+  if (!ix.programId.equals(programId)) {
     return null;
   }
 
@@ -950,8 +952,9 @@ async function parseStreamInstructionBefore1645224519(
   streamAddress: PublicKey,
   transactionSignature: string,
   transactionBlockTimeInSeconds: number,
+  programId: PublicKey,
 ): Promise<StreamActivityRaw | null> {
-  if (!ix.programId.equals(Constants.MSP)) {
+  if (!ix.programId.equals(programId)) {
     return null;
   }
 
@@ -1075,8 +1078,9 @@ async function parseVersionedStreamInstruction(
   transactionSignature: string,
   transactionBlockTimeInSeconds: number,
   idlFileVersion: number,
+  programId: PublicKey,
 ): Promise<StreamActivityRaw | null> {
-  if (!ix.programId.equals(Constants.MSP)) {
+  if (!ix.programId.equals(programId)) {
     return null;
   }
 
@@ -1108,7 +1112,14 @@ async function parseVersionedStreamInstruction(
 
     const ixName = decodedIx.name;
     // console.log(`ixName: ${ixName}`);
-    if (['createStream', 'allocate', 'withdraw'].indexOf(ixName) === -1)
+    if (
+      [
+        'createStream',
+        'createStreamWithTemplate',
+        'allocate',
+        'withdraw',
+      ].indexOf(ixName) === -1
+    )
       return null;
 
     const ixAccountMetas = ix.accounts.map(pk => {
@@ -1126,7 +1137,9 @@ async function parseVersionedStreamInstruction(
 
     const blockTime = (transactionBlockTimeInSeconds as number) * 1000; // mult by 1000 to add milliseconds
     const action =
-      decodedIx.name === 'createStream' || decodedIx.name === 'allocate'
+      decodedIx.name === 'createStream' ||
+      decodedIx.name === 'createStreamWithTemplate' ||
+      decodedIx.name === 'allocate'
         ? 'deposited'
         : 'withdrew';
 
@@ -1190,15 +1203,14 @@ async function parseVersionedStreamInstruction(
 async function parseStreamTransactions(
   streamAddress: PublicKey,
   transactions: ParsedTransactionWithMeta[],
+  programId: PublicKey,
 ): Promise<StreamActivityRaw[]> {
   const parsedActivities: StreamActivityRaw[] = [];
-
   if (!transactions || transactions.length === 0) return [];
 
   for (let i = 0; i < transactions.length; i++) {
     const tx = transactions[i];
     const signature = tx.transaction.signatures[0];
-
     for (let j = 0; j < tx.transaction.message.instructions.length; j++) {
       const ix = tx.transaction.message.instructions[
         j
@@ -1208,9 +1220,9 @@ async function parseStreamTransactions(
       const decodedIxData = bs58.decode(ix.data);
       const ixIdlFileVersion =
         decodedIxData.length >= 9 ? decodedIxData.slice(8, 9)[0] : 0;
-
+      console.log('1223', ixIdlFileVersion);
       let activity: StreamActivityRaw | null = null;
-      if (ixIdlFileVersion > 0 && ixIdlFileVersion <= 1) {
+      if (ixIdlFileVersion > 0 && ixIdlFileVersion <= LATEST_IDL_FILE_VERSION) {
         // TODO: hardcoded
         activity = await parseVersionedStreamInstruction(
           ix,
@@ -1218,6 +1230,7 @@ async function parseStreamTransactions(
           signature,
           tx.blockTime ?? 0,
           ixIdlFileVersion,
+          programId,
         );
       } else if (!tx.blockTime || tx.blockTime >= 1645224519) {
         activity = await parseStreamInstructionAfter1645224519(
@@ -1225,6 +1238,7 @@ async function parseStreamTransactions(
           streamAddress,
           signature,
           tx.blockTime ?? 0,
+          programId,
         );
       } else {
         activity = await parseStreamInstructionBefore1645224519(
@@ -1232,6 +1246,7 @@ async function parseStreamTransactions(
           streamAddress,
           signature,
           tx.blockTime ?? 0,
+          programId,
         );
       }
 
@@ -1773,9 +1788,9 @@ export const listVestingTreasuryActivity = async (
   );
   if (txs && txs.length) {
     activityRaw = await parseVestingTreasuryTransactions(
-      program.programId,
       address,
       txs as ParsedTransactionWithMeta[],
+      program.programId,
     );
 
     activityRaw.sort((a, b) => (b.blockTime ?? 0) - (a.blockTime ?? 0));
@@ -1787,7 +1802,9 @@ export const listVestingTreasuryActivity = async (
     return {
       signature: i.signature,
       initializer: i.initializer?.toBase58(),
-      benificeiry: i.benificeiry?.toBase58(),
+      beneficiary: i.beneficiary?.toBase58(),
+      destination: i.destination?.toBase58(),
+      destinationTokenAccount: i.destinationTokenAccount?.toBase58(),
       action: i.action,
       amount: i.amount ? parseFloat(i.amount.toNumber().toFixed(9)) : 0,
       mint: i.mint?.toBase58(),
@@ -1800,9 +1817,9 @@ export const listVestingTreasuryActivity = async (
 };
 
 async function parseVestingTreasuryTransactions(
-  programId: PublicKey,
   treasuryAddress: PublicKey,
   transactions: ParsedTransactionWithMeta[],
+  programId: PublicKey,
 ): Promise<VestingTreasuryActivityRaw[]> {
   const parsedActivities: VestingTreasuryActivityRaw[] = [];
 
@@ -1853,15 +1870,22 @@ async function parseVestingTreasuryInstruction(
     return null;
   }
 
-  // todo improve for future idl versions
-  if (idlFileVersion !== 2) {
-    return null;
-  }
-
   try {
-    const importedIdl = await import('./msp_idl_002');
-    idls[idlFileVersion] = importedIdl.IDL;
-
+    if (!idls[idlFileVersion]) {
+      if (idlFileVersion === 1) {
+        // TODO: to avoid this if else, find a way to do dynamic imports passign concatenated paths
+        const importedIdl = await import('./msp_idl_001');
+        idls[idlFileVersion] = importedIdl.IDL;
+      } else if (idlFileVersion === 2) {
+        const importedIdl = await import('./msp_idl_002');
+        idls[idlFileVersion] = importedIdl.IDL;
+      } else if (idlFileVersion === 3) {
+        const importedIdl = await import('./msp_idl_003');
+        idls[idlFileVersion] = importedIdl.IDL;
+      } else {
+        return null;
+      }
+    }
     const coder = new BorshInstructionCoder(idls[idlFileVersion] as Idl);
 
     const decodedIx = coder.decode(ix.data, 'base58');
@@ -1869,7 +1893,11 @@ async function parseVestingTreasuryInstruction(
 
     const ixName = decodedIx.name;
     // console.log(`ixName: ${ixName}`);
-    if (['createStreamWithTemplate', 'addFunds'].indexOf(ixName) === -1)
+    if (
+      ['createStreamWithTemplate', 'addFunds', 'treasuryWithdraw'].indexOf(
+        ixName,
+      ) === -1
+    )
       return null;
 
     const ixAccountMetas = ix.accounts.map(pk => {
@@ -1887,11 +1915,13 @@ async function parseVestingTreasuryInstruction(
     }
 
     const blockTime = (transactionBlockTimeInSeconds as number) * 1000; // mult by 1000 to add milliseconds
-    let action: 'createStream' | 'addFunds' = 'createStream';
+    let action: 'createStream' | 'addFunds' | 'withdraw' = 'createStream';
     let initializer: PublicKey | undefined;
     let mint: PublicKey | undefined;
     let amountBN: BN | undefined;
-    let benificeiry: PublicKey | undefined;
+    let beneficiary: PublicKey | undefined;
+    let destination: PublicKey | undefined;
+    let destinationTokenAccount: PublicKey | undefined;
 
     if (decodedIx.name === 'createStreamWithTemplate') {
       action = 'createStream';
@@ -1901,7 +1931,7 @@ async function parseVestingTreasuryInstruction(
       mint = formattedIx?.accounts.find(
         a => a.name === 'Associated Token',
       )?.pubkey;
-      benificeiry = formattedIx?.accounts.find(
+      beneficiary = formattedIx?.accounts.find(
         a => a.name === 'Beneficiary',
       )?.pubkey;
       const parsedAmount = formattedIx?.args.find(
@@ -1920,13 +1950,33 @@ async function parseVestingTreasuryInstruction(
         a => a.name === 'amount',
       )?.data;
       amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
+    } else if (decodedIx.name === 'treasuryWithdraw') {
+      action = 'withdraw';
+      initializer = formattedIx?.accounts.find(
+        a => a.name === 'Treasurer',
+      )?.pubkey;
+      mint = formattedIx?.accounts.find(
+        a => a.name === 'Associated Token',
+      )?.pubkey;
+      destination = formattedIx?.accounts.find(
+        a => a.name === 'Destination Authority',
+      )?.pubkey;
+      destinationTokenAccount = formattedIx?.accounts.find(
+        a => a.name === 'Destination Token Account',
+      )?.pubkey;
+      const parsedAmount = formattedIx?.args.find(
+        a => a.name === 'amount',
+      )?.data;
+      amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
     }
 
     const activity: VestingTreasuryActivityRaw = {
       signature: transactionSignature,
       initializer: initializer,
       blockTime,
-      benificeiry,
+      beneficiary,
+      destination,
+      destinationTokenAccount,
       utcDate: new Date(blockTime).toUTCString(),
       action,
       amount: amountBN,
