@@ -129,6 +129,8 @@ export class MSP {
     treasury,
     beneficiary,
     friendly = true,
+    category = undefined,
+    subCategory = undefined,
   }: ListStreamParams): Promise<Stream[]> {
     return listStreams(
       this.program,
@@ -136,6 +138,8 @@ export class MSP {
       treasury,
       beneficiary,
       friendly,
+      category,
+      subCategory,
     );
   }
 
@@ -772,6 +776,34 @@ export class MSP {
     category: Category = Category.default,
     subCategory: SubCategory = SubCategory.default,
   ): Promise<Transaction> {
+    return (
+      await this.createTreasury2(
+        payer,
+        treasurer,
+        associatedTokenMint,
+        label,
+        type,
+        solFeePayedByTreasury,
+        category,
+        subCategory,
+      )
+    )[0];
+  }
+
+  /**
+   * This one returns not only the transaction but also the address of the
+   * treasury that will be created
+   */
+  public async createTreasury2(
+    payer: PublicKey,
+    treasurer: PublicKey,
+    associatedTokenMint: PublicKey,
+    label: string,
+    type: TreasuryType,
+    solFeePayedByTreasury = false,
+    category: Category = Category.default,
+    subCategory: SubCategory = SubCategory.default,
+  ): Promise<[Transaction, PublicKey]> {
     const slot = await this.connection.getSlot(
       (this.commitment as Commitment) || 'finalized',
     );
@@ -836,7 +868,7 @@ export class MSP {
     );
     tx.recentBlockhash = blockhash;
 
-    return tx;
+    return [tx, treasury];
   }
 
   public async createStream(

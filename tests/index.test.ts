@@ -36,7 +36,7 @@ describe('Tests creating a vesting treasury\n', async () => {
     const tx = new Transaction();
     tx.add(SystemProgram.transfer({
       fromPubkey: root.publicKey,
-      lamports: 1000 * LAMPORTS_PER_SOL,
+      lamports: 2000 * LAMPORTS_PER_SOL,
       toPubkey: user1Wallet.publicKey
     }));
     tx.add(SystemProgram.transfer({
@@ -76,7 +76,7 @@ describe('Tests creating a vesting treasury\n', async () => {
         user1Wallet.publicKey,
         treasury,
         Constants.SOL_MINT,
-        LAMPORTS_PER_SOL * 500,
+        LAMPORTS_PER_SOL * 1000,
     );
     addFundsTx.partialSign(user1Wallet);
     const addFundsTxSerialized = addFundsTx.serialize({
@@ -124,7 +124,7 @@ describe('Tests creating a vesting treasury\n', async () => {
     console.log(`Stream2 created: ${stream2.toBase58()}\n`);
 
     console.log("Creating a non-vesting treasury");
-    const createTreasuryTx = await msp.createTreasury(
+    const [createTreasuryTx, treasuryNonVesting] = await msp.createTreasury2(
         user1Wallet.publicKey,
         user1Wallet.publicKey,
         Constants.SOL_MINT,
@@ -134,17 +134,94 @@ describe('Tests creating a vesting treasury\n', async () => {
     const createNonVestingTreasuryTx = await sendAndConfirmTransaction(connection, createTreasuryTx, [user1Wallet], { commitment: 'confirmed' });
     console.log("Non vesting treasury created\n");
 
+    console.log('Adding funds to the treasury');
+    const addFundsNonVestingTx = await msp.addFunds(
+        user1Wallet.publicKey,
+        user1Wallet.publicKey,
+        treasuryNonVesting,
+        Constants.SOL_MINT,
+        LAMPORTS_PER_SOL * 100,
+    );
+    addFundsNonVestingTx.partialSign(user1Wallet);
+    const addFundsNonVestingTxSerialized = addFundsNonVestingTx.serialize({
+      verifySignatures: true,
+    });
+    await sendAndConfirmRawTransaction(connection, addFundsNonVestingTxSerialized, { commitment: 'confirmed' });
+    console.log('Funds added\n');
+
+    console.log("Creating a non-vesting stream");
+    const [createStreamTx3, nonVestingStream] = await msp.createStream2(
+        user1Wallet.publicKey,
+        user1Wallet.publicKey,
+        treasuryNonVesting,
+        user2Wallet.publicKey,
+        NATIVE_MINT,
+        'test_stream_3',
+        10 * LAMPORTS_PER_SOL,
+        0.1 * LAMPORTS_PER_SOL,
+        1,
+        new Date(),
+    );
+    createStreamTx3.partialSign(user1Wallet);
+    const createStreamTx3Serialized = createStreamTx3.serialize({
+      verifySignatures: true,
+    });
+    await sendAndConfirmRawTransaction(connection, createStreamTx3Serialized, { commitment: 'confirmed' });
+
+    console.log("Non vesting stream created\n");
+
     console.log("Filtering treasury by category");
     const filtered_cat = await msp.listTreasuries(user1Wallet.publicKey, true, false, Category.vesting);
     expect(filtered_cat.length).eq(1);
     expect(filtered_cat.at(0)!.id).eq(treasury.toBase58());
+
+    const filtered_cat_non_vesting = await msp.listTreasuries(user1Wallet.publicKey, true, false, Category.default);
+    expect(filtered_cat_non_vesting.length).eq(1);
+    expect(filtered_cat_non_vesting.at(0)!.id).eq(treasuryNonVesting.toBase58());
     console.log("Filter by category success.");
 
     console.log("Filtering treasury by sub category");
     const filtered_sub = await msp.listTreasuries(user1Wallet.publicKey, true, false, undefined, SubCategory.seed);
     expect(filtered_sub.length).eq(1);
     expect(filtered_sub.at(0)!.id).eq(treasury.toBase58());
+
+    const filtered_sub_non_vesting = await msp.listTreasuries(user1Wallet.publicKey, true, false, undefined, SubCategory.default);
+    expect(filtered_sub_non_vesting.length).eq(1);
+    expect(filtered_sub_non_vesting.at(0)!.id).eq(treasuryNonVesting.toBase58());
     console.log("Filter by sub category success.");
+
+    console.log("Filtering stream by category");
+    const filtered_cat_stream = await msp.listStreams({
+        treasury,
+        category: Category.vesting,
+    });
+    expect(filtered_cat_stream.length).eq(2);
+    expect(filtered_cat_stream.at(0)!.id).eq(stream2.toBase58());
+    expect(filtered_cat_stream.at(1)!.id).eq(stream.toBase58());
+    const filtered_cat_stream_non_vesting = await msp.listStreams({
+        treasury: treasuryNonVesting,
+        category: Category.default,
+    });
+    expect(filtered_cat_stream_non_vesting.length).eq(1);
+    expect(filtered_cat_stream_non_vesting.at(0)!.id).eq(nonVestingStream.toBase58());
+    console.log("Filter stream by category success.");
+
+    console.log("Filtering stream by sub category");
+    const filtered_sub_stream = await msp.listStreams({
+        treasury,
+        subCategory: SubCategory.seed,
+    });
+    expect(filtered_sub_stream.length).eq(2);
+    expect(filtered_sub_stream.at(0)!.id).eq(stream2.toBase58());
+    expect(filtered_sub_stream.at(1)!.id).eq(stream.toBase58());
+
+    const filtered_sub_stream_non_vesting = await msp.listStreams({
+          treasury: treasuryNonVesting,
+          subCategory: SubCategory.default,
+    })
+    expect(filtered_sub_stream_non_vesting.length).eq(1);
+    expect(filtered_sub_stream_non_vesting.at(0)!.id).eq(nonVestingStream.toBase58());
+    console.log("Filter stream by sub category success.");
 
     console.log("Getting vesting treasury activities");
     const res = await msp.listVestingTreasuryActivity(

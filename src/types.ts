@@ -66,6 +66,8 @@ export interface ListStreamParams {
   beneficiary?: PublicKey | undefined;
   commitment?: Commitment;
   friendly?: boolean;
+  category?: Category;
+  subCategory?: SubCategory;
 }
 
 /**

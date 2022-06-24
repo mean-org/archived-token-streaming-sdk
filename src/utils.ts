@@ -46,6 +46,7 @@ import {
 import * as anchor from '@project-serum/anchor';
 import { TimeUnit } from './types';
 import { SubCategory } from './types';
+import { MemcmpFilter } from '@solana/web3.js';
 
 String.prototype.toPublicKey = function (): PublicKey {
   return new PublicKey(this.toString());
@@ -143,6 +144,8 @@ export const listStreams = async (
   treasury?: PublicKey | undefined,
   beneficiary?: PublicKey | undefined,
   friendly = true,
+  category?: Category,
+  subCategory?: SubCategory,
 ): Promise<Stream[]> => {
   const streamInfoList: Stream[] = [];
   const accounts = await getFilteredStreamAccounts(
@@ -150,6 +153,8 @@ export const listStreams = async (
     treasurer,
     treasury,
     beneficiary,
+    category,
+    subCategory,
   );
   const slot = await program.provider.connection.getSlot('finalized');
   const blockTime = (await program.provider.connection.getBlockTime(
@@ -463,12 +468,30 @@ const getFilteredStreamAccounts = async (
   treasurer?: PublicKey | undefined,
   treasury?: PublicKey | undefined,
   beneficiary?: PublicKey | undefined,
+  category?: Category,
+  subCategory?: SubCategory,
 ) => {
   const accounts: any[] = [];
 
+  // category filters
+  const categoryFilters: MemcmpFilter[] = [];
+
+  if (category !== undefined) {
+    categoryFilters.push({
+      memcmp: { offset: 339, bytes: bs58.encode([category]) },
+    });
+  }
+
+  if (subCategory !== undefined) {
+    categoryFilters.push({
+      memcmp: { offset: 340, bytes: bs58.encode([subCategory]) },
+    });
+  }
+
   if (treasury) {
-    const memcmpFilters = [
+    const memcmpFilters: MemcmpFilter[] = [
       { memcmp: { offset: 8 + 170, bytes: treasury.toBase58() } },
+      ...categoryFilters,
     ];
     const accs = await program.account.stream.all(memcmpFilters);
 
@@ -477,8 +500,9 @@ const getFilteredStreamAccounts = async (
     }
   } else {
     if (treasurer) {
-      const memcmpFilters = [
+      const memcmpFilters: MemcmpFilter[] = [
         { memcmp: { offset: 8 + 34, bytes: treasurer.toBase58() } },
+        ...categoryFilters,
       ];
       const accs = await program.account.stream.all(memcmpFilters);
 
@@ -492,8 +516,9 @@ const getFilteredStreamAccounts = async (
     }
 
     if (beneficiary) {
-      const memcmpFilters = [
+      const memcmpFilters: MemcmpFilter[] = [
         { memcmp: { offset: 8 + 106, bytes: beneficiary.toBase58() } },
+        ...categoryFilters,
       ];
       const accs = await program.account.stream.all(memcmpFilters);
 
