@@ -1071,7 +1071,7 @@ async function parseVersionedStreamInstruction(
       } else if (idlFileVersion === 3) {
         const importedIdl = await import('./msp_idl_003');
         idls[idlFileVersion] = importedIdl.IDL;
-      }else {
+      } else {
         return null;
       }
     }
