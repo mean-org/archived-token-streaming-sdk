@@ -23,7 +23,7 @@ import {
 } from '@solana/spl-token';
 import { BN, Program } from '@project-serum/anchor';
 
-import { Msp } from './msp_idl_002';
+import { Msp } from './msp_idl_003';
 
 /**
  * MSP
@@ -526,7 +526,6 @@ export class MSP {
         {
           accounts: {
             payer: treasurer,
-            initializer: treasurer,
             treasurer: treasurer,
             treasury: treasury,
             treasuryToken: treasuryToken,
@@ -731,7 +730,6 @@ export class MSP {
         {
           accounts: {
             payer: treasurer,
-            initializer: treasurer,
             treasurer: treasurer,
             treasury: treasury,
             treasuryToken: treasuryToken,
@@ -949,7 +947,6 @@ export class MSP {
       {
         accounts: {
           payer: payer,
-          initializer: payer,
           treasurer: treasurer,
           treasury: treasury,
           treasuryToken: treasuryToken,
@@ -1353,7 +1350,6 @@ export class MSP {
       {
         accounts: {
           payer: payer,
-          initializer: payer,
           template,
           treasurer: treasurer,
           treasury: treasury,
@@ -1464,7 +1460,6 @@ export class MSP {
           {
             accounts: {
               payer: payer,
-              initializer: payer,
               treasurer: treasurer,
               treasury: treasury,
               treasuryToken: treasuryToken,
@@ -2431,7 +2426,6 @@ export class MSP {
       {
         accounts: {
           payer: payer,
-          initializer: payer,
           treasurer: treasurer,
           treasury: treasury,
           treasuryToken: treasuryToken,
@@ -2537,7 +2531,6 @@ export class MSP {
           {
             accounts: {
               payer: payer,
-              initializer: payer,
               treasurer: treasurer,
               treasury: treasury,
               treasuryToken: treasuryToken,
