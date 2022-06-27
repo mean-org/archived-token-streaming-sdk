@@ -232,8 +232,9 @@ describe('Tests creating a vesting treasury\n', async () => {
         subCategory: SubCategory.seed,
     });
     expect(filtered_sub_stream.length).eq(2);
-    expect(filtered_sub_stream.at(0)!.id).eq(stream2.toBase58());
-    expect(filtered_sub_stream.at(1)!.id).eq(stream.toBase58());
+    const filtered_sub_stream_sorted = filtered_cat_stream.sort((a, b) => a.name.localeCompare(b.name));
+    expect(filtered_sub_stream_sorted.at(0)!.id).eq(stream.toBase58());
+    expect(filtered_sub_stream_sorted.at(1)!.id).eq(stream2.toBase58());
 
     const filtered_sub_stream_non_vesting = await msp.listStreams({
           treasury: treasuryNonVesting,
@@ -256,6 +257,9 @@ describe('Tests creating a vesting treasury\n', async () => {
     console.log("Getting vesting stream activities");
     const res2 = await msp.listStreamActivity(stream, createNonVestingTreasuryTx, 10, 'confirmed', true);
     console.log(JSON.stringify(res2, null, 2) + '\n');
+
+    console.log("Waiting 10 seconds...")
+    await new Promise(resolve => setTimeout(resolve, 10000));
 
     console.log("Getting vesting flow rate");
     const [rate, unit] = await msp.getVestingFlowRate(treasury);

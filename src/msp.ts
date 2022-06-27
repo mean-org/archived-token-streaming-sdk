@@ -1299,6 +1299,7 @@ export class MSP {
     for (const stream of streams) {
       switch (stream.status) {
         case STREAM_STATUS.Paused:
+        case STREAM_STATUS.Schedule:
           continue;
       }
       if (stream.remainingAllocationAmount <= 0) {

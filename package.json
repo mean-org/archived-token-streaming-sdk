@@ -30,7 +30,7 @@
     "start": "ts-node main.ts",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
-    "test": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha --timeout 10000 -r ts-node/register tests/*.test.ts",
+    "test": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha --timeout 100000 -r ts-node/register tests/*.test.ts",
     "prettier-format": "prettier --config .prettierrc 'src/**/*.ts' 'tests/**/*.ts' --write",
     "prepare": "husky install"
   },
