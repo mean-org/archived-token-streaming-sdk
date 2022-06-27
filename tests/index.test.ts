@@ -62,7 +62,7 @@ describe('Tests creating a vesting treasury\n', async () => {
       false,
       Constants.SOL_MINT,
       12,
-      TimeUnit.Month,
+      TimeUnit.Minute,
       0,
       SubCategory.seed,
       new Date(),
@@ -132,7 +132,15 @@ describe('Tests creating a vesting treasury\n', async () => {
         verifySignatures: true,
     });
     await sendAndConfirmRawTransaction(connection, withdrawTxSerialized, { commitment: 'confirmed' });
-    console.log('Withdrawed from treasury\n');
+    console.log('Withdrew from treasury\n');
+
+    console.log("Waiting 5 seconds...")
+    await new Promise(resolve => setTimeout(resolve, 5000));
+
+    console.log("Withdrawing from stream1");
+    const withdrawStreamTx = await msp.withdraw(user2Wallet.publicKey, stream, 0.00000025 * LAMPORTS_PER_SOL);
+    await sendAndConfirmTransaction(connection, withdrawStreamTx, [user2Wallet], { commitment: 'confirmed' });
+    console.log("Withdraw from stream1 success.");
 
     console.log("Creating a non-vesting treasury");
     const [createTreasuryTx, treasuryNonVesting] = await msp.createTreasury2(
@@ -207,8 +215,9 @@ describe('Tests creating a vesting treasury\n', async () => {
         category: Category.vesting,
     });
     expect(filtered_cat_stream.length).eq(2);
-    expect(filtered_cat_stream.at(0)!.id).eq(stream2.toBase58());
-    expect(filtered_cat_stream.at(1)!.id).eq(stream.toBase58());
+    const filtered_cat_stream_sorted = filtered_cat_stream.sort((a, b) => a.name.localeCompare(b.name));
+    expect(filtered_cat_stream_sorted.at(0)!.id).eq(stream.toBase58());
+    expect(filtered_cat_stream_sorted.at(1)!.id).eq(stream2.toBase58());
     const filtered_cat_stream_non_vesting = await msp.listStreams({
         treasury: treasuryNonVesting,
         category: Category.default,
@@ -247,7 +256,6 @@ describe('Tests creating a vesting treasury\n', async () => {
     console.log("Getting vesting stream activities");
     const res2 = await msp.listStreamActivity(stream, createNonVestingTreasuryTx, 10, 'confirmed', true);
     console.log(JSON.stringify(res2, null, 2) + '\n');
-
 
     console.log("Getting vesting flow rate");
     const [rate, unit] = await msp.getVestingFlowRate(treasury);

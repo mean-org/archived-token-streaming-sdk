@@ -67,6 +67,7 @@ export class MSP {
   private connection: Connection;
   private program: Program<Msp>;
   private commitment: Commitment | ConnectionConfig | undefined;
+  private customProgramId: PublicKey | undefined;
 
   /**
    * Create a Streaming API object
@@ -84,6 +85,7 @@ export class MSP {
       rpcUrl,
       (this.commitment as Commitment) || 'finalized',
     );
+    this.customProgramId = _customProgramId;
     this.program = createProgram(
       this.connection,
       walletAddress,
@@ -95,6 +97,7 @@ export class MSP {
     const program = createProgram(
       this.connection,
       Constants.FEE_TREASURY.toBase58(),
+      this.customProgramId,
     );
 
     return getStream(program, id, friendly);
@@ -111,6 +114,7 @@ export class MSP {
       const program = createProgram(
         this.connection,
         Constants.FEE_TREASURY.toBase58(),
+        this.customProgramId,
       );
 
       const streamId =
@@ -1007,7 +1011,7 @@ export class MSP {
   }
 
   /**
-   * This creates a stream template
+   * This creates a vesting stream treasury with template.
    */
   public async createVestingTreasury(
     payer: PublicKey,

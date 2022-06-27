@@ -1147,7 +1147,10 @@ async function parseVersionedStreamInstruction(
     let mint: PublicKey | undefined;
     let amountBN: BN | undefined;
 
-    if (decodedIx.name === 'createStream') {
+    if (
+      decodedIx.name === 'createStream' ||
+      decodedIx.name === 'createStreamWithTemplate'
+    ) {
       initializer = formattedIx?.accounts.find(
         a => a.name === 'Treasurer',
       )?.pubkey;
@@ -1220,7 +1223,6 @@ async function parseStreamTransactions(
       const decodedIxData = bs58.decode(ix.data);
       const ixIdlFileVersion =
         decodedIxData.length >= 9 ? decodedIxData.slice(8, 9)[0] : 0;
-      console.log('1223', ixIdlFileVersion);
       let activity: StreamActivityRaw | null = null;
       if (ixIdlFileVersion > 0 && ixIdlFileVersion <= LATEST_IDL_FILE_VERSION) {
         // TODO: hardcoded
