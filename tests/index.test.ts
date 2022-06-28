@@ -144,7 +144,28 @@ describe('Tests creating a vesting treasury\n', async () => {
     console.log("Withdrawing from stream1");
     const withdrawStreamTx = await msp.withdraw(user2Wallet.publicKey, stream, 0.00000025 * LAMPORTS_PER_SOL);
     await sendAndConfirmTransaction(connection, withdrawStreamTx, [user2Wallet], { commitment: 'confirmed' });
-    console.log("Withdraw from stream1 success.");
+    console.log("Withdraw from stream1 success.\n");
+
+    console.log("Allocate funds to stream1");
+    const allocateStreamTx = await msp.allocate(user1Wallet.publicKey, user1Wallet.publicKey, treasury, stream, 3 * LAMPORTS_PER_SOL);
+    await sendAndConfirmTransaction(connection, allocateStreamTx, [user1Wallet], { commitment: 'confirmed' });
+    console.log("Allocate to stream1 success.\n");
+
+    console.log("Pausing stream1");
+    const PauseStreamTx = await msp.pauseStream(user1Wallet.publicKey, user1Wallet.publicKey, stream);
+    await sendAndConfirmTransaction(connection, PauseStreamTx, [user1Wallet], { commitment: 'confirmed' });
+    console.log("Pause stream1 success.\n");
+
+    console.log("Resume stream1");
+    const ResumeStreamTx = await msp.resumeStream(user1Wallet.publicKey, user1Wallet.publicKey, stream);
+    await sendAndConfirmTransaction(connection, ResumeStreamTx, [user1Wallet], { commitment: 'confirmed' });
+    console.log("Resume stream1 success.\n");
+
+
+    console.log("Refresh treasury balance");
+    const RefreshStreamTx = await msp.refreshTreasuryData(user1Wallet.publicKey, user1Wallet.publicKey, treasury);
+    await sendAndConfirmTransaction(connection, RefreshStreamTx, [user1Wallet], { commitment: 'confirmed' });
+    console.log("Treasury refresh success.\n");
 
     console.log("Creating a non-vesting treasury");
     const [createTreasuryTx, treasuryNonVesting] = await msp.createTreasury2(
@@ -252,7 +273,7 @@ describe('Tests creating a vesting treasury\n', async () => {
     const res = await msp.listVestingTreasuryActivity(
         treasury,
         createNonVestingTreasuryTx,
-        10,
+        20,
         'confirmed',
         true
     );
@@ -267,7 +288,12 @@ describe('Tests creating a vesting treasury\n', async () => {
 
     console.log("Getting vesting flow rate");
     const [rate, unit] = await msp.getVestingFlowRate(treasury);
-    console.log(`Streaming ${rate/LAMPORTS_PER_SOL} SOL per ${TimeUnit[unit]}`);
+    console.log(`Streaming ${rate / LAMPORTS_PER_SOL} SOL per ${TimeUnit[unit]}`);
+    
+    console.log("Close stream1");
+    const CloseStreamTx = await msp.closeStream(user1Wallet.publicKey, user1Wallet.publicKey, stream, false, true);
+    await sendAndConfirmTransaction(connection, CloseStreamTx, [user1Wallet], { commitment: 'confirmed' });
+    console.log("Close stream1 success.\n");
   });
 });
 

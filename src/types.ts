@@ -101,7 +101,7 @@ export type StreamActivityRaw = {
  */
 export type VestingTreasuryActivity = {
   signature: string;
-  action: 'createStream' | 'addFunds' | 'withdraw';
+  action: VestingTreasuryActivityAction;
   initializer?: string;
   mint?: string;
   blockTime?: number;
@@ -112,6 +112,7 @@ export type VestingTreasuryActivity = {
   beneficiary?: string; // create stream
   destination?: string; // withdraw
   destinationTokenAccount?: PublicKey; // withdrawn associated token account
+  stream?: PublicKey; // vesting stream activities
   utcDate: string;
 };
 
@@ -120,7 +121,7 @@ export type VestingTreasuryActivity = {
  */
 export type VestingTreasuryActivityRaw = {
   signature: string;
-  action: 'createStream' | 'addFunds' | 'withdraw';
+  action: VestingTreasuryActivityAction;
   initializer?: PublicKey;
   mint?: PublicKey;
   blockTime?: number;
@@ -131,8 +132,21 @@ export type VestingTreasuryActivityRaw = {
   beneficiary?: PublicKey; // create stream
   destination?: PublicKey; // withdraw
   destinationTokenAccount?: PublicKey; // withdrawn associated token account
+  stream?: PublicKey; // vesting stream activities
   utcDate: string;
 };
+
+export enum VestingTreasuryActivityAction {
+  StreamCreate,
+  TreasuryAddFunds,
+  TreasuryWithdraw,
+  StreamPause,
+  StreamResume,
+  StreamClose,
+  StreamAllocateFunds,
+  StreamWithdraw,
+  TreasuryRefresh,
+}
 
 /**
  * Treasury type
