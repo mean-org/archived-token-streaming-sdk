@@ -63,11 +63,15 @@ describe('Tests creating a vesting treasury\n', async () => {
       Constants.SOL_MINT,
       12,
       TimeUnit.Minute,
-      0,
+      2 * LAMPORTS_PER_SOL,
       SubCategory.seed,
       new Date(),
     );
-    await sendAndConfirmTransaction(connection, createVestingTreasuryTx, [user1Wallet], { commitment: 'confirmed' });
+    createVestingTreasuryTx.partialSign(user1Wallet);
+    const createVestingTreasuryTxSerialized = createVestingTreasuryTx.serialize({
+      verifySignatures: true,
+    });
+    await sendAndConfirmRawTransaction(connection, createVestingTreasuryTxSerialized, { commitment: 'confirmed' });
     console.log(`Created a vesting treasury: ${treasury.toBase58()}\n`);
 
     console.log('Adding funds to the treasury');

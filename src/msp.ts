@@ -1052,8 +1052,10 @@ export class MSP {
       this.program.programId,
     );
 
+    let autoWSol = false;
     if (treasuryAssociatedTokenMint.equals(Constants.SOL_MINT)) {
       treasuryAssociatedTokenMint = NATIVE_WSOL_MINT;
+      autoWSol = true;
     }
 
     const treasuryToken = await Token.getAssociatedTokenAddress(
@@ -1088,14 +1090,8 @@ export class MSP {
         },
       },
     );
-
+    const txSigners: Signer[] = [];
     if (fundingAmount > 0) {
-      let autoWSol = false;
-      if (treasuryAssociatedTokenMint.equals(Constants.SOL_MINT)) {
-        treasuryAssociatedTokenMint = NATIVE_WSOL_MINT;
-        autoWSol = true;
-      }
-
       const contributorToken = await Token.getAssociatedTokenAddress(
         ASSOCIATED_TOKEN_PROGRAM_ID,
         TOKEN_PROGRAM_ID,
@@ -1110,8 +1106,6 @@ export class MSP {
       );
 
       const ixs: TransactionInstruction[] = [];
-      const txSigners: Signer[] = [];
-
       await this.ensureAutoWrapSolInstructions(
         autoWSol,
         fundingAmount,
@@ -1168,7 +1162,6 @@ export class MSP {
           },
         ),
       );
-
       tx.add(...ixs);
     }
 
@@ -1211,6 +1204,10 @@ export class MSP {
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
+
+    if (txSigners.length > 0) {
+      tx.partialSign(...txSigners);
+    }
 
     return [tx, treasury];
   }
