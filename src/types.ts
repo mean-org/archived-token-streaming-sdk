@@ -2,7 +2,7 @@
  * Solana
  */
 import { Commitment, PublicKey } from '@solana/web3.js';
-import BN from 'bn.js';
+import { BN } from '@project-serum/anchor';
 
 declare global {
   export interface String {
@@ -111,8 +111,8 @@ export type VestingTreasuryActivity = {
   amount?: number;
   beneficiary?: string; // create stream
   destination?: string; // withdraw
-  destinationTokenAccount?: PublicKey; // withdrawn associated token account
-  stream?: PublicKey; // vesting stream activities
+  destinationTokenAccount?: string; // withdrawn associated token account
+  stream?: string; // vesting stream activities
   utcDate: string;
 };
 

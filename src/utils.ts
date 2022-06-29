@@ -1804,14 +1804,14 @@ export const listVestingTreasuryActivity = async (
   const activity = activityRaw.map(i => {
     return {
       signature: i.signature,
+      action: i.action,
       initializer: i.initializer?.toBase58(),
+      mint: i.mint?.toBase58(),
+      blockTime: i.blockTime,
+      amount: i.amount ? parseFloat(i.amount.toNumber().toFixed(9)) : 0,
       beneficiary: i.beneficiary?.toBase58(),
       destination: i.destination?.toBase58(),
       destinationTokenAccount: i.destinationTokenAccount?.toBase58(),
-      action: i.action,
-      amount: i.amount ? parseFloat(i.amount.toNumber().toFixed(9)) : 0,
-      mint: i.mint?.toBase58(),
-      blockTime: i.blockTime,
       stream: i.stream?.toBase58(),
       utcDate: i.utcDate,
     } as VestingTreasuryActivity;
@@ -1931,7 +1931,7 @@ async function parseVestingTreasuryInstruction(
       VestingTreasuryActivityAction.StreamCreate;
     let initializer: PublicKey | undefined;
     let mint: PublicKey | undefined;
-    let amountBN: BN | undefined;
+    let amount: BN | undefined;
     let beneficiary: PublicKey | undefined;
     let destination: PublicKey | undefined;
     let destinationTokenAccount: PublicKey | undefined;
@@ -1939,6 +1939,7 @@ async function parseVestingTreasuryInstruction(
 
     if (decodedIx.name === 'createStreamWithTemplate') {
       action = VestingTreasuryActivityAction.StreamCreate;
+      stream = formattedIx?.accounts.find(a => a.name === 'Stream')?.pubkey;
       initializer = formattedIx?.accounts.find(
         a => a.name === 'Treasurer',
       )?.pubkey;
@@ -1951,7 +1952,7 @@ async function parseVestingTreasuryInstruction(
       const parsedAmount = formattedIx?.args.find(
         a => a.name === 'allocationAssignedUnits',
       )?.data;
-      amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
+      amount = parsedAmount ? new BN(parsedAmount) : undefined;
     } else if (decodedIx.name === 'addFunds') {
       action = VestingTreasuryActivityAction.TreasuryAddFunds;
       initializer = formattedIx?.accounts.find(
@@ -1963,7 +1964,7 @@ async function parseVestingTreasuryInstruction(
       const parsedAmount = formattedIx?.args.find(
         a => a.name === 'amount',
       )?.data;
-      amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
+      amount = parsedAmount ? new BN(parsedAmount) : undefined;
     } else if (decodedIx.name === 'treasuryWithdraw') {
       action = VestingTreasuryActivityAction.TreasuryWithdraw;
       initializer = formattedIx?.accounts.find(
@@ -1981,7 +1982,7 @@ async function parseVestingTreasuryInstruction(
       const parsedAmount = formattedIx?.args.find(
         a => a.name === 'amount',
       )?.data;
-      amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
+      amount = parsedAmount ? new BN(parsedAmount) : undefined;
     } else if (decodedIx.name === 'withdraw') {
       action = VestingTreasuryActivityAction.StreamWithdraw;
       stream = formattedIx?.accounts.find(a => a.name === 'Stream')?.pubkey;
@@ -1997,7 +1998,7 @@ async function parseVestingTreasuryInstruction(
       const parsedAmount = formattedIx?.args.find(
         a => a.name === 'amount',
       )?.data;
-      amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
+      amount = parsedAmount ? new BN(parsedAmount) : undefined;
     } else if (decodedIx.name === 'allocate') {
       action = VestingTreasuryActivityAction.StreamAllocateFunds;
       stream = formattedIx?.accounts.find(a => a.name === 'Stream')?.pubkey;
@@ -2010,7 +2011,7 @@ async function parseVestingTreasuryInstruction(
       const parsedAmount = formattedIx?.args.find(
         a => a.name === 'amount',
       )?.data;
-      amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
+      amount = parsedAmount ? new BN(parsedAmount) : undefined;
     } else if (decodedIx.name === 'closeStream') {
       action = VestingTreasuryActivityAction.StreamClose;
       stream = formattedIx?.accounts.find(a => a.name === 'Stream')?.pubkey;
@@ -2044,21 +2045,19 @@ async function parseVestingTreasuryInstruction(
         a => a.name === 'Associated Token',
       )?.pubkey;
     }
-
-    const activity: VestingTreasuryActivityRaw = {
+    return {
       signature: transactionSignature,
-      initializer: initializer,
-      blockTime,
-      stream,
+      action,
+      amount,
       beneficiary,
+      blockTime,
       destination,
       destinationTokenAccount,
-      utcDate: new Date(blockTime).toUTCString(),
-      action,
-      amount: amountBN,
+      initializer,
       mint,
+      stream,
+      utcDate: new Date(blockTime).toUTCString(),
     };
-    return activity;
   } catch (error) {
     console.log(error);
     return null;
