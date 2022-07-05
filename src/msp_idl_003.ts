@@ -1,5 +1,5 @@
 export type Msp = {
-  "version": "2.5.2",
+  "version": "2.6.0",
   "name": "msp",
   "instructions": [
     {
@@ -256,6 +256,124 @@ export type Msp = {
         {
           "name": "feePayedByTreasurer",
           "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "createTreasuryAndTemplate",
+      "accounts": [
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "treasurer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "treasury",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "treasuryToken",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "template",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "associatedToken",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "feeTreasury",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "idlFileVersion",
+          "type": "u8"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "treasuryType",
+          "type": "u8"
+        },
+        {
+          "name": "autoClose",
+          "type": "bool"
+        },
+        {
+          "name": "solFeePayedByTreasury",
+          "type": "bool"
+        },
+        {
+          "name": "category",
+          "type": {
+            "defined": "Category"
+          }
+        },
+        {
+          "name": "subCategory",
+          "type": {
+            "defined": "SubCategory"
+          }
+        },
+        {
+          "name": "startUtc",
+          "type": "u64"
+        },
+        {
+          "name": "rateIntervalInSeconds",
+          "type": "u64"
+        },
+        {
+          "name": "durationNumberOfUnits",
+          "type": "u64"
+        },
+        {
+          "name": "cliffVestPercent",
+          "type": "u64"
+        },
+        {
+          "name": "feePayedByTreasurer",
+          "type": "bool"
+        },
+        {
+          "name": "slot",
+          "type": "u64"
         }
       ]
     },
@@ -1330,12 +1448,7 @@ export type Msp = {
         },
         {
           "name": "name",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          },
+          "type": "string",
           "index": false
         },
         {
@@ -1552,6 +1665,621 @@ export type Msp = {
           "name": "subCategory",
           "type": "u8",
           "index": false
+        }
+      ]
+    },
+    {
+      "name": "CreateTreasuryEvent",
+      "fields": [
+        {
+          "name": "timestamp",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solDepositedForFees",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryIsSolFeePayedByTreasury",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "treasuryType",
+          "type": "u8",
+          "index": false
+        },
+        {
+          "name": "treasuryIsAutoClose",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "treasury",
+          "type": "publicKey",
+          "index": true
+        }
+      ]
+    },
+    {
+      "name": "CreateStreamEvent",
+      "fields": [
+        {
+          "name": "timestamp",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamStartTs",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamRateAmount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamRateInterval",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamAllocation",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamCliff",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamIsTokenWithdrawFeePayedByTreasury",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "treasuryIsSolFeePayedByTreasury",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "treasuryAllocationAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryBalanceAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "stream",
+          "type": "publicKey",
+          "index": true
+        },
+        {
+          "name": "treasury",
+          "type": "publicKey",
+          "index": true
+        }
+      ]
+    },
+    {
+      "name": "StreamWithdrawEvent",
+      "fields": [
+        {
+          "name": "timestamp",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenAmountSentToBeneficiary",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamWithdrawableBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamIsManuallyPaused",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "streamAllocationAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamTotalWithdrawalsAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamIsTokenWithdrawFeePayedByTreasury",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "treasuryIsSolFeePayedByTreasury",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "treasuryAllocationAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryBalanceAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryTotalWithdrawalsAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "stream",
+          "type": "publicKey",
+          "index": true
+        },
+        {
+          "name": "treasury",
+          "type": "publicKey",
+          "index": true
+        }
+      ]
+    },
+    {
+      "name": "StreamPauseEvent",
+      "fields": [
+        {
+          "name": "timestamp",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamLastManualStopWithdrawableAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "stream",
+          "type": "publicKey",
+          "index": true
+        },
+        {
+          "name": "treasury",
+          "type": "publicKey",
+          "index": true
+        }
+      ]
+    },
+    {
+      "name": "StreamResumeEvent",
+      "fields": [
+        {
+          "name": "timestamp",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamTotalSecondsInPausedStatusAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "stream",
+          "type": "publicKey",
+          "index": true
+        },
+        {
+          "name": "treasury",
+          "type": "publicKey",
+          "index": true
+        }
+      ]
+    },
+    {
+      "name": "TreasuryRefreshEvent",
+      "fields": [
+        {
+          "name": "timestamp",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryBalanceAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasury",
+          "type": "publicKey",
+          "index": true
+        }
+      ]
+    },
+    {
+      "name": "StreamTransferEvent",
+      "fields": [
+        {
+          "name": "timestamp",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "stream",
+          "type": "publicKey",
+          "index": true
+        },
+        {
+          "name": "treasury",
+          "type": "publicKey",
+          "index": true
+        },
+        {
+          "name": "previousBeneficiary",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "newBeneficiary",
+          "type": "publicKey",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "TreasuryAddFundsEvent",
+      "fields": [
+        {
+          "name": "timestamp",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryIsSolFeePayedByTreasury",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "treasuryBalanceAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasury",
+          "type": "publicKey",
+          "index": true
+        }
+      ]
+    },
+    {
+      "name": "StreamAllocateEvent",
+      "fields": [
+        {
+          "name": "timestamp",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamStatusBefore",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "streamWasManuallyPausedBefore",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "streamLastAutoStopBlockTime",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamTotalSecondsInPausedStatusAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamIsTokenWithdrawFeePayedByTreasury",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "streamAllocationAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryIsSolFeePayedByTreasury",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "treasuryAllocationAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryBalanceAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "stream",
+          "type": "publicKey",
+          "index": true
+        },
+        {
+          "name": "treasury",
+          "type": "publicKey",
+          "index": true
+        }
+      ]
+    },
+    {
+      "name": "CloseStreamEvent",
+      "fields": [
+        {
+          "name": "timestamp",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenAmountSentToBeneficiary",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamIsTokenWithdrawFeePayedByTreasury",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "streamAllocationBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamTotalWithdrawalsBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryIsSolFeePayedByTreasury",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "treasuryAllocationAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryBalanceAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryTotalStreamsAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "stream",
+          "type": "publicKey",
+          "index": true
+        },
+        {
+          "name": "treasury",
+          "type": "publicKey",
+          "index": true
+        }
+      ]
+    },
+    {
+      "name": "CloseTreasuryEvent",
+      "fields": [
+        {
+          "name": "timestamp",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenAmountSentToDestination",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryIsSolFeePayedByTreasury",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "treasury",
+          "type": "publicKey",
+          "index": true
+        }
+      ]
+    },
+    {
+      "name": "TreasuryWithdrawEvent",
+      "fields": [
+        {
+          "name": "timestamp",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenAmountSentToDestination",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryIsSolFeePayedByTreasury",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "treasuryBalanceAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasury",
+          "type": "publicKey",
+          "index": true
         }
       ]
     }
@@ -1791,7 +2519,7 @@ export type Msp = {
 };
 
 export const IDL: Msp = {
-  "version": "2.5.2",
+  "version": "2.6.0",
   "name": "msp",
   "instructions": [
     {
@@ -2048,6 +2776,124 @@ export const IDL: Msp = {
         {
           "name": "feePayedByTreasurer",
           "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "createTreasuryAndTemplate",
+      "accounts": [
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "treasurer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "treasury",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "treasuryToken",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "template",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "associatedToken",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "feeTreasury",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "idlFileVersion",
+          "type": "u8"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "treasuryType",
+          "type": "u8"
+        },
+        {
+          "name": "autoClose",
+          "type": "bool"
+        },
+        {
+          "name": "solFeePayedByTreasury",
+          "type": "bool"
+        },
+        {
+          "name": "category",
+          "type": {
+            "defined": "Category"
+          }
+        },
+        {
+          "name": "subCategory",
+          "type": {
+            "defined": "SubCategory"
+          }
+        },
+        {
+          "name": "startUtc",
+          "type": "u64"
+        },
+        {
+          "name": "rateIntervalInSeconds",
+          "type": "u64"
+        },
+        {
+          "name": "durationNumberOfUnits",
+          "type": "u64"
+        },
+        {
+          "name": "cliffVestPercent",
+          "type": "u64"
+        },
+        {
+          "name": "feePayedByTreasurer",
+          "type": "bool"
+        },
+        {
+          "name": "slot",
+          "type": "u64"
         }
       ]
     },
@@ -3122,12 +3968,7 @@ export const IDL: Msp = {
         },
         {
           "name": "name",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          },
+          "type": "string",
           "index": false
         },
         {
@@ -3344,6 +4185,621 @@ export const IDL: Msp = {
           "name": "subCategory",
           "type": "u8",
           "index": false
+        }
+      ]
+    },
+    {
+      "name": "CreateTreasuryEvent",
+      "fields": [
+        {
+          "name": "timestamp",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solDepositedForFees",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryIsSolFeePayedByTreasury",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "treasuryType",
+          "type": "u8",
+          "index": false
+        },
+        {
+          "name": "treasuryIsAutoClose",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "treasury",
+          "type": "publicKey",
+          "index": true
+        }
+      ]
+    },
+    {
+      "name": "CreateStreamEvent",
+      "fields": [
+        {
+          "name": "timestamp",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamStartTs",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamRateAmount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamRateInterval",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamAllocation",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamCliff",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamIsTokenWithdrawFeePayedByTreasury",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "treasuryIsSolFeePayedByTreasury",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "treasuryAllocationAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryBalanceAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "stream",
+          "type": "publicKey",
+          "index": true
+        },
+        {
+          "name": "treasury",
+          "type": "publicKey",
+          "index": true
+        }
+      ]
+    },
+    {
+      "name": "StreamWithdrawEvent",
+      "fields": [
+        {
+          "name": "timestamp",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenAmountSentToBeneficiary",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamWithdrawableBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamIsManuallyPaused",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "streamAllocationAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamTotalWithdrawalsAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamIsTokenWithdrawFeePayedByTreasury",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "treasuryIsSolFeePayedByTreasury",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "treasuryAllocationAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryBalanceAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryTotalWithdrawalsAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "stream",
+          "type": "publicKey",
+          "index": true
+        },
+        {
+          "name": "treasury",
+          "type": "publicKey",
+          "index": true
+        }
+      ]
+    },
+    {
+      "name": "StreamPauseEvent",
+      "fields": [
+        {
+          "name": "timestamp",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamLastManualStopWithdrawableAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "stream",
+          "type": "publicKey",
+          "index": true
+        },
+        {
+          "name": "treasury",
+          "type": "publicKey",
+          "index": true
+        }
+      ]
+    },
+    {
+      "name": "StreamResumeEvent",
+      "fields": [
+        {
+          "name": "timestamp",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamTotalSecondsInPausedStatusAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "stream",
+          "type": "publicKey",
+          "index": true
+        },
+        {
+          "name": "treasury",
+          "type": "publicKey",
+          "index": true
+        }
+      ]
+    },
+    {
+      "name": "TreasuryRefreshEvent",
+      "fields": [
+        {
+          "name": "timestamp",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryBalanceAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasury",
+          "type": "publicKey",
+          "index": true
+        }
+      ]
+    },
+    {
+      "name": "StreamTransferEvent",
+      "fields": [
+        {
+          "name": "timestamp",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "stream",
+          "type": "publicKey",
+          "index": true
+        },
+        {
+          "name": "treasury",
+          "type": "publicKey",
+          "index": true
+        },
+        {
+          "name": "previousBeneficiary",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "newBeneficiary",
+          "type": "publicKey",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "TreasuryAddFundsEvent",
+      "fields": [
+        {
+          "name": "timestamp",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryIsSolFeePayedByTreasury",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "treasuryBalanceAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasury",
+          "type": "publicKey",
+          "index": true
+        }
+      ]
+    },
+    {
+      "name": "StreamAllocateEvent",
+      "fields": [
+        {
+          "name": "timestamp",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamStatusBefore",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "streamWasManuallyPausedBefore",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "streamLastAutoStopBlockTime",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamTotalSecondsInPausedStatusAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamIsTokenWithdrawFeePayedByTreasury",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "streamAllocationAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryIsSolFeePayedByTreasury",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "treasuryAllocationAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryBalanceAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "stream",
+          "type": "publicKey",
+          "index": true
+        },
+        {
+          "name": "treasury",
+          "type": "publicKey",
+          "index": true
+        }
+      ]
+    },
+    {
+      "name": "CloseStreamEvent",
+      "fields": [
+        {
+          "name": "timestamp",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenAmountSentToBeneficiary",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamIsTokenWithdrawFeePayedByTreasury",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "streamAllocationBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamTotalWithdrawalsBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryIsSolFeePayedByTreasury",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "treasuryAllocationAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryBalanceAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryTotalStreamsAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "stream",
+          "type": "publicKey",
+          "index": true
+        },
+        {
+          "name": "treasury",
+          "type": "publicKey",
+          "index": true
+        }
+      ]
+    },
+    {
+      "name": "CloseTreasuryEvent",
+      "fields": [
+        {
+          "name": "timestamp",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenAmountSentToDestination",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryIsSolFeePayedByTreasury",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "treasury",
+          "type": "publicKey",
+          "index": true
+        }
+      ]
+    },
+    {
+      "name": "TreasuryWithdrawEvent",
+      "fields": [
+        {
+          "name": "timestamp",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "solFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenFeeCharged",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenAmountSentToDestination",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasuryIsSolFeePayedByTreasury",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "treasuryBalanceAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "treasury",
+          "type": "publicKey",
+          "index": true
         }
       ]
     }

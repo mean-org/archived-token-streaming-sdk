@@ -1066,21 +1066,41 @@ export class MSP {
       true,
     );
 
-    const tx = this.program.transaction.createTreasury(
+    const cliffVestPercentValue = cliffVestPercent
+      ? cliffVestPercent * Constants.CLIFF_PERCENT_NUMERATOR
+      : 0;
+    const now = new Date();
+    const startDate =
+      startUtc && startUtc.getTime() >= now.getTime() ? startUtc : now;
+    const startUtcInSeconds = parseInt((startDate.getTime() / 1000).toString());
+
+    // Template address
+    const [template] = await findStreamTemplateAddress(
+      treasury,
+      this.program.programId,
+    );
+
+    const tx = this.program.transaction.createTreasuryAndTemplate(
       LATEST_IDL_FILE_VERSION,
-      new BN(slot),
       label,
       type,
-      false, // autoclose = false
+      false,
       solFeePayedByTreasury,
       { [Category[Category.vesting]]: {} },
       { [SubCategory[vestingCategory]]: {} },
+      new BN(startUtcInSeconds),
+      new BN(rateIntervalInSeconds),
+      new BN(duration),
+      new BN(cliffVestPercentValue),
+      feePayedByTreasurer ?? false,
+      new BN(slot),
       {
         accounts: {
           payer: payer,
           treasurer: treasurer,
           treasury: treasury,
           treasuryToken: treasuryToken,
+          template,
           associatedToken: treasuryAssociatedTokenMint,
           feeTreasury: Constants.FEE_TREASURY,
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -1090,7 +1110,7 @@ export class MSP {
         },
       },
     );
-    const txSigners: Signer[] = [];
+    const addFundsSigners: Signer[] = [];
     if (fundingAmount > 0) {
       const contributorToken = await Token.getAssociatedTokenAddress(
         ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -1113,15 +1133,7 @@ export class MSP {
         contributorToken,
         contributorTokenInfo,
         ixs,
-        txSigners,
-      );
-
-      const contributorTreasuryToken = await Token.getAssociatedTokenAddress(
-        ASSOCIATED_TOKEN_PROGRAM_ID,
-        TOKEN_PROGRAM_ID,
-        treasuryMint,
-        payer,
-        true,
+        addFundsSigners,
       );
 
       const treasuryToken = await Token.getAssociatedTokenAddress(
@@ -1165,48 +1177,14 @@ export class MSP {
       tx.add(...ixs);
     }
 
-    const cliffVestPercentValue = cliffVestPercent
-      ? cliffVestPercent * Constants.CLIFF_PERCENT_NUMERATOR
-      : 0;
-    const now = new Date();
-    const startDate =
-      startUtc && startUtc.getTime() >= now.getTime() ? startUtc : now;
-    const startUtcInSeconds = parseInt((startDate.getTime() / 1000).toString());
-
-    // Template address
-    const [template] = await findStreamTemplateAddress(
-      treasury,
-      this.program.programId,
-    );
-
-    // Create Stream template
-    const ix2 = this.program.instruction.createStreamTemplate(
-      LATEST_IDL_FILE_VERSION,
-      new BN(startUtcInSeconds),
-      new BN(rateIntervalInSeconds),
-      new BN(duration),
-      new BN(cliffVestPercentValue),
-      feePayedByTreasurer ?? false,
-      {
-        accounts: {
-          payer: payer,
-          template,
-          treasurer: treasurer,
-          treasury: treasury,
-          systemProgram: SystemProgram.programId,
-        },
-      },
-    );
-
-    tx.add(ix2);
     tx.feePayer = payer;
     const { blockhash } = await this.connection.getRecentBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
 
-    if (txSigners.length > 0) {
-      tx.partialSign(...txSigners);
+    if (addFundsSigners.length > 0) {
+      tx.partialSign(...addFundsSigners);
     }
 
     return [tx, treasury];

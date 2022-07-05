@@ -1,22 +1,20 @@
-import {Keypair} from '@solana/web3.js';
-import {Connection} from '@solana/web3.js';
 import {
+  Keypair,
+  Connection,
+  PublicKey,
+  Transaction,
   LAMPORTS_PER_SOL,
   sendAndConfirmRawTransaction,
   sendAndConfirmTransaction,
   SystemProgram
 } from '@solana/web3.js';
-import {PublicKey} from "@solana/web3.js";
-import {Transaction} from "@solana/web3.js";
 import {Constants, MSP, TreasuryType} from '../src';
 import {SubCategory} from "../src";
-import * as fs from 'fs-extra';
-import {homedir} from 'os';
-import {join} from 'path';
 
 import {NATIVE_MINT} from '@solana/spl-token';
 import {Category, TimeUnit} from "../src/types";
 import {expect} from "chai";
+import {getDefaultKeyPair} from "./utils";
 
 const endpoint = 'http://localhost:8899';
 // deploy msp locally
@@ -136,7 +134,7 @@ describe('Tests creating a vesting treasury\n', async () => {
         verifySignatures: true,
     });
     await sendAndConfirmRawTransaction(connection, withdrawTxSerialized, { commitment: 'confirmed' });
-    console.log('Withdrew from treasury\n');
+    console.log('Withdrew from treasury success\n');
 
     console.log("Waiting 5 seconds...")
     await new Promise(resolve => setTimeout(resolve, 5000));
@@ -289,23 +287,10 @@ describe('Tests creating a vesting treasury\n', async () => {
     console.log("Getting vesting flow rate");
     const [rate, unit] = await msp.getVestingFlowRate(treasury);
     console.log(`Streaming ${rate / LAMPORTS_PER_SOL} SOL per ${TimeUnit[unit]}`);
-    
+
     console.log("Close stream1");
     const CloseStreamTx = await msp.closeStream(user1Wallet.publicKey, user1Wallet.publicKey, stream, false, true);
     await sendAndConfirmTransaction(connection, CloseStreamTx, [user1Wallet], { commitment: 'confirmed' });
     console.log("Close stream1 success.\n");
   });
 });
-
-const getDefaultKeyPair = async (): Promise<Keypair> => {
-  const id = await fs.readJSON(join(homedir(), '.config/solana/id.json'));
-  const bytes = Uint8Array.from(id);
-  return Keypair.fromSecretKey(bytes);
-};
-
-const _printSerializedTx = (tx: Transaction, requireAllSignatures = false, verifySignatures = false) => {
-  console.log(tx.serialize({
-    requireAllSignatures,
-    verifySignatures,
-  }).toString('base64'));
-}
