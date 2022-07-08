@@ -1390,6 +1390,102 @@ export class MSP {
     return [tx, streamAccount.publicKey];
   }
 
+  /**
+   * This creates a stream with template with PDA
+   */
+  public async createStreamWithTemplateFromPda(
+    payer: PublicKey,
+    treasurer: PublicKey,
+    treasury: PublicKey,
+    stream: PublicKey,
+    beneficiary: PublicKey,
+    treasuryAssociatedTokenMint: PublicKey,
+    allocationAssigned: number,
+    streamName = '',
+  ): Promise<Transaction> {
+    if (treasurer.equals(beneficiary)) {
+      throw Error('Beneficiary can not be the same Treasurer');
+    }
+
+    const treasuryInfo = await getTreasury(this.program, treasury);
+
+    if (!treasuryInfo) {
+      throw Error("Treasury doesn't exist");
+    }
+
+    if (
+      treasuryInfo.associatedToken !== treasuryAssociatedTokenMint.toBase58()
+    ) {
+      throw Error('Incorrect associated token address');
+    }
+
+    // Get the template
+    const [template] = await findStreamTemplateAddress(
+      treasury,
+      this.program.programId,
+    );
+    const templateInfo = await getStreamTemplate(this.program, template);
+    if (!templateInfo) {
+      throw Error("Stream template doesn't exist");
+    }
+
+    // Calculate rate amount
+    const rateAmount =
+      (allocationAssigned * (1 - templateInfo.cliffVestPercent / 1_000_000)) /
+      templateInfo.durationNumberOfUnits;
+
+    // Get the treasury token account
+    const treasuryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      treasuryAssociatedTokenMint,
+      treasury,
+      true,
+    );
+
+    const feeTreasuryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      treasuryAssociatedTokenMint,
+      Constants.FEE_TREASURY,
+      true,
+    );
+
+    // Create Stream
+    const tx = this.program.transaction.createStreamWithTemplate(
+      LATEST_IDL_FILE_VERSION,
+      streamName,
+      new BN(rateAmount),
+      new BN(allocationAssigned),
+      {
+        accounts: {
+          payer: payer,
+          template,
+          treasurer: treasurer,
+          treasury: treasury,
+          treasuryToken: treasuryToken,
+          associatedToken: treasuryAssociatedTokenMint,
+          beneficiary: beneficiary,
+          stream,
+          feeTreasury: Constants.FEE_TREASURY,
+          feeTreasuryToken: feeTreasuryToken,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+          rent: SYSVAR_RENT_PUBKEY,
+        },
+      },
+    );
+
+    tx.feePayer = payer;
+    const { blockhash } = await this.connection.getLatestBlockhash(
+      (this.commitment as Commitment) || 'finalized',
+    );
+    tx.recentBlockhash = blockhash;
+
+    return tx;
+  }
+
   public async createStreams(
     payer: PublicKey,
     treasurer: PublicKey,
