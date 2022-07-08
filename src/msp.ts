@@ -1314,8 +1314,9 @@ export class MSP {
     }
 
     if (
-      (treasuryInfo.associatedToken as string) !==
-      treasuryAssociatedTokenMint.toBase58()
+      !new PublicKey(treasuryInfo.associatedToken as string).equals(
+        treasuryAssociatedTokenMint,
+      )
     ) {
       throw Error('Incorrect associated token address');
     }
@@ -1415,8 +1416,9 @@ export class MSP {
     }
 
     if (
-      (treasuryInfo.associatedToken as string) !==
-      treasuryAssociatedTokenMint.toBase58()
+      !new PublicKey(treasuryInfo.associatedToken as string).equals(
+        treasuryAssociatedTokenMint,
+      )
     ) {
       throw Error('Incorrect associated token address');
     }
