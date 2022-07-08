@@ -1300,7 +1300,9 @@ const parseTreasuryData = (
     treasurer: friendly
       ? treasury.treasurerAddress.toBase58()
       : treasury.treasurerAddress,
-    associatedToken: treasuryAssocatedTokenMint,
+    associatedToken: friendly
+      ? treasuryAssocatedTokenMint.toBase58()
+      : treasuryAssocatedTokenMint,
     balance: treasury.lastKnownBalanceUnits.toNumber(),
     allocationReserved: treasury.allocationReservedUnits.toNumber(),
     allocationAssigned: treasury.allocationAssignedUnits.toNumber(),
