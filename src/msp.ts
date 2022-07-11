@@ -1225,16 +1225,13 @@ export class MSP {
   /**
    * Gets the flowing rate of a vesting contract.
    * @param vestingTreasury The address of the treasury
-   * @returns a tuple of the amount and the time unit [20, TimeUnit.Week] == 20/week
+   * @returns a tuple of the amount, the time unit ([20, TimeUnit.Week] == 20/week)
+   * and total allocation of all streams
    */
   public async getVestingFlowRate(
     vestingTreasury: PublicKey,
-  ): Promise<[number, TimeUnit]> {
-    const treasuryInfo = await getTreasury(
-      this.program,
-      vestingTreasury,
-      false,
-    );
+  ): Promise<[number, TimeUnit, number]> {
+    const treasuryInfo = await getTreasury(this.program, vestingTreasury);
 
     if (!treasuryInfo) {
       throw Error("Treasury doesn't exist");
@@ -1245,33 +1242,24 @@ export class MSP {
       vestingTreasury,
       this.program.programId,
     );
-    const templateInfo = await getStreamTemplate(
-      this.program,
-      templateAddress,
-      false,
-    );
+    const templateInfo = await getStreamTemplate(this.program, templateAddress);
     if (!templateInfo) {
       throw Error("Stream template doesn't exist");
     }
 
-    const totalDuration =
-      templateInfo.rateIntervalInSeconds * templateInfo.durationNumberOfUnits;
-    const now = new Date();
-    const startDate = templateInfo.startUtc as Date;
-    if ((now.getTime() - startDate.getTime()) / 1000 > totalDuration) {
-      // vesting period has ended
-      return [0, templateInfo.rateIntervalInSeconds as TimeUnit];
-    }
+    if (treasuryInfo.totalStreams === 0)
+      return [0, templateInfo.rateIntervalInSeconds as TimeUnit, 0];
 
     const streams = await listStreams(
       this.program,
-      treasuryInfo.treasurer as PublicKey,
-      treasuryInfo.id as PublicKey,
       undefined,
-      false,
+      vestingTreasury,
+      undefined,
     );
-    let total = 0;
+    let streamRate = 0;
+    let totalAllocation = 0;
     for (const stream of streams) {
+      totalAllocation = totalAllocation + stream.allocationAssigned;
       switch (stream.status) {
         case STREAM_STATUS.Paused:
         case STREAM_STATUS.Schedule:
@@ -1285,10 +1273,14 @@ export class MSP {
         (stream.allocationAssigned *
           (1 - templateInfo.cliffVestPercent / 1_000_000)) /
         templateInfo.durationNumberOfUnits;
-      total = total + rateAmount;
+      streamRate = streamRate + rateAmount;
     }
 
-    return [total, templateInfo.rateIntervalInSeconds as TimeUnit];
+    return [
+      streamRate,
+      templateInfo.rateIntervalInSeconds as TimeUnit,
+      totalAllocation,
+    ];
   }
 
   /**

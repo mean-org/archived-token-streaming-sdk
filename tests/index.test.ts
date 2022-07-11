@@ -15,6 +15,7 @@ import {NATIVE_MINT} from '@solana/spl-token';
 import {Category, TimeUnit} from "../src/types";
 import {expect} from "chai";
 import {getDefaultKeyPair} from "./utils";
+import {sleep} from "./utils";
 
 const endpoint = 'http://localhost:8899';
 // deploy msp locally
@@ -136,9 +137,7 @@ describe('Tests creating a vesting treasury\n', async () => {
     await sendAndConfirmRawTransaction(connection, withdrawTxSerialized, { commitment: 'confirmed' });
     console.log('Withdrew from treasury success\n');
 
-    console.log("Waiting 5 seconds...")
-    await new Promise(resolve => setTimeout(resolve, 5000));
-
+    await sleep(5000);
     console.log("Withdrawing from stream1");
     const withdrawStreamTx = await msp.withdraw(user2Wallet.publicKey, stream, 0.00000025 * LAMPORTS_PER_SOL);
     await sendAndConfirmTransaction(connection, withdrawStreamTx, [user2Wallet], { commitment: 'confirmed' });
@@ -154,6 +153,7 @@ describe('Tests creating a vesting treasury\n', async () => {
     await sendAndConfirmTransaction(connection, PauseStreamTx, [user1Wallet], { commitment: 'confirmed' });
     console.log("Pause stream1 success.\n");
 
+    await sleep(5000);
     console.log("Resume stream1");
     const ResumeStreamTx = await msp.resumeStream(user1Wallet.publicKey, user1Wallet.publicKey, stream);
     await sendAndConfirmTransaction(connection, ResumeStreamTx, [user1Wallet], { commitment: 'confirmed' });
@@ -281,12 +281,12 @@ describe('Tests creating a vesting treasury\n', async () => {
     const res2 = await msp.listStreamActivity(stream, createNonVestingTreasuryTx, 10, 'confirmed', true);
     console.log(JSON.stringify(res2, null, 2) + '\n');
 
-    console.log("Waiting 10 seconds...")
-    await new Promise(resolve => setTimeout(resolve, 10000));
+    await sleep(10_000);
 
     console.log("Getting vesting flow rate");
-    const [rate, unit] = await msp.getVestingFlowRate(treasury);
+    const [rate, unit, totalAllocation] = await msp.getVestingFlowRate(treasury);
     console.log(`Streaming ${rate / LAMPORTS_PER_SOL} SOL per ${TimeUnit[unit]}`);
+    console.log(`Total Allocation: ${totalAllocation / LAMPORTS_PER_SOL}`);
 
     console.log("Close stream1");
     const CloseStreamTx = await msp.closeStream(user1Wallet.publicKey, user1Wallet.publicKey, stream, false, true);
