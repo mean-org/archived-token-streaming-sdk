@@ -89,7 +89,29 @@ describe('Tests creating a vesting treasury\n', async () => {
     console.log('Funds added\n');
 
     console.log('Fetching template data');
-    const template = await msp.getStreamTemplate(treasury);
+    let template = await msp.getStreamTemplate(treasury);
+    console.log(`Template: ${JSON.stringify(template, null, 2)}\n`);
+
+    console.log('Mofify template data');
+    const modifyTx = await msp.modifyVestingTreasuryTemplate(
+      user1Wallet.publicKey,
+      user1Wallet.publicKey,
+      treasury,
+      10,
+      TimeUnit.Minute,
+      undefined,
+      10,
+      undefined,
+    );
+    modifyTx.partialSign(user1Wallet);
+    const modifyTxSerialized = modifyTx.serialize({
+      verifySignatures: true,
+    });
+    await sendAndConfirmRawTransaction(connection, modifyTxSerialized, { commitment: 'confirmed' });
+    console.log('Template modified\n');
+
+    console.log('Fetching template data after modification');
+    template = await msp.getStreamTemplate(treasury);
     console.log(`Template: ${JSON.stringify(template, null, 2)}\n`);
 
     console.log('Creating vesting stream: 1');

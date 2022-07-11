@@ -1041,16 +1041,6 @@ export class MSP {
       treasurySeeds,
       this.program.programId,
     );
-    const treasuryPoolMintSeeds = [
-      treasurer.toBuffer(),
-      treasury.toBuffer(),
-      slotBuffer,
-    ];
-    // Treasury Pool Mint PDA
-    const [treasuryMint] = await PublicKey.findProgramAddress(
-      treasuryPoolMintSeeds,
-      this.program.programId,
-    );
 
     let autoWSol = false;
     if (treasuryAssociatedTokenMint.equals(Constants.SOL_MINT)) {
@@ -1188,6 +1178,107 @@ export class MSP {
     }
 
     return [tx, treasury];
+  }
+
+  /**
+   * This modifies values of vesting treasury
+   * template if no streams have been created yet.
+   */
+  public async modifyVestingTreasuryTemplate(
+    payer: PublicKey,
+    treasurer: PublicKey,
+    vestingTreasury: PublicKey,
+    duration?: number,
+    durationUnit?: TimeUnit,
+    startUtc?: Date,
+    cliffVestPercent?: number,
+    feePayedByTreasurer?: boolean,
+  ): Promise<Transaction> {
+    const treasuryInfo = await getTreasury(this.program, vestingTreasury);
+
+    if (!treasuryInfo) {
+      throw Error("Treasury doesn't exist");
+    }
+
+    // Get the template
+    const [templateAddress] = await findStreamTemplateAddress(
+      vestingTreasury,
+      this.program.programId,
+    );
+    const templateInfo = await getStreamTemplate(this.program, templateAddress);
+    if (!templateInfo) {
+      throw Error("Template doesn't exist");
+    }
+
+    if (treasuryInfo.totalStreams > 0) {
+      throw Error(
+        'Cannot modify vesting treasury info after streams have been created',
+      );
+    }
+
+    if (duration && !durationUnit) {
+      throw Error('Duration unit is required');
+    }
+
+    if (durationUnit && !duration) {
+      throw Error('Duration is required');
+    }
+
+    let updatedRateIntervalInSeconds: number =
+      templateInfo.rateIntervalInSeconds;
+    let updatedDuration: number = templateInfo.durationNumberOfUnits;
+    if (duration && durationUnit) {
+      updatedRateIntervalInSeconds = durationUnit as number;
+      updatedDuration = duration;
+    }
+
+    let updatedClifPercentValue = templateInfo.cliffVestPercent;
+    if (cliffVestPercent) {
+      updatedClifPercentValue =
+        cliffVestPercent * Constants.CLIFF_PERCENT_NUMERATOR;
+    }
+
+    let updatedStartUtcInSeconds: number = parseInt(
+      (new Date(templateInfo.startUtc).getTime() / 1000).toString(),
+    );
+    if (startUtc) {
+      const now = new Date();
+      const startDate =
+        startUtc && startUtc.getTime() >= now.getTime() ? startUtc : now;
+      updatedStartUtcInSeconds = parseInt(
+        (startDate.getTime() / 1000).toString(),
+      );
+    }
+
+    let updatedFeePayedByTreasurer = templateInfo.feePayedByTreasurer;
+    if (feePayedByTreasurer !== undefined) {
+      updatedFeePayedByTreasurer = feePayedByTreasurer;
+    }
+
+    const tx = await this.program.methods
+      .modifyStreamTemplate(
+        LATEST_IDL_FILE_VERSION,
+        new BN(updatedStartUtcInSeconds),
+        new BN(updatedRateIntervalInSeconds),
+        new BN(updatedDuration),
+        new BN(updatedClifPercentValue),
+        updatedFeePayedByTreasurer,
+      )
+      .accounts({
+        payer: payer,
+        template: templateAddress,
+        treasurer: treasurer,
+        treasury: vestingTreasury,
+      })
+      .transaction();
+
+    tx.feePayer = payer;
+    const { blockhash } = await this.connection.getRecentBlockhash(
+      (this.commitment as Commitment) || 'finalized',
+    );
+    tx.recentBlockhash = blockhash;
+
+    return tx;
   }
 
   /**

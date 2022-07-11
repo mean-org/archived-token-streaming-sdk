@@ -1,5 +1,5 @@
 export type Msp = {
-  "version": "2.6.0",
+  "version": "2.6.1",
   "name": "msp",
   "instructions": [
     {
@@ -229,6 +229,57 @@ export type Msp = {
         {
           "name": "systemProgram",
           "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "idlFileVersion",
+          "type": "u8"
+        },
+        {
+          "name": "startUtc",
+          "type": "u64"
+        },
+        {
+          "name": "rateIntervalInSeconds",
+          "type": "u64"
+        },
+        {
+          "name": "durationNumberOfUnits",
+          "type": "u64"
+        },
+        {
+          "name": "cliffVestPercent",
+          "type": "u64"
+        },
+        {
+          "name": "feePayedByTreasurer",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "modifyStreamTemplate",
+      "accounts": [
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "treasurer",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "treasury",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "template",
+          "isMut": true,
           "isSigner": false
         }
       ],
@@ -2492,34 +2543,44 @@ export type Msp = {
     },
     {
       "code": 6041,
+      "name": "CannotPauseAndUnpauseOnSameBlockTime",
+      "msg": "Cannot pause and unpause on the same block time"
+    },
+    {
+      "code": 6042,
       "name": "InvalidTreasuryRequestedAllocation",
       "msg": "Treasury allocation can not be greater than treasury balance"
     },
     {
-      "code": 6042,
+      "code": 6043,
       "name": "InvalidIdlFileVersion",
       "msg": "Invalid IDL file version"
     },
     {
-      "code": 6043,
+      "code": 6044,
       "name": "InvalidTotalStreamsInTreasury",
       "msg": "Invalid total streams in treasury"
     },
     {
-      "code": 6044,
+      "code": 6045,
       "name": "InvalidTemplateVersion",
       "msg": "Invalid template version"
     },
     {
-      "code": 6045,
+      "code": 6046,
       "name": "InvalidTemplateSize",
       "msg": "Invalid template size"
+    },
+    {
+      "code": 6047,
+      "name": "CannotModifyTemplate",
+      "msg": "Template cannot be modified after creating streams"
     }
   ]
 };
 
 export const IDL: Msp = {
-  "version": "2.6.0",
+  "version": "2.6.1",
   "name": "msp",
   "instructions": [
     {
@@ -2749,6 +2810,57 @@ export const IDL: Msp = {
         {
           "name": "systemProgram",
           "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "idlFileVersion",
+          "type": "u8"
+        },
+        {
+          "name": "startUtc",
+          "type": "u64"
+        },
+        {
+          "name": "rateIntervalInSeconds",
+          "type": "u64"
+        },
+        {
+          "name": "durationNumberOfUnits",
+          "type": "u64"
+        },
+        {
+          "name": "cliffVestPercent",
+          "type": "u64"
+        },
+        {
+          "name": "feePayedByTreasurer",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "modifyStreamTemplate",
+      "accounts": [
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "treasurer",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "treasury",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "template",
+          "isMut": true,
           "isSigner": false
         }
       ],
@@ -5012,28 +5124,38 @@ export const IDL: Msp = {
     },
     {
       "code": 6041,
+      "name": "CannotPauseAndUnpauseOnSameBlockTime",
+      "msg": "Cannot pause and unpause on the same block time"
+    },
+    {
+      "code": 6042,
       "name": "InvalidTreasuryRequestedAllocation",
       "msg": "Treasury allocation can not be greater than treasury balance"
     },
     {
-      "code": 6042,
+      "code": 6043,
       "name": "InvalidIdlFileVersion",
       "msg": "Invalid IDL file version"
     },
     {
-      "code": 6043,
+      "code": 6044,
       "name": "InvalidTotalStreamsInTreasury",
       "msg": "Invalid total streams in treasury"
     },
     {
-      "code": 6044,
+      "code": 6045,
       "name": "InvalidTemplateVersion",
       "msg": "Invalid template version"
     },
     {
-      "code": 6045,
+      "code": 6046,
       "name": "InvalidTemplateSize",
       "msg": "Invalid template size"
+    },
+    {
+      "code": 6047,
+      "name": "CannotModifyTemplate",
+      "msg": "Template cannot be modified after creating streams"
     }
   ]
 };
