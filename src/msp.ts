@@ -880,7 +880,6 @@ export class MSP {
     treasurer: PublicKey,
     treasury: PublicKey,
     beneficiary: PublicKey,
-    associatedToken: PublicKey,
     streamName: string,
     allocationAssigned: number,
     rateAmount?: number,
@@ -895,7 +894,6 @@ export class MSP {
       treasurer,
       treasury,
       beneficiary,
-      associatedToken,
       streamName,
       allocationAssigned,
       rateAmount,
@@ -917,7 +915,6 @@ export class MSP {
     treasurer: PublicKey,
     treasury: PublicKey,
     beneficiary: PublicKey,
-    treasuryAssociatedTokenMint: PublicKey,
     streamName: string,
     allocationAssigned: number,
     rateAmount?: number,
@@ -937,11 +934,9 @@ export class MSP {
       throw Error("Treasury doesn't exist");
     }
 
-    if (
-      treasuryInfo.associatedToken !== treasuryAssociatedTokenMint.toBase58()
-    ) {
-      throw Error('Incorrect associated token address');
-    }
+    const treasuryAssociatedTokenMint = new PublicKey(
+      treasuryInfo.associatedToken,
+    );
 
     // Get the treasury token account
     const treasuryToken = await Token.getAssociatedTokenAddress(
@@ -1382,7 +1377,6 @@ export class MSP {
     treasurer: PublicKey,
     treasury: PublicKey,
     beneficiary: PublicKey,
-    treasuryAssociatedTokenMint: PublicKey,
     allocationAssigned: number,
     streamName = '',
   ): Promise<[Transaction, PublicKey]> {
@@ -1395,13 +1389,9 @@ export class MSP {
     if (!treasuryInfo) {
       throw Error("Treasury doesn't exist");
     }
-
-    if (
-      treasuryInfo.associatedToken !== treasuryAssociatedTokenMint.toBase58()
-    ) {
-      throw Error('Incorrect associated token address');
-    }
-
+    const treasuryAssociatedTokenMint = new PublicKey(
+      treasuryInfo.associatedToken,
+    );
     // Get the template
     const [template] = await findStreamTemplateAddress(
       treasury,
@@ -1482,7 +1472,6 @@ export class MSP {
     treasury: PublicKey,
     stream: PublicKey,
     beneficiary: PublicKey,
-    treasuryAssociatedTokenMint: PublicKey,
     allocationAssigned: number,
     streamName = '',
   ): Promise<Transaction> {
@@ -1495,11 +1484,9 @@ export class MSP {
     if (!treasuryInfo) {
       throw Error("Treasury doesn't exist");
     }
-    if (
-      treasuryInfo.associatedToken !== treasuryAssociatedTokenMint.toBase58()
-    ) {
-      throw Error('Incorrect associated token address');
-    }
+    const treasuryAssociatedTokenMint = new PublicKey(
+      treasuryInfo.associatedToken,
+    );
 
     // Get the template
     const [template] = await findStreamTemplateAddress(

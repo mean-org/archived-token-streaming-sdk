@@ -11,7 +11,6 @@ import {
 import {Constants, MSP, TreasuryType} from '../src';
 import {SubCategory} from "../src";
 
-import {NATIVE_MINT} from '@solana/spl-token';
 import {Category, TimeUnit} from "../src/types";
 import {expect} from "chai";
 import {getDefaultKeyPair} from "./utils";
@@ -120,7 +119,6 @@ describe('Tests creating a vesting treasury\n', async () => {
       user1Wallet.publicKey,
       treasury,
       user2Wallet.publicKey,
-      NATIVE_MINT,
       120 * LAMPORTS_PER_SOL,
       'test_stream',
     );
@@ -137,7 +135,6 @@ describe('Tests creating a vesting treasury\n', async () => {
       user1Wallet.publicKey,
       treasury,
       user2Wallet.publicKey,
-      NATIVE_MINT,
       60 * LAMPORTS_PER_SOL,
       'test_stream_2',
     );
@@ -219,7 +216,6 @@ describe('Tests creating a vesting treasury\n', async () => {
         user1Wallet.publicKey,
         treasuryNonVesting,
         user2Wallet.publicKey,
-        NATIVE_MINT,
         'test_stream_3',
         10 * LAMPORTS_PER_SOL,
         0.1 * LAMPORTS_PER_SOL,
