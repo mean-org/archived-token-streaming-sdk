@@ -105,6 +105,7 @@ export type VestingTreasuryActivity = {
   initializer?: string;
   mint?: string;
   blockTime?: number;
+  template?: string;
   // createStream - allocation amount
   // addFunds - deposited amount
   // withdraw - withdrawn amount
@@ -125,6 +126,7 @@ export type VestingTreasuryActivityRaw = {
   initializer?: PublicKey;
   mint?: PublicKey;
   blockTime?: number;
+  template?: PublicKey;
   // createStream - allocation amount
   // addFunds - deposited amount
   // withdraw - withdrawn amount
@@ -137,9 +139,11 @@ export type VestingTreasuryActivityRaw = {
 };
 
 export enum VestingTreasuryActivityAction {
-  StreamCreate,
+  TreasuryCreate,
+  TreasuryModify,
   TreasuryAddFunds,
   TreasuryWithdraw,
+  StreamCreate,
   StreamPause,
   StreamResume,
   StreamClose,
