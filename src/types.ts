@@ -292,6 +292,7 @@ export enum SubCategory {
   partnership = 6,
   seed = 7,
   team = 8,
+  community = 9,
 }
 
 // Preferred Time Unit
