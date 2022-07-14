@@ -1,8 +1,8 @@
 /**
  * Solana
  */
-import { Commitment, PublicKey } from "@solana/web3.js";
-import BN from "bn.js";
+import { Commitment, PublicKey } from '@solana/web3.js';
+import { BN } from '@project-serum/anchor';
 
 declare global {
   export interface String {
@@ -27,7 +27,7 @@ export enum MSP_ACTIONS {
   closeStream = 11,
   closeTreasury = 12,
   transferStream = 13,
-  treasuryWithdraw = 14
+  treasuryWithdraw = 14,
 }
 
 /**
@@ -61,11 +61,13 @@ export type TransactionMessage = {
 };
 
 export interface ListStreamParams {
-  treasurer?: PublicKey | undefined,
-  treasury?: PublicKey | undefined,
-  beneficiary?: PublicKey | undefined,
-  commitment?: Commitment,
-  friendly?: boolean
+  treasurer?: PublicKey | undefined;
+  treasury?: PublicKey | undefined;
+  beneficiary?: PublicKey | undefined;
+  commitment?: Commitment;
+  friendly?: boolean;
+  category?: Category;
+  subCategory?: SubCategory;
 }
 
 /**
@@ -95,36 +97,108 @@ export type StreamActivityRaw = {
 };
 
 /**
+ *  Vesting treasury activity (Friendly version with PublicKeys converted to string)
+ */
+export type VestingTreasuryActivity = {
+  signature: string;
+  action: VestingTreasuryActivityAction;
+  initializer?: string;
+  mint?: string;
+  blockTime?: number;
+  template?: string;
+  // createStream - allocation amount
+  // addFunds - deposited amount
+  // withdraw - withdrawn amount
+  amount?: number;
+  beneficiary?: string; // create stream
+  destination?: string; // withdraw
+  destinationTokenAccount?: string; // withdrawn associated token account
+  stream?: string; // vesting stream activities
+  utcDate: string;
+};
+
+/**
+ *  Vesting treasury activity
+ */
+export type VestingTreasuryActivityRaw = {
+  signature: string;
+  action: VestingTreasuryActivityAction;
+  initializer?: PublicKey;
+  mint?: PublicKey;
+  blockTime?: number;
+  template?: PublicKey;
+  // createStream - allocation amount
+  // addFunds - deposited amount
+  // withdraw - withdrawn amount
+  amount?: BN;
+  beneficiary?: PublicKey; // create stream
+  destination?: PublicKey; // withdraw
+  destinationTokenAccount?: PublicKey; // withdrawn associated token account
+  stream?: PublicKey; // vesting stream activities
+  utcDate: string;
+};
+
+export enum VestingTreasuryActivityAction {
+  TreasuryCreate,
+  TreasuryModify,
+  TreasuryAddFunds,
+  TreasuryWithdraw,
+  StreamCreate,
+  StreamPause,
+  StreamResume,
+  StreamClose,
+  StreamAllocateFunds,
+  StreamWithdraw,
+  TreasuryRefresh,
+}
+
+/**
  * Treasury type
  */
 export enum TreasuryType {
   Open = 0,
-  Lock = 1
+  Lock = 1,
 }
 
 /**
  * Treasury info
  */
- export type Treasury = {
-  id: PublicKey | string,
-  version: number,
-  initialized: boolean,
-  bump: number,
-  slot: number,
-  name: string,        
-  treasurer: PublicKey | string,
-  associatedToken: PublicKey | string,
-  mint: PublicKey | string,
-  labels: string[],  //max 5 labels per treasury
-  balance: number,
-  allocationReserved: number,
-  allocationAssigned: number,
-  totalWithdrawals: number,
-  totalStreams: number,
-  createdOnUtc: Date | string,
-  treasuryType: TreasuryType,
-  autoClose: boolean,
-  data: any
+export type Treasury = {
+  id: PublicKey | string;
+  version: number;
+  initialized: boolean;
+  bump: number;
+  slot: number;
+  name: string;
+  treasurer: PublicKey | string;
+  associatedToken: PublicKey | string;
+  mint: PublicKey | string;
+  labels: string[]; //max 5 labels per treasury
+  balance: number;
+  allocationReserved: number;
+  allocationAssigned: number;
+  totalWithdrawals: number;
+  totalStreams: number;
+  createdOnUtc: Date | string;
+  treasuryType: TreasuryType;
+  autoClose: boolean;
+  category: Category;
+  subCategory: SubCategory;
+  data: any;
+};
+
+/**
+ * Stream template
+ */
+export type StreamTemplate = {
+  id: PublicKey | string;
+  version: number;
+  bump: number;
+  startUtc: Date | string;
+  cliffVestPercent: number;
+  rateIntervalInSeconds: number;
+  durationNumberOfUnits: number;
+  feePayedByTreasurer: boolean;
 };
 
 /**
@@ -133,68 +207,101 @@ export enum TreasuryType {
 export enum STREAM_STATUS {
   Schedule = 1,
   Running = 2,
-  Paused = 3
+  Paused = 3,
 }
 
 /**
  * Allocation type
  */
- export enum AllocationType {
+export enum AllocationType {
   All = 0,
   Specific = 1,
-  None = 2
+  None = 2,
 }
 
 /**
  * Stream info
  */
- export type Stream = {
-  id: PublicKey | string | undefined,
-  initialized: boolean,
-  version: number,
-  name: string,
-  treasurer: PublicKey | string,
-  rateAmount: number,
-  rateIntervalInSeconds: number, 
-  startUtc: Date | string,
-  cliffVestAmount: number,
-  cliffVestPercent: number,
-  beneficiary: PublicKey | string,
-  associatedToken: PublicKey | string,
-  treasury: PublicKey | string,    
-  allocationAssigned: number,
+export type Stream = {
+  id: PublicKey | string | undefined;
+  initialized: boolean;
+  version: number;
+  name: string;
+  treasurer: PublicKey | string;
+  rateAmount: number;
+  rateIntervalInSeconds: number;
+  startUtc: Date | string;
+  cliffVestAmount: number;
+  cliffVestPercent: number;
+  beneficiary: PublicKey | string;
+  associatedToken: PublicKey | string;
+  treasury: PublicKey | string;
+  allocationAssigned: number;
   // allocationReserved: number,
-  totalWithdrawalsAmount: number,
-  createdBlockTime: number,   
-  createdOnUtc: Date | string,
-  lastRetrievedBlockTime: number,
-  lastRetrievedTimeInSeconds: number,
-  upgradeRequired: boolean,
-  status: STREAM_STATUS | string,
-  withdrawableAmount: number,
-  fundsLeftInStream: number,
-  fundsSentToBeneficiary: number,
-  remainingAllocationAmount: number,
-  estimatedDepletionDate: Date | string,
-  streamUnitsPerSecond: number,
-  isManuallyPaused: boolean,
-  feePayedByTreasurer: boolean,
-  data: any
-}
+  totalWithdrawalsAmount: number;
+  createdBlockTime: number;
+  createdOnUtc: Date | string;
+  lastRetrievedBlockTime: number;
+  lastRetrievedTimeInSeconds: number;
+  upgradeRequired: boolean;
+  status: STREAM_STATUS | string;
+  withdrawableAmount: number;
+  fundsLeftInStream: number;
+  fundsSentToBeneficiary: number;
+  remainingAllocationAmount: number;
+  estimatedDepletionDate: Date | string;
+  streamUnitsPerSecond: number;
+  isManuallyPaused: boolean;
+  feePayedByTreasurer: boolean;
+  category: Category;
+  subCategory: SubCategory;
+  data: any;
+};
 
 /**
  * Beneficiary Info
  */
 export type Beneficiary = {
-  streamName: string,
-  address: PublicKey
-}
+  streamName: string;
+  address: PublicKey;
+};
 
- /**
+/**
  * Stream Beneficiary Info
  */
 export type StreamBeneficiary = {
-  streamName: string,
-  address: PublicKey,
-  beneficiary: PublicKey
+  streamName: string;
+  address: PublicKey;
+  beneficiary: PublicKey;
+};
+
+// Primary category of tresury accounts
+export enum Category {
+  default = 0,
+  vesting = 1,
+}
+
+// Sub categories of vesting accounts
+export enum SubCategory {
+  default = 0,
+  advisor = 1,
+  development = 2,
+  foundation = 3,
+  investor = 4,
+  marketing = 5,
+  partnership = 6,
+  seed = 7,
+  team = 8,
+  community = 9,
+}
+
+// Preferred Time Unit
+export enum TimeUnit {
+  Second = 0,
+  Minute = 60,
+  Hour = 3600,
+  Day = 86400,
+  Week = 604800,
+  Month = 2629750,
+  Year = 31557000,
 }
