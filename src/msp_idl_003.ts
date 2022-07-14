@@ -1,5 +1,5 @@
 export type Msp = {
-  "version": "2.6.1",
+  "version": "2.7.0",
   "name": "msp",
   "instructions": [
     {
@@ -1447,6 +1447,9 @@ export type Msp = {
           },
           {
             "name": "Team"
+          },
+          {
+            "name": "Community"
           }
         ]
       }
@@ -2574,13 +2577,13 @@ export type Msp = {
     {
       "code": 6047,
       "name": "CannotModifyTemplate",
-      "msg": "Template cannot be modified after creating streams"
+      "msg": "Template cannot be modified after streams have been created"
     }
   ]
 };
 
 export const IDL: Msp = {
-  "version": "2.6.1",
+  "version": "2.7.0",
   "name": "msp",
   "instructions": [
     {
@@ -4028,6 +4031,9 @@ export const IDL: Msp = {
           },
           {
             "name": "Team"
+          },
+          {
+            "name": "Community"
           }
         ]
       }
@@ -5155,7 +5161,7 @@ export const IDL: Msp = {
     {
       "code": 6047,
       "name": "CannotModifyTemplate",
-      "msg": "Template cannot be modified after creating streams"
+      "msg": "Template cannot be modified after streams have been created"
     }
   ]
 };
