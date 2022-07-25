@@ -23,7 +23,7 @@ import {
 } from '@solana/spl-token';
 import { BN, Program } from '@project-serum/anchor';
 
-import { Msp } from './msp_idl_003';
+import { Msp } from './msp_idl_004';
 
 /**
  * MSP
@@ -2447,7 +2447,6 @@ export class MSP {
 
   public async refreshTreasuryData(
     payer: PublicKey,
-    treasurer: PublicKey,
     treasury: PublicKey,
   ): Promise<Transaction> {
     const treasuryInfo = await getTreasury(this.program, treasury);
@@ -2478,7 +2477,6 @@ export class MSP {
       LATEST_IDL_FILE_VERSION,
       {
         accounts: {
-          treasurer: treasurer,
           associatedToken: associatedToken,
           treasury: treasury,
           treasuryToken: treasuryToken,

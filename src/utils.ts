@@ -31,7 +31,7 @@ import {
 } from './types';
 import { STREAM_STATUS, Treasury, TreasuryType } from './types';
 import { StreamTemplate } from './types';
-import { IDL, Msp } from './msp_idl_003'; // point to the latest IDL
+import { IDL, Msp } from './msp_idl_004'; // point to the latest IDL
 import { bs58 } from '@project-serum/anchor/dist/cjs/utils/bytes';
 import {
   AnchorProvider,
@@ -1101,6 +1101,9 @@ async function parseVersionedStreamInstruction(
       } else if (idlFileVersion === 3) {
         const importedIdl = await import('./msp_idl_003');
         idls[idlFileVersion] = importedIdl.IDL;
+      } else if (idlFileVersion === 4) {
+        const importedIdl = await import('./msp_idl_004');
+        idls[idlFileVersion] = importedIdl.IDL;
       } else {
         return null;
       }
@@ -1886,6 +1889,9 @@ async function parseVestingTreasuryInstruction(
         idls[idlFileVersion] = importedIdl.IDL;
       } else if (idlFileVersion === 3) {
         const importedIdl = await import('./msp_idl_003');
+        idls[idlFileVersion] = importedIdl.IDL;
+      } else if (idlFileVersion === 4) {
+        const importedIdl = await import('./msp_idl_004');
         idls[idlFileVersion] = importedIdl.IDL;
       } else {
         return null;

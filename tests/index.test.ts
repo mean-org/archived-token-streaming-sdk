@@ -42,12 +42,20 @@ describe('Tests creating a vesting treasury\n', async () => {
       lamports: 1000 * LAMPORTS_PER_SOL,
       toPubkey: user2Wallet.publicKey
     }));
+    // fund the fees account to avoid error 'Transaction leaves an account with a lower balance than rent-exempt minimum'
+    tx.add(SystemProgram.transfer({
+      fromPubkey: root.publicKey,
+      lamports: 1000 * LAMPORTS_PER_SOL,
+      toPubkey: new PublicKey("3TD6SWY9M1mLY2kZWJNavPLhwXvcRsWdnZLRaMzERJBw")
+    }));
     await sendAndConfirmTransaction(connection, tx, [root], { commitment: 'confirmed' });
     console.log("Balance user1: : ", await connection.getBalance(user1Wallet.publicKey, 'confirmed'));
     console.log("Balance user2: : ", await connection.getBalance(user2Wallet.publicKey, 'confirmed'));
 
     msp = new MSP(endpoint, user1Wallet.publicKey.toBase58(), 'confirmed',
-        new PublicKey("2nZ8KDGdPBexJwWznPZosioWJzNBSM3doUXUYdo37ndN"));
+        // comment out to avoid error 'Attempt to load a program that does not exist'
+        new PublicKey("2nZ8KDGdPBexJwWznPZosioWJzNBSM3doUXUYdo37ndN")
+        );
   });
 
   it('Creates a vesting treasury and vesting stream\n', async () => {
@@ -180,7 +188,7 @@ describe('Tests creating a vesting treasury\n', async () => {
 
 
     console.log("Refresh treasury balance");
-    const RefreshStreamTx = await msp.refreshTreasuryData(user1Wallet.publicKey, user1Wallet.publicKey, treasury);
+    const RefreshStreamTx = await msp.refreshTreasuryData(user1Wallet.publicKey, treasury);
     await sendAndConfirmTransaction(connection, RefreshStreamTx, [user1Wallet], { commitment: 'confirmed' });
     console.log("Treasury refresh success.\n");
 
