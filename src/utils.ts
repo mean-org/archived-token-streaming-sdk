@@ -1800,6 +1800,17 @@ export const listVestingTreasuryActivity = async (
     );
 
     activityRaw.sort((a, b) => (b.blockTime ?? 0) - (a.blockTime ?? 0));
+
+    // prioritize treasury create activity
+    const createVestingTreasuryActivity = activityRaw.find(
+      a => a.action === VestingTreasuryActivityAction.TreasuryCreate,
+    );
+    if (createVestingTreasuryActivity) {
+      activityRaw = activityRaw.filter(
+        a => a.action !== VestingTreasuryActivityAction.TreasuryCreate,
+      );
+      activityRaw.push(createVestingTreasuryActivity);
+    }
   }
 
   if (!friendly) return activityRaw;
@@ -1903,7 +1914,7 @@ async function parseVestingTreasuryInstruction(
     if (!decodedIx) return null;
 
     const ixName = decodedIx.name;
-    console.log(`ixName: ${ixName}`);
+    // console.log(`ixName: ${ixName}`);
     if (
       [
         'createTreasuryAndTemplate',
@@ -1927,11 +1938,11 @@ async function parseVestingTreasuryInstruction(
 
     const formattedIx = coder.format(decodedIx, ixAccountMetas);
     // console.log(formattedIx);
-    console.table(
-      formattedIx?.accounts.map(a => {
-        return { name: a.name, pk: a.pubkey.toBase58() };
-      }),
-    );
+    // console.table(
+    //   formattedIx?.accounts.map(a => {
+    //     return { name: a.name, pk: a.pubkey.toBase58() };
+    //   }),
+    // );
     const treasury = formattedIx?.accounts.find(
       a => a.name === 'Treasury',
     )?.pubkey;
