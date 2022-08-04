@@ -54,7 +54,7 @@ describe('Tests creating a vesting treasury\n', async () => {
 
     msp = new MSP(endpoint, user1Wallet.publicKey.toBase58(), 'confirmed',
         // comment out to avoid error 'Attempt to load a program that does not exist'
-        new PublicKey("2nZ8KDGdPBexJwWznPZosioWJzNBSM3doUXUYdo37ndN")
+        new PublicKey("5sW2fA7vikEFHnaYhJsTSCTG7QG4smgoMkB2wHLU3THy")
         );
   });
 
