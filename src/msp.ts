@@ -992,264 +992,26 @@ export class MSP {
       startUtc && startUtc.getTime() >= now.getTime() ? startUtc : now;
     const startUtcInSeconds = parseInt((startDate.getTime() / 1000).toString());
 
-    const streamAccount = Keypair.generate();
-    const createStreamAccountInstruction =
-      await this.program.account.stream.createInstruction(
-        streamAccount,
-        Constants.STREAM_SIZE,
-      );
-
-    // Create Stream
-    const tx = this.program.transaction.createStream(
-      LATEST_IDL_FILE_VERSION,
-      streamName,
-      new BN(startUtcInSeconds),
-      new BN(rateAmount as number),
-      new BN(rateIntervalInSeconds as number),
-      new BN(allocationAssigned),
-      new BN(cliffVestAmount as number),
-      new BN(cliffVestPercentValue),
-      feePayedByTreasurer ?? false,
-      {
-        accounts: {
-          payer: payer,
-          treasurer: treasurer,
-          treasury: treasury,
-          treasuryToken: treasuryToken,
-          associatedToken: treasuryAssociatedTokenMint,
-          beneficiary: beneficiary,
-          stream: streamAccount.publicKey,
-          feeTreasury: Constants.FEE_TREASURY,
-          feeTreasuryToken: feeTreasuryToken,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-          rent: SYSVAR_RENT_PUBKEY,
-        },
-        preInstructions: [createStreamAccountInstruction],
-        signers: [streamAccount],
-      },
-    );
-
-    tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
-      (this.commitment as Commitment) || 'finalized',
-    );
-    tx.recentBlockhash = blockhash;
-    tx.partialSign(...[streamAccount]);
-
-    return [tx, streamAccount.publicKey];
-  }
-
-  /**
-   * This creates a stream account required for the stream.
-   * @param payer The address of the payer
-   */
-  public async createPreRequiredStreamAccount(
-    payer: PublicKey,
-  ): Promise<[Transaction, PublicKey]> {
-    const streamAccount = Keypair.generate();
-    const createStreamAccountInstruction =
-      await this.program.account.stream.createInstruction(
-        streamAccount,
-        Constants.STREAM_SIZE,
-      );
-    const tx = new Transaction();
-    tx.add(createStreamAccountInstruction);
-    tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
-      (this.commitment as Commitment) || 'finalized',
-    );
-    tx.recentBlockhash = blockhash;
-    tx.partialSign(...[streamAccount]);
-    return [tx, streamAccount.publicKey];
-  }
-
-  /**
-   * This one returns not only the transaction but also the keypair of the
-   * stream that will be created
-   *
-   * @param payer The address of the payer
-   * @param treasurer The address of the treasurer
-   * @param treasury The address of the treasury
-   * @param beneficiary The address of the beneficiary
-   * @param stream The stream to be created
-   * @param allocationAssigned The amount of allocation to be assigned to the stream
-   * @param streamName The name of the stream
-   * @param rateAmount The amount of tokens to be issued per rate interval
-   * @param rateIntervalInSeconds The rate interval in seconds
-   * @param startUtc The start date of the stream
-   * @param cliffVestAmount The amount of tokens to be vested at the cliff
-   * @param cliffVestPercent The percentage of the cliff vest to be vested
-   * @param feePayedByTreasurer Whether the fee is payed by the treasurer
-   */
-  public async createStreamWithPreDefinedAccount(
-    payer: PublicKey,
-    treasurer: PublicKey,
-    treasury: PublicKey,
-    beneficiary: PublicKey,
-    stream: PublicKey,
-    streamName: string,
-    allocationAssigned: number,
-    rateAmount?: number,
-    rateIntervalInSeconds?: number,
-    startUtc?: Date,
-    cliffVestAmount?: number,
-    cliffVestPercent?: number,
-    feePayedByTreasurer?: boolean,
-  ): Promise<Transaction> {
-    if (treasurer.equals(beneficiary)) {
-      throw Error('Beneficiary can not be the same Treasurer');
-    }
-
-    const treasuryInfo = await getTreasury(this.program, treasury);
-
-    if (!treasuryInfo) {
-      throw Error("Treasury doesn't exist");
-    }
-
-    const treasuryAssociatedTokenMint = new PublicKey(
-      treasuryInfo.associatedToken,
-    );
-
-    // Get the treasury token account
-    const treasuryToken = await Token.getAssociatedTokenAddress(
-      ASSOCIATED_TOKEN_PROGRAM_ID,
-      TOKEN_PROGRAM_ID,
-      treasuryAssociatedTokenMint,
-      treasury,
-      true,
-    );
-
-    const feeTreasuryToken = await Token.getAssociatedTokenAddress(
-      ASSOCIATED_TOKEN_PROGRAM_ID,
-      TOKEN_PROGRAM_ID,
-      treasuryAssociatedTokenMint,
-      Constants.FEE_TREASURY,
-      true,
-    );
-
-    const cliffVestPercentValue = cliffVestPercent
-      ? cliffVestPercent * Constants.CLIFF_PERCENT_NUMERATOR
-      : 0;
-    const now = new Date();
-    const startDate =
-      startUtc && startUtc.getTime() >= now.getTime() ? startUtc : now;
-    const startUtcInSeconds = parseInt((startDate.getTime() / 1000).toString());
-
-    // Create Stream
-    const tx = this.program.transaction.createStream(
-      LATEST_IDL_FILE_VERSION,
-      streamName,
-      new BN(startUtcInSeconds),
-      new BN(rateAmount as number),
-      new BN(rateIntervalInSeconds as number),
-      new BN(allocationAssigned),
-      new BN(cliffVestAmount as number),
-      new BN(cliffVestPercentValue),
-      feePayedByTreasurer ?? false,
-      {
-        accounts: {
-          payer: payer,
-          treasurer: treasurer,
-          treasury: treasury,
-          treasuryToken: treasuryToken,
-          associatedToken: treasuryAssociatedTokenMint,
-          beneficiary: beneficiary,
-          stream,
-          feeTreasury: Constants.FEE_TREASURY,
-          feeTreasuryToken: feeTreasuryToken,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-          rent: SYSVAR_RENT_PUBKEY,
-        },
-      },
-    );
-
-    tx.feePayer = payer;
-    const { blockhash } = await this.connection.getLatestBlockhash(
-      (this.commitment as Commitment) || 'finalized',
-    );
-    tx.recentBlockhash = blockhash;
-    return tx;
-  }
-
-  /**
-   * This creates a stream with template
-   * @param payer The address of the payer
-   * @param treasurer The address of the treasurer
-   * @param treasury The address of the treasury
-   * @param beneficiary The address of the beneficiary
-   * @param stream The stream to be created
-   * @param allocationAssigned The amount of allocation to be assigned to the stream
-   * @param streamName The name of the stream
-   *
-   * @returns The transaction to create a stream with template
-   */
-  public async createStreamWithTemplateWithPreDefinedAccount(
-    payer: PublicKey,
-    treasurer: PublicKey,
-    treasury: PublicKey,
-    beneficiary: PublicKey,
-    stream: PublicKey,
-    allocationAssigned: number,
-    streamName = '',
-  ): Promise<Transaction> {
-    if (treasurer.equals(beneficiary)) {
-      throw Error('Beneficiary can not be the same Treasurer');
-    }
-
-    const treasuryInfo = await getTreasury(this.program, treasury);
-
-    if (!treasuryInfo) {
-      throw Error("Treasury doesn't exist");
-    }
-    const treasuryAssociatedTokenMint = new PublicKey(
-      treasuryInfo.associatedToken,
-    );
-    // Get the template
-    const [template] = await findStreamTemplateAddress(
-      treasury,
+    const uniqueSeed = Keypair.generate().publicKey;
+    const [stream] = await PublicKey.findProgramAddress(
+      [treasury.toBuffer(), uniqueSeed.toBuffer()],
       this.program.programId,
     );
-    const templateInfo = await getStreamTemplate(this.program, template);
-    if (!templateInfo) {
-      throw Error("Stream template doesn't exist");
-    }
-
-    // Calculate rate amount
-    const rateAmount =
-      (allocationAssigned * (1 - templateInfo.cliffVestPercent / 1_000_000)) /
-      templateInfo.durationNumberOfUnits;
-
-    // Get the treasury token account
-    const treasuryToken = await Token.getAssociatedTokenAddress(
-      ASSOCIATED_TOKEN_PROGRAM_ID,
-      TOKEN_PROGRAM_ID,
-      treasuryAssociatedTokenMint,
-      treasury,
-      true,
-    );
-
-    const feeTreasuryToken = await Token.getAssociatedTokenAddress(
-      ASSOCIATED_TOKEN_PROGRAM_ID,
-      TOKEN_PROGRAM_ID,
-      treasuryAssociatedTokenMint,
-      Constants.FEE_TREASURY,
-      true,
-    );
-
     // Create Stream
-    const tx = this.program.transaction.createStreamWithTemplate(
+    const tx = this.program.transaction.createStream(
       LATEST_IDL_FILE_VERSION,
       streamName,
-      new BN(rateAmount),
+      uniqueSeed,
+      new BN(startUtcInSeconds),
+      new BN(rateAmount as number),
+      new BN(rateIntervalInSeconds as number),
       new BN(allocationAssigned),
+      new BN(cliffVestAmount as number),
+      new BN(cliffVestPercentValue),
+      feePayedByTreasurer ?? false,
       {
         accounts: {
           payer: payer,
-          template,
           treasurer: treasurer,
           treasury: treasury,
           treasuryToken: treasuryToken,
@@ -1267,12 +1029,12 @@ export class MSP {
     );
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getLatestBlockhash(
+    const { blockhash } = await this.connection.getRecentBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
 
-    return tx;
+    return [tx, stream];
   }
 
   /**
@@ -1702,17 +1464,17 @@ export class MSP {
       true,
     );
 
-    const streamAccount = Keypair.generate();
-    const createStreamAccountInstruction =
-      await this.program.account.stream.createInstruction(
-        streamAccount,
-        Constants.STREAM_SIZE,
-      );
+    const uniqueSeed = Keypair.generate().publicKey;
+    const [stream] = await PublicKey.findProgramAddress(
+      [treasury.toBuffer(), uniqueSeed.toBuffer()],
+      this.program.programId,
+    );
 
     // Create Stream
     const tx = this.program.transaction.createStreamWithTemplate(
       LATEST_IDL_FILE_VERSION,
       streamName,
+      uniqueSeed,
       new BN(rateAmount),
       new BN(allocationAssigned),
       {
@@ -1724,7 +1486,7 @@ export class MSP {
           treasuryToken: treasuryToken,
           associatedToken: treasuryAssociatedTokenMint,
           beneficiary: beneficiary,
-          stream: streamAccount.publicKey,
+          stream,
           feeTreasury: Constants.FEE_TREASURY,
           feeTreasuryToken: feeTreasuryToken,
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -1732,8 +1494,6 @@ export class MSP {
           systemProgram: SystemProgram.programId,
           rent: SYSVAR_RENT_PUBKEY,
         },
-        preInstructions: [createStreamAccountInstruction],
-        signers: [streamAccount],
       },
     );
 
@@ -1742,9 +1502,8 @@ export class MSP {
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
-    tx.partialSign(...[streamAccount]);
 
-    return [tx, streamAccount.publicKey];
+    return [tx, stream];
   }
 
   public async createStreams(

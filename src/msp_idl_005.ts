@@ -180,6 +180,10 @@ export type Msp = {
           "type": "string"
         },
         {
+          "name": "uniqueSeed",
+          "type": "publicKey"
+        },
+        {
           "name": "startUtc",
           "type": "u64"
         },
@@ -528,6 +532,10 @@ export type Msp = {
         {
           "name": "name",
           "type": "string"
+        },
+        {
+          "name": "uniqueSeed",
+          "type": "publicKey"
         },
         {
           "name": "rateAmountUnits",
@@ -2947,6 +2955,10 @@ export const IDL: Msp = {
           "type": "string"
         },
         {
+          "name": "uniqueSeed",
+          "type": "publicKey"
+        },
+        {
           "name": "startUtc",
           "type": "u64"
         },
@@ -3295,6 +3307,10 @@ export const IDL: Msp = {
         {
           "name": "name",
           "type": "string"
+        },
+        {
+          "name": "uniqueSeed",
+          "type": "publicKey"
         },
         {
           "name": "rateAmountUnits",
