@@ -245,11 +245,18 @@ export class MSP {
     return getStreamTemplate(this.program, template, friendly);
   }
 
+  /**
+   * @param sender
+   * @param beneficiary
+   * @param mint
+   * @param amount
+   * @returns
+   */
   public async transfer(
     sender: PublicKey,
     beneficiary: PublicKey,
     mint: PublicKey,
-    amount: number,
+    amount: number | BN,
   ): Promise<Transaction> {
     const ixs: TransactionInstruction[] = [];
 
@@ -258,7 +265,7 @@ export class MSP {
         SystemProgram.transfer({
           fromPubkey: sender,
           toPubkey: beneficiary,
-          lamports: amount,
+          lamports: new BN(amount).toNumber(),
         }),
       );
     } else {
@@ -353,7 +360,7 @@ export class MSP {
     treasurer: PublicKey,
     beneficiary: PublicKey,
     mint: PublicKey,
-    amount: number,
+    amount: number | BN,
     startUtc?: Date,
     streamName?: string,
     feePayedByTreasurer = false,
@@ -2838,7 +2845,7 @@ export class MSP {
 
   private async ensureAutoWrapSolInstructions(
     autoWSol: boolean,
-    amountInLamports: number,
+    amountInLamports: number | BN,
     owner: PublicKey,
     ownerWSolTokenAccount: PublicKey,
     ownerWSolTokenAccountInfo: AccountInfo<Buffer> | null,

@@ -1,3 +1,4 @@
+import BN from 'bn.js';
 import {
   AccountInfo,
   Commitment,
@@ -13,7 +14,21 @@ import {
   SystemProgram,
   TransactionInstruction,
 } from '@solana/web3.js';
-import { BN, BorshInstructionCoder, Idl, Program } from '@project-serum/anchor';
+import { bs58 } from '@project-serum/anchor/dist/cjs/utils/bytes';
+import { BorshInstructionCoder, Idl, Program } from '@project-serum/anchor';
+import {
+  AnchorProvider,
+  Wallet,
+} from '@project-serum/anchor/dist/cjs/provider';
+import {
+  AccountLayout,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  NATIVE_MINT,
+  Token,
+  TOKEN_PROGRAM_ID,
+} from '@solana/spl-token';
+import * as anchor from '@project-serum/anchor';
+import { MemcmpFilter } from '@solana/web3.js';
 /**
  * MSP
  */
@@ -28,26 +43,13 @@ import {
   VestingTreasuryActivity,
   VestingTreasuryActivityAction,
   VestingTreasuryActivityRaw,
+  STREAM_STATUS,
+  Treasury,
+  TreasuryType,
+  StreamTemplate,
+  SubCategory,
 } from './types';
-import { STREAM_STATUS, Treasury, TreasuryType } from './types';
-import { StreamTemplate } from './types';
 import { IDL, Msp } from './msp_idl_004'; // point to the latest IDL
-import { bs58 } from '@project-serum/anchor/dist/cjs/utils/bytes';
-import {
-  AnchorProvider,
-  Wallet,
-} from '@project-serum/anchor/dist/cjs/provider';
-import {
-  AccountLayout,
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-  NATIVE_MINT,
-  Token,
-  TOKEN_PROGRAM_ID,
-} from '@solana/spl-token';
-import * as anchor from '@project-serum/anchor';
-import { TimeUnit } from './types';
-import { SubCategory } from './types';
-import { MemcmpFilter } from '@solana/web3.js';
 
 String.prototype.toPublicKey = function (): PublicKey {
   return new PublicKey(this.toString());
@@ -1595,7 +1597,7 @@ export async function fundExistingWSolAccountInstructions(
   owner: PublicKey,
   ownerWSolTokenAccount: PublicKey,
   payer: PublicKey,
-  amountToWrapInLamports: number,
+  amountToWrapInLamports: number | BN,
 ): Promise<[TransactionInstruction[], Keypair]> {
   // Allocate memory for the account
   const minimumAccountBalance = await Token.getMinBalanceRentForExemptAccount(
@@ -1607,7 +1609,9 @@ export async function fundExistingWSolAccountInstructions(
     SystemProgram.createAccount({
       fromPubkey: payer,
       newAccountPubkey: newWrapAccount.publicKey,
-      lamports: minimumAccountBalance + amountToWrapInLamports,
+      lamports: new BN(minimumAccountBalance)
+        .add(new BN(amountToWrapInLamports))
+        .toNumber(),
       space: AccountLayout.span,
       programId: TOKEN_PROGRAM_ID,
     }),
@@ -1693,7 +1697,7 @@ export async function createAtaCreateInstruction(
 
 export async function createWrapSolInstructions(
   connection: Connection,
-  wSolAmountInLamports: number,
+  wSolAmountInLamports: number | BN,
   owner: PublicKey,
   ownerWSolTokenAccount: PublicKey,
   ownerWSolTokenAccountInfo: AccountInfo<Buffer> | null,
@@ -1726,7 +1730,7 @@ export async function createWrapSolInstructions(
       owner,
       ownerWSolTokenAccount,
       owner,
-      amountToWrapBn.toNumber(),
+      amountToWrapBn,
     );
     ixs.push(...wrapIxs);
     signers.push(newWrapAccount);

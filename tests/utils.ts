@@ -1,7 +1,7 @@
 import * as fs from "fs-extra";
-import {join} from "path";
-import {homedir} from "os";
-import {Keypair, Transaction} from '@solana/web3.js';
+import { join } from "path";
+import { homedir } from "os";
+import { Keypair, Transaction } from '@solana/web3.js';
 
 export const getDefaultKeyPair = async (): Promise<Keypair> => {
     const id = await fs.readJSON(join(homedir(), '.config/solana/id.json'));
