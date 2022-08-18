@@ -1339,7 +1339,7 @@ const parseStreamTemplateData = (
     startUtc: friendly
       ? new Date(template.startUtcInSeconds * 1000).toString()
       : new Date(template.startUtcInSeconds * 1000),
-    cliffVestPercent: template.cliffVestPercent,
+    cliffVestPercent: template.cliffVestPercent.toNumber(),
     feePayedByTreasurer: template.feePayedByTreasurer,
   } as StreamTemplate;
 };

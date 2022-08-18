@@ -1384,7 +1384,7 @@ export class MSP {
     treasurer: PublicKey,
     treasury: PublicKey,
     beneficiary: PublicKey,
-    allocationAssigned: number,
+    allocationAssigned: number | string,
     streamName = '',
   ): Promise<[Transaction, PublicKey]> {
     if (treasurer.equals(beneficiary)) {
@@ -1410,9 +1410,32 @@ export class MSP {
     }
 
     // Calculate rate amount
-    const rateAmount =
-      (allocationAssigned * (1 - templateInfo.cliffVestPercent / 1_000_000)) /
-      templateInfo.durationNumberOfUnits;
+    const rateAmountOriginal = (parseInt(allocationAssigned as string) * (1 - templateInfo.cliffVestPercent / 1_000_000)) / templateInfo.durationNumberOfUnits;
+    console.log('Original rateAmount:', rateAmountOriginal);
+
+    /*
+    const a1 = new BN(allocationAssigned);
+    const a2 = 1 - templateInfo.cliffVestPercent / 1_000_000;
+    const a3 = templateInfo.durationNumberOfUnits;
+    console.log('a1 : ', a1.toString());
+    console.log('a2 : ', a2);
+    console.log('a3 : ', a3);
+
+    console.log('Calculate rateAmount with plain Javascript arithmetics...');
+    const rateAmount = (a1.toNumber() * a2) / a3;
+    console.log('JS rateAmount:', rateAmount);
+
+    const b1 = new BN(allocationAssigned);
+    const b2 = 1 - templateInfo.cliffVestPercent / 1_000_000;
+    const b3 = templateInfo.durationNumberOfUnits;
+    console.log('b1 : ', b1.toString());
+    console.log('b2 : ', b2);
+    console.log('b3 : ', b3);
+
+    console.log('Calculate rateAmount with BN arithmetics...');
+    const rateAmountb = (b1.muln(b2)).divn(b3);
+    console.log('BN rateAmount:', rateAmountb.toString());
+    */
 
     // Get the treasury token account
     const treasuryToken = await Token.getAssociatedTokenAddress(
@@ -1437,7 +1460,7 @@ export class MSP {
     const tx = this.program.transaction.createStreamWithTemplate(
       LATEST_IDL_FILE_VERSION,
       streamName,
-      new BN(rateAmount),
+      new BN(rateAmountOriginal),
       new BN(allocationAssigned),
       {
         accounts: {
@@ -1947,7 +1970,7 @@ export class MSP {
     treasurer: PublicKey,
     treasury: PublicKey,
     stream: PublicKey,
-    amount: number,
+    amount: number | string,
   ): Promise<Transaction> {
     if (!amount) {
       throw Error('Amount should be greater than 0');
