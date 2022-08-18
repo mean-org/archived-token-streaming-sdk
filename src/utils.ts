@@ -65,6 +65,8 @@ const defaultStreamActivity: StreamActivity = {
   utcDate: '',
 };
 
+export const maxNumberBit = 53;
+
 export const createProgram = (
   connection: Connection,
   walletAddress: string | PublicKey,
@@ -226,6 +228,7 @@ export const listStreamActivity = async (
   limit = 10,
   commitment?: Finality | undefined,
   friendly = true,
+  //associatedTokenDecimals?: number
 ): Promise<StreamActivityRaw[] | StreamActivity[]> => {
   let activityRaw: StreamActivityRaw[] = [];
   const finality = commitment !== undefined ? commitment : 'finalized';
@@ -261,7 +264,7 @@ export const listStreamActivity = async (
       signature: i.signature,
       initializer: i.initializer?.toBase58(),
       action: i.action,
-      amount: i.amount ? parseFloat(i.amount.toNumber().toFixed(9)) : 0,
+      amount: i.amount ? (i.amount.bitLength() > maxNumberBit ? i.amount.toString() : i.amount.toNumber()) : 0,
       mint: i.mint?.toBase58(),
       blockTime: i.blockTime,
       utcDate: i.utcDate,
@@ -1182,12 +1185,8 @@ async function parseVersionedStreamInstruction(
       initializer = formattedIx?.accounts.find(
         a => a.name === 'Beneficiary',
       )?.pubkey;
-      mint = formattedIx?.accounts.find(
-        a => a.name === 'Associated Token',
-      )?.pubkey;
-      const parsedAmount = formattedIx?.args.find(
-        a => a.name === 'amount',
-      )?.data;
+      mint = formattedIx?.accounts.find(a => a.name === 'Associated Token')?.pubkey;
+      const parsedAmount = formattedIx?.args.find(a => a.name === 'amount')?.data;
       amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
     }
 
@@ -1287,7 +1286,6 @@ const parseTreasuryData = (
       : treasury.createdOnUtc.toNumber();
 
   // Get the BigNumbers
-  const maxNumberBit = 53;
   const balanceBN = new BN(treasury.lastKnownBalanceUnits);
   const allocationReservedBN = new BN(treasury.allocationReservedUnits);
   const allocationAssignedBN = new BN(treasury.allocationAssignedUnits);
@@ -1834,7 +1832,7 @@ export const listVestingTreasuryActivity = async (
       initializer: i.initializer?.toBase58(),
       mint: i.mint?.toBase58(),
       blockTime: i.blockTime,
-      amount: i.amount ? parseFloat(i.amount.toNumber().toFixed(9)) : 0,
+      amount: i.amount ? (i.amount.bitLength() > maxNumberBit ? i.amount.toString() : i.amount.toNumber()) : 0,
       beneficiary: i.beneficiary?.toBase58(),
       destination: i.destination?.toBase58(),
       template: i.template?.toBase58(),

@@ -77,7 +77,7 @@ export type StreamActivity = {
   signature: string;
   initializer: string;
   action: string;
-  amount: number;
+  amount: number | string;
   mint: string;
   blockTime: number;
   utcDate: string;
@@ -109,7 +109,7 @@ export type VestingTreasuryActivity = {
   // createStream - allocation amount
   // addFunds - deposited amount
   // withdraw - withdrawn amount
-  amount?: number;
+  amount?: number | string;
   beneficiary?: string; // create stream
   destination?: string; // withdraw
   destinationTokenAccount?: string; // withdrawn associated token account
