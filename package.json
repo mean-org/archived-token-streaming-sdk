@@ -1,6 +1,6 @@
 {
   "name": "@mean-dao/msp",
-  "version": "2.9.0-alpha.1",
+  "version": "2.9.0-alpha.2",
   "description": "MSP Typescript SDK",
   "private": false,
   "main": "lib/index.js",
@@ -30,7 +30,7 @@
     "start": "ts-node main.ts",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
-    "test": "TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha --timeout 100000 -r ts-node/register tests/*.test.ts",
+    "test": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha --timeout 100000 -r ts-node/register tests/*.test.ts",
     "prettier": "prettier src/**/*.ts tests/**/*.ts --write"
   },
   "dependencies": {

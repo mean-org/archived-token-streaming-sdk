@@ -2,7 +2,7 @@
  * Solana
  */
 import { Commitment, PublicKey } from '@solana/web3.js';
-import { BN } from '@project-serum/anchor';
+import BN from 'bn.js';
 
 declare global {
   export interface String {
@@ -174,11 +174,11 @@ export type Treasury = {
   associatedToken: PublicKey | string;
   mint: PublicKey | string;
   labels: string[]; //max 5 labels per treasury
-  balance: number;
-  allocationReserved: number;
-  allocationAssigned: number;
-  totalWithdrawals: number;
-  totalStreams: number;
+  balance: number | string;
+  allocationReserved: number | string;
+  allocationAssigned: number | string;
+  totalWithdrawals: number | string;
+  totalStreams: number | string;
   createdOnUtc: Date | string;
   treasuryType: TreasuryType;
   autoClose: boolean;

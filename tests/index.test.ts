@@ -1,3 +1,5 @@
+import { expect } from "chai";
+import { Program } from '@project-serum/anchor';
 import {
   Keypair,
   Connection,
@@ -9,13 +11,10 @@ import {
   SystemProgram,
   clusterApiUrl
 } from '@solana/web3.js';
-import { Constants, MSP, TreasuryType } from '../src';
-import { SubCategory } from "../src";
 
+import { Constants, Msp, MSP, TreasuryType, SubCategory, listTreasuries } from '../src';
+import { createProgram, getDefaultKeyPair, sleep } from "./utils";
 import { Category, TimeUnit } from "../src/types";
-import { expect } from "chai";
-import { getDefaultKeyPair } from "./utils";
-import { sleep } from "./utils";
 
 const endpoint = clusterApiUrl('devnet'); //'http://localhost:8899';
 // deploy msp locally
@@ -24,14 +23,17 @@ const endpoint = clusterApiUrl('devnet'); //'http://localhost:8899';
 let msp: MSP;
 
 describe('Tests creating a vesting treasury\n', async () => {
-  let connection: Connection;
+  let connection: Connection, program: Program<Msp>;
   let user1Wallet: Keypair, user2Wallet: Keypair;
+  const yamelWalletAddress = new PublicKey('GFefRR6EASXvnphnJApp2PRH1wF1B5pJijKBZGFzq1x1');
 
   before(async () => {
+
     user1Wallet = Keypair.generate();
     user2Wallet = Keypair.generate();
     const root = await getDefaultKeyPair();
     connection = new Connection(endpoint, 'confirmed');
+    /*
     const tx = new Transaction();
     tx.add(SystemProgram.transfer({
       fromPubkey: root.publicKey,
@@ -56,10 +58,17 @@ describe('Tests creating a vesting treasury\n', async () => {
     msp = new MSP(endpoint, user1Wallet.publicKey.toBase58(), 'confirmed',
       // comment out to avoid error 'Attempt to load a program that does not exist'
       new PublicKey("2nZ8KDGdPBexJwWznPZosioWJzNBSM3doUXUYdo37ndN")
-    );
-  });
+    );*/
 
-  it('Creates a vesting treasury and vesting stream\n', async () => {
+    program = createProgram(
+      connection,
+      yamelWalletAddress,
+      Constants.MSP
+    );
+
+  });
+/*
+  it('Creates a vesting treasury and vesting stream', async () => {
     console.log('Creating a vesting treasury');
     const [createVestingTreasuryTx, treasury] = await msp.createVestingTreasury(
       user1Wallet.publicKey,
@@ -319,9 +328,16 @@ describe('Tests creating a vesting treasury\n', async () => {
     const CloseStreamTx = await msp.closeStream(user1Wallet.publicKey, user1Wallet.publicKey, stream, false, true);
     await sendAndConfirmTransaction(connection, CloseStreamTx, [user1Wallet], { commitment: 'confirmed' });
     console.log("Close stream1 success.\n");
-  });
+  });*/
 
-  it('Very big numbers', async () => {
-
+  it('utils > listTreasuries', async () => {
+    try {
+      const treasuries = await listTreasuries(program, yamelWalletAddress, true, true, Category.vesting);
+      console.log('treasuries:', treasuries);
+      expect(treasuries.length).not.eq(0);
+    } catch (error) {
+      console.error(error);
+      expect(true).eq(false);
+    }
   })
 });

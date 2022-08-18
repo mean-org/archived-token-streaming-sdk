@@ -67,7 +67,7 @@ const defaultStreamActivity: StreamActivity = {
 
 export const createProgram = (
   connection: Connection,
-  walletAddress: string,
+  walletAddress: string | PublicKey,
   _customProgramId?: PublicKey,
 ): Program<Msp> => {
   const opts: ConfirmOptions = {
@@ -76,7 +76,7 @@ export const createProgram = (
   };
 
   const wallet: Wallet = {
-    publicKey: new PublicKey(walletAddress),
+    publicKey: typeof walletAddress === 'string' ? new PublicKey(walletAddress) : walletAddress,
     signAllTransactions: async txs => txs,
     signTransaction: async tx => tx,
   };
@@ -368,8 +368,8 @@ export const calculateActionFees = async (
   action: MSP_ACTIONS,
 ): Promise<TransactionFees> => {
   const recentBlockhash = await connection.getRecentBlockhash(
-      connection.commitment as Commitment,
-    ),
+    connection.commitment as Commitment,
+  ),
     txFees: TransactionFees = {
       blockchainFee: 0.0,
       mspFlatFee: 0.0,
@@ -594,9 +594,9 @@ const parseGetStreamData = (
 
     secondsSinceStart: friendly
       ? Math.max(
-          0,
-          event.currentBlockTime.toNumber() - event.startUtc.toNumber(),
-        )
+        0,
+        event.currentBlockTime.toNumber() - event.startUtc.toNumber(),
+      )
       : event.currentBlockTime.sub(new BN(event.startUtc)),
 
     estimatedDepletionDate: friendly
@@ -784,8 +784,8 @@ const parseStreamItemData = (
         getStreamStatus(stream, timeDiff) === 1
           ? 'Scheduled'
           : getStreamStatus(stream, 0) === 2
-          ? 'Running'
-          : 'Paused',
+            ? 'Running'
+            : 'Paused',
       isManualPause: isStreamManuallyPaused(stream),
       cliffUnits: new BN(getStreamCliffAmount(stream)),
       currentBlockTime: new BN(blockTime),
@@ -814,13 +814,13 @@ const parseStreamItemData = (
         Math.max(
           0,
           getStreamNonStopEarningUnits(stream, timeDiff) -
-            getStreamMissedEarningUnitsWhilePaused(stream),
+          getStreamMissedEarningUnitsWhilePaused(stream),
         ),
       ),
       withdrawableUnitsWhileRunning: new BN(
         Math.max(
           getStreamNonStopEarningUnits(stream, timeDiff) -
-            getStreamMissedEarningUnitsWhilePaused(stream),
+          getStreamMissedEarningUnitsWhilePaused(stream),
         ) + stream.totalWithdrawalsUnits.toNumber(),
       ),
       beneficiaryRemainingAllocation: new BN(
@@ -1144,8 +1144,8 @@ async function parseVersionedStreamInstruction(
     const blockTime = (transactionBlockTimeInSeconds as number) * 1000; // mult by 1000 to add milliseconds
     const action =
       decodedIx.name === 'createStream' ||
-      decodedIx.name === 'createStreamWithTemplate' ||
-      decodedIx.name === 'allocate'
+        decodedIx.name === 'createStreamWithTemplate' ||
+        decodedIx.name === 'allocate'
         ? 'deposited'
         : 'withdrew';
 
@@ -1286,6 +1286,14 @@ const parseTreasuryData = (
       ? parseInt(treasury.createdOnUtc.toString().substring(0, 10))
       : treasury.createdOnUtc.toNumber();
 
+  // Get the BigNumbers
+  const maxNumberBit = 53;
+  const balanceBN = new BN(treasury.lastKnownBalanceUnits);
+  const allocationReservedBN = new BN(treasury.allocationReservedUnits);
+  const allocationAssignedBN = new BN(treasury.allocationAssignedUnits);
+  const totalWithdrawalsBN = new BN(treasury.totalWithdrawalsUnits);
+  const totalStreamsBN = new BN(treasury.totalStreams);
+
   return {
     id: friendly ? address.toBase58() : address,
     version: treasury.version,
@@ -1306,11 +1314,11 @@ const parseTreasuryData = (
       ? treasury.treasurerAddress.toBase58()
       : treasury.treasurerAddress,
     associatedToken: treasuryAssocatedTokenMint,
-    balance: treasury.lastKnownBalanceUnits.toNumber(),
-    allocationReserved: treasury.allocationReservedUnits.toNumber(),
-    allocationAssigned: treasury.allocationAssignedUnits.toNumber(),
-    totalWithdrawals: treasury.totalWithdrawalsUnits.toNumber(),
-    totalStreams: treasury.totalStreams.toNumber(),
+    balance: balanceBN.bitLength() > maxNumberBit ? balanceBN.toString() : balanceBN.toNumber(),
+    allocationReserved: allocationReservedBN.bitLength() > maxNumberBit ? allocationReservedBN.toString() : allocationReservedBN.toNumber(),
+    allocationAssigned: allocationAssignedBN.bitLength() > maxNumberBit ? allocationAssignedBN.toString() : allocationAssignedBN.toNumber(),
+    totalWithdrawals: totalWithdrawalsBN.bitLength() > maxNumberBit ? totalWithdrawalsBN.toString() : totalWithdrawalsBN.toNumber(),
+    totalStreams: totalStreamsBN.bitLength() > maxNumberBit ? totalStreamsBN.toString() : totalStreamsBN.toNumber(),
     category: treasury.category as Category,
     subCategory: treasury.subCategory as SubCategory,
     data: treasury,
@@ -1352,7 +1360,7 @@ const getStreamEstDepletionDate = (stream: any) => {
     stream.rateIntervalInSeconds.toNumber() === 0
       ? 0
       : stream.rateAmountUnits.toNumber() /
-        stream.rateIntervalInSeconds.toNumber();
+      stream.rateIntervalInSeconds.toNumber();
 
   const streamableSeconds = streamableAmount / rateAmount;
   const duration =
@@ -1419,7 +1427,7 @@ const getStreamWithdrawableAmount = (stream: any, timeDiff = 0) => {
     const withdrawableWhilePausedAmount = manuallyPaused
       ? stream.lastManualStopWithdrawableUnitsSnap.toNumber()
       : stream.allocationAssignedUnits.toNumber() -
-        stream.totalWithdrawalsUnits.toNumber();
+      stream.totalWithdrawalsUnits.toNumber();
 
     return Math.max(0, withdrawableWhilePausedAmount);
   }
@@ -1442,10 +1450,10 @@ const getStreamWithdrawableAmount = (stream: any, timeDiff = 0) => {
   const totalSecondsPaused =
     stream.lastKnownTotalSecondsInPausedStatus.toNumber().length >= 10
       ? parseInt(
-          (
-            stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1_000
-          ).toString(),
-        )
+        (
+          stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1_000
+        ).toString(),
+      )
       : stream.lastKnownTotalSecondsInPausedStatus.toNumber();
 
   const missedEarningUnitsWhilePaused =

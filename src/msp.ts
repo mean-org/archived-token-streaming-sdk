@@ -89,7 +89,7 @@ export class MSP {
     this.program = createProgram(
       this.connection,
       walletAddress,
-      _customProgramId,
+      this.customProgramId,
     );
   }
 
