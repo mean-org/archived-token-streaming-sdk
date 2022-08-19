@@ -20,6 +20,7 @@ import {
   NATIVE_MINT as NATIVE_WSOL_MINT,
   Token,
   TOKEN_PROGRAM_ID,
+  u64,
 } from '@solana/spl-token';
 import { BN, Program } from '@project-serum/anchor';
 
@@ -245,23 +246,32 @@ export class MSP {
     return getStreamTemplate(this.program, template, friendly);
   }
 
+  /**
+   * Performs simple transfer of tokens to a beneficiary
+   * @param sender {PublicKey} - The public key of the wallet approving the transaction
+   * @param beneficiary {PublicKey} - The public key of the beneficiary
+   * @param mint {PublicKey} - The public key of the token to be sent
+   * @param amount {string | number} - The token amount to be allocated to the stream. Use BN.toString() or BigNumber.toString() for best compatibility
+   */
   public async transfer(
     sender: PublicKey,
     beneficiary: PublicKey,
     mint: PublicKey,
-    amount: number,
+    amount: string | number,  // Allow both types for compatibility
   ): Promise<Transaction> {
     const ixs: TransactionInstruction[] = [];
+    const amountBN = new u64(amount);
 
     if (mint.equals(Constants.SOL_MINT)) {
       ixs.push(
         SystemProgram.transfer({
           fromPubkey: sender,
           toPubkey: beneficiary,
-          lamports: amount,
+          lamports: amountBN.toNumber(),
         }),
       );
     } else {
+
       const senderToken = await Token.getAssociatedTokenAddress(
         ASSOCIATED_TOKEN_PROGRAM_ID,
         TOKEN_PROGRAM_ID,
@@ -334,7 +344,7 @@ export class MSP {
           beneficiaryToken,
           sender,
           [],
-          amount,
+          amountBN,
         ),
       );
     }
@@ -1375,7 +1385,7 @@ export class MSP {
    * @param treasurer {PublicKey} - The public key of the contract treasurer
    * @param treasury {PublicKey} - The public key of the vesting contract
    * @param beneficiary {PublicKey} - The public key of the beneficiary
-   * @param allocationAssigned {string} - The token amount to be allocated to the stream. Use BN.toString() or BigNumber.toString() for best compatibility
+   * @param allocationAssigned {string | number} - The token amount to be allocated to the stream. Use BN.toString() or BigNumber.toString() for best compatibility
    * @param streamName {string} - The name of the string (up to 32 characters)
    */
   public async createStreamWithTemplate(
@@ -1383,7 +1393,7 @@ export class MSP {
     treasurer: PublicKey,
     treasury: PublicKey,
     beneficiary: PublicKey,
-    allocationAssigned: string,
+    allocationAssigned: string | number,
     streamName = '',
   ): Promise<[Transaction, PublicKey]> {
 
@@ -1963,7 +1973,7 @@ export class MSP {
     treasurer: PublicKey,
     treasury: PublicKey,
     stream: PublicKey,
-    amount: string,
+    amount: string | number,
   ): Promise<Transaction> {
     if (!amount) {
       throw Error('Amount should be greater than 0');
