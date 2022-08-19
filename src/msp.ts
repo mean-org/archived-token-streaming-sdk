@@ -1950,12 +1950,20 @@ export class MSP {
     return tx;
   }
 
+  /**
+   * Creates a stream by allocating funds from the streaming account or vesting contract
+   * @param payer {PublicKey} - The public key of the wallet approving the transaction
+   * @param treasurer {PublicKey} - The public key of the contract treasurer
+   * @param treasury {PublicKey} - The public key of the vesting contract
+   * @param stream {PublicKey} - The public key of the stream to be created
+   * @param amount {string} - The token amount to be allocated to the stream. Use BN.toString() or BigNumber.toString() for best compatibility
+   */
   public async allocate(
     payer: PublicKey,
     treasurer: PublicKey,
     treasury: PublicKey,
     stream: PublicKey,
-    amount: number,
+    amount: string,
   ): Promise<Transaction> {
     if (!amount) {
       throw Error('Amount should be greater than 0');
