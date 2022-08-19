@@ -588,16 +588,32 @@ export class MSP {
     return tx;
   }
 
+  /**
+   * Creates a recurring payment at a given rate to start immediately or scheduled
+   * @param treasurer {PublicKey} - The public key of the wallet approving the transaction.
+   * @param beneficiary {PublicKey} - The public key of the beneficiary.
+   * @param mint {PublicKey} - The public key of the token to be sent.
+   * @param streamName {string} - The name of the transfer.
+   * @param allocationAssigned {string | number} - The token amount to be allocated to the stream. Use BN.toString() or BigNumber.toString() for best compatibility.
+   * @param rateAmount {string | number} - The rate at which the token will be sent. Use BN.toString() or BigNumber.toString() for best compatibility.
+   * @param rateIntervalInSeconds {number} - The number of seconds for the send rate (minute=60, hour=3600, day=86400 and so on)
+   * @param startUtc {Date} - The date on which the transfer will be executed.
+   * @param cliffVestAmount {string | number} - The cliff amount to be released at start date. Should be 0 for streamPayment.
+   * @param cliffVestPercent {number} - The cliff percent of the total amount to be released at start date. Should be 0 for streamPayment.
+   * @param feePayedByTreasurer {boolean} - Decides if protocol fees will be paid by the treasurer of the beneficiary at withdraw time.
+   * @param category {Category} - Optional. The category of the transfer. It should be Category.default for all transfers.
+   * @param subCategory {SubCategory} - Optional. The subcategory. It should be SubCategory.default for all transfers.
+   */
   public async streamPayment(
     treasurer: PublicKey,
     beneficiary: PublicKey,
     mint: PublicKey,
     streamName: string,
-    allocationAssigned: number,
-    rateAmount?: number,
+    allocationAssigned: string | number,
+    rateAmount?: string | number,
     rateIntervalInSeconds?: number,
     startUtc?: Date,
-    cliffVestAmount?: number,
+    cliffVestAmount?: string | number,
     cliffVestPercent?: number,
     feePayedByTreasurer = false,
     category: Category = Category.default,
@@ -709,7 +725,7 @@ export class MSP {
     );
     await this.ensureAutoWrapSolInstructions(
       autoWSol,
-      allocationAssigned,
+      new BN(allocationAssigned).toNumber(),
       treasurer,
       treasurerToken,
       treasurerTokenInfo,
@@ -1860,12 +1876,20 @@ export class MSP {
     return tx;
   }
 
+  /**
+   * Add funds to a streaming account or a vesting contract
+   * @param payer {PublicKey} - The public key of the wallet approving the transaction
+   * @param contributor {PublicKey} - The public key of the contributor
+   * @param treasury {PublicKey} - The public key of the vesting contract
+   * @param mint {PublicKey} - The public key of the token to be sent.
+   * @param amount {string | number} - The token amount to fund the account. Use BN.toString() or BigNumber.toString() for best compatibility.
+   */
   public async addFunds(
     payer: PublicKey,
     contributor: PublicKey,
     treasury: PublicKey,
     mint: PublicKey, // it can be the special value: Constants.SOL_MINT
-    amount: number,
+    amount: string | number,
   ): Promise<Transaction> {
     if (!amount) {
       throw Error('Amount should be greater than 0');
@@ -1902,7 +1926,7 @@ export class MSP {
 
     await this.ensureAutoWrapSolInstructions(
       autoWSol,
-      amount,
+      new BN(amount).toNumber(),
       contributor,
       contributorToken,
       contributorTokenInfo,
