@@ -77,7 +77,7 @@ export type StreamActivity = {
   signature: string;
   initializer: string;
   action: string;
-  amount: number | string;
+  amount: string;
   mint: string;
   blockTime: number;
   utcDate: string;
@@ -109,7 +109,7 @@ export type VestingTreasuryActivity = {
   // createStream - allocation amount
   // addFunds - deposited amount
   // withdraw - withdrawn amount
-  amount?: number | string;
+  amount?: string;
   beneficiary?: string; // create stream
   destination?: string; // withdraw
   destinationTokenAccount?: string; // withdrawn associated token account
@@ -130,7 +130,7 @@ export type VestingTreasuryActivityRaw = {
   // createStream - allocation amount
   // addFunds - deposited amount
   // withdraw - withdrawn amount
-  amount?: BN;
+  amount: BN | undefined;
   beneficiary?: PublicKey; // create stream
   destination?: PublicKey; // withdraw
   destinationTokenAccount?: PublicKey; // withdrawn associated token account
@@ -174,11 +174,11 @@ export type Treasury = {
   associatedToken: PublicKey | string;
   mint: PublicKey | string;
   labels: string[]; //max 5 labels per treasury
-  balance: number | string;
-  allocationReserved: number | string;
-  allocationAssigned: number | string;
-  totalWithdrawals: number | string;
-  totalStreams: number | string;
+  balance: string;
+  allocationReserved: string;
+  allocationAssigned: string;
+  totalWithdrawals: string;
+  totalStreams: number;
   createdOnUtc: Date | string;
   treasuryType: TreasuryType;
   autoClose: boolean;

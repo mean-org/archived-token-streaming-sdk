@@ -1,4 +1,3 @@
-import BN from 'bn.js';
 import {
   AccountInfo,
   Commitment,
@@ -14,8 +13,29 @@ import {
   SystemProgram,
   TransactionInstruction,
 } from '@solana/web3.js';
+import { BN, BorshInstructionCoder, Idl, Program } from '@project-serum/anchor';
+/**
+ * MSP
+ */
+import { Constants, LATEST_IDL_FILE_VERSION } from './constants';
+import {
+  Category,
+  MSP_ACTIONS,
+  Stream,
+  StreamActivity,
+  StreamActivityRaw,
+  StreamTemplate,
+  STREAM_STATUS,
+  SubCategory,
+  TransactionFees,
+  Treasury,
+  TreasuryType,
+  VestingTreasuryActivity,
+  VestingTreasuryActivityAction,
+  VestingTreasuryActivityRaw,
+} from './types';
+import { IDL, Msp } from './msp_idl_004'; // point to the latest IDL
 import { bs58 } from '@project-serum/anchor/dist/cjs/utils/bytes';
-import { BorshInstructionCoder, Idl, Program } from '@project-serum/anchor';
 import {
   AnchorProvider,
   Wallet,
@@ -29,27 +49,6 @@ import {
 } from '@solana/spl-token';
 import * as anchor from '@project-serum/anchor';
 import { MemcmpFilter } from '@solana/web3.js';
-/**
- * MSP
- */
-import { Constants, LATEST_IDL_FILE_VERSION } from './constants';
-import {
-  Category,
-  MSP_ACTIONS,
-  Stream,
-  StreamActivity,
-  StreamActivityRaw,
-  TransactionFees,
-  VestingTreasuryActivity,
-  VestingTreasuryActivityAction,
-  VestingTreasuryActivityRaw,
-  STREAM_STATUS,
-  Treasury,
-  TreasuryType,
-  StreamTemplate,
-  SubCategory,
-} from './types';
-import { IDL, Msp } from './msp_idl_004'; // point to the latest IDL
 
 String.prototype.toPublicKey = function (): PublicKey {
   return new PublicKey(this.toString());
@@ -59,17 +58,15 @@ const defaultStreamActivity: StreamActivity = {
   signature: '',
   initializer: '',
   action: '',
-  amount: 0,
+  amount: '',
   mint: '',
   blockTime: 0,
   utcDate: '',
 };
 
-export const maxNumberBit = 53;
-
 export const createProgram = (
   connection: Connection,
-  walletAddress: string | PublicKey,
+  walletAddress: string,
   _customProgramId?: PublicKey,
 ): Program<Msp> => {
   const opts: ConfirmOptions = {
@@ -78,7 +75,7 @@ export const createProgram = (
   };
 
   const wallet: Wallet = {
-    publicKey: typeof walletAddress === 'string' ? new PublicKey(walletAddress) : walletAddress,
+    publicKey: new PublicKey(walletAddress),
     signAllTransactions: async txs => txs,
     signTransaction: async tx => tx,
   };
@@ -228,7 +225,6 @@ export const listStreamActivity = async (
   limit = 10,
   commitment?: Finality | undefined,
   friendly = true,
-  //associatedTokenDecimals?: number
 ): Promise<StreamActivityRaw[] | StreamActivity[]> => {
   let activityRaw: StreamActivityRaw[] = [];
   const finality = commitment !== undefined ? commitment : 'finalized';
@@ -264,7 +260,7 @@ export const listStreamActivity = async (
       signature: i.signature,
       initializer: i.initializer?.toBase58(),
       action: i.action,
-      amount: i.amount ? (i.amount.bitLength() > maxNumberBit ? i.amount.toString() : i.amount.toNumber()) : 0,
+      amount: i.amount ? i.amount.toString() : '',
       mint: i.mint?.toBase58(),
       blockTime: i.blockTime,
       utcDate: i.utcDate,
@@ -371,8 +367,8 @@ export const calculateActionFees = async (
   action: MSP_ACTIONS,
 ): Promise<TransactionFees> => {
   const recentBlockhash = await connection.getRecentBlockhash(
-    connection.commitment as Commitment,
-  ),
+      connection.commitment as Commitment,
+    ),
     txFees: TransactionFees = {
       blockchainFee: 0.0,
       mspFlatFee: 0.0,
@@ -597,9 +593,9 @@ const parseGetStreamData = (
 
     secondsSinceStart: friendly
       ? Math.max(
-        0,
-        event.currentBlockTime.toNumber() - event.startUtc.toNumber(),
-      )
+          0,
+          event.currentBlockTime.toNumber() - event.startUtc.toNumber(),
+        )
       : event.currentBlockTime.sub(new BN(event.startUtc)),
 
     estimatedDepletionDate: friendly
@@ -787,8 +783,8 @@ const parseStreamItemData = (
         getStreamStatus(stream, timeDiff) === 1
           ? 'Scheduled'
           : getStreamStatus(stream, 0) === 2
-            ? 'Running'
-            : 'Paused',
+          ? 'Running'
+          : 'Paused',
       isManualPause: isStreamManuallyPaused(stream),
       cliffUnits: new BN(getStreamCliffAmount(stream)),
       currentBlockTime: new BN(blockTime),
@@ -817,13 +813,13 @@ const parseStreamItemData = (
         Math.max(
           0,
           getStreamNonStopEarningUnits(stream, timeDiff) -
-          getStreamMissedEarningUnitsWhilePaused(stream),
+            getStreamMissedEarningUnitsWhilePaused(stream),
         ),
       ),
       withdrawableUnitsWhileRunning: new BN(
         Math.max(
           getStreamNonStopEarningUnits(stream, timeDiff) -
-          getStreamMissedEarningUnitsWhilePaused(stream),
+            getStreamMissedEarningUnitsWhilePaused(stream),
         ) + stream.totalWithdrawalsUnits.toNumber(),
       ),
       beneficiaryRemainingAllocation: new BN(
@@ -1147,8 +1143,8 @@ async function parseVersionedStreamInstruction(
     const blockTime = (transactionBlockTimeInSeconds as number) * 1000; // mult by 1000 to add milliseconds
     const action =
       decodedIx.name === 'createStream' ||
-        decodedIx.name === 'createStreamWithTemplate' ||
-        decodedIx.name === 'allocate'
+      decodedIx.name === 'createStreamWithTemplate' ||
+      decodedIx.name === 'allocate'
         ? 'deposited'
         : 'withdrew';
 
@@ -1185,8 +1181,12 @@ async function parseVersionedStreamInstruction(
       initializer = formattedIx?.accounts.find(
         a => a.name === 'Beneficiary',
       )?.pubkey;
-      mint = formattedIx?.accounts.find(a => a.name === 'Associated Token')?.pubkey;
-      const parsedAmount = formattedIx?.args.find(a => a.name === 'amount')?.data;
+      mint = formattedIx?.accounts.find(
+        a => a.name === 'Associated Token',
+      )?.pubkey;
+      const parsedAmount = formattedIx?.args.find(
+        a => a.name === 'amount',
+      )?.data;
       amountBN = parsedAmount ? new BN(parsedAmount) : undefined;
     }
 
@@ -1285,13 +1285,6 @@ const parseTreasuryData = (
       ? parseInt(treasury.createdOnUtc.toString().substring(0, 10))
       : treasury.createdOnUtc.toNumber();
 
-  // Get the BigNumbers
-  const balanceBN = new BN(treasury.lastKnownBalanceUnits);
-  const allocationReservedBN = new BN(treasury.allocationReservedUnits);
-  const allocationAssignedBN = new BN(treasury.allocationAssignedUnits);
-  const totalWithdrawalsBN = new BN(treasury.totalWithdrawalsUnits);
-  const totalStreamsBN = new BN(treasury.totalStreams);
-
   return {
     id: friendly ? address.toBase58() : address,
     version: treasury.version,
@@ -1312,11 +1305,11 @@ const parseTreasuryData = (
       ? treasury.treasurerAddress.toBase58()
       : treasury.treasurerAddress,
     associatedToken: treasuryAssocatedTokenMint,
-    balance: balanceBN.bitLength() > maxNumberBit ? balanceBN.toString() : balanceBN.toNumber(),
-    allocationReserved: allocationReservedBN.bitLength() > maxNumberBit ? allocationReservedBN.toString() : allocationReservedBN.toNumber(),
-    allocationAssigned: allocationAssignedBN.bitLength() > maxNumberBit ? allocationAssignedBN.toString() : allocationAssignedBN.toNumber(),
-    totalWithdrawals: totalWithdrawalsBN.bitLength() > maxNumberBit ? totalWithdrawalsBN.toString() : totalWithdrawalsBN.toNumber(),
-    totalStreams: totalStreamsBN.bitLength() > maxNumberBit ? totalStreamsBN.toString() : totalStreamsBN.toNumber(),
+    balance: treasury.lastKnownBalanceUnits,
+    allocationReserved: treasury.allocationReservedUnits,
+    allocationAssigned: treasury.allocationAssignedUnits,
+    totalWithdrawals: treasury.totalWithdrawalsUnits,
+    totalStreams: treasury.totalStreams.toNumber(),
     category: treasury.category as Category,
     subCategory: treasury.subCategory as SubCategory,
     data: treasury,
@@ -1358,7 +1351,7 @@ const getStreamEstDepletionDate = (stream: any) => {
     stream.rateIntervalInSeconds.toNumber() === 0
       ? 0
       : stream.rateAmountUnits.toNumber() /
-      stream.rateIntervalInSeconds.toNumber();
+        stream.rateIntervalInSeconds.toNumber();
 
   const streamableSeconds = streamableAmount / rateAmount;
   const duration =
@@ -1425,7 +1418,7 @@ const getStreamWithdrawableAmount = (stream: any, timeDiff = 0) => {
     const withdrawableWhilePausedAmount = manuallyPaused
       ? stream.lastManualStopWithdrawableUnitsSnap.toNumber()
       : stream.allocationAssignedUnits.toNumber() -
-      stream.totalWithdrawalsUnits.toNumber();
+        stream.totalWithdrawalsUnits.toNumber();
 
     return Math.max(0, withdrawableWhilePausedAmount);
   }
@@ -1448,10 +1441,10 @@ const getStreamWithdrawableAmount = (stream: any, timeDiff = 0) => {
   const totalSecondsPaused =
     stream.lastKnownTotalSecondsInPausedStatus.toNumber().length >= 10
       ? parseInt(
-        (
-          stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1_000
-        ).toString(),
-      )
+          (
+            stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1_000
+          ).toString(),
+        )
       : stream.lastKnownTotalSecondsInPausedStatus.toNumber();
 
   const missedEarningUnitsWhilePaused =
@@ -1603,7 +1596,7 @@ export async function fundExistingWSolAccountInstructions(
   owner: PublicKey,
   ownerWSolTokenAccount: PublicKey,
   payer: PublicKey,
-  amountToWrapInLamports: number | BN,
+  amountToWrapInLamports: number,
 ): Promise<[TransactionInstruction[], Keypair]> {
   // Allocate memory for the account
   const minimumAccountBalance = await Token.getMinBalanceRentForExemptAccount(
@@ -1615,9 +1608,7 @@ export async function fundExistingWSolAccountInstructions(
     SystemProgram.createAccount({
       fromPubkey: payer,
       newAccountPubkey: newWrapAccount.publicKey,
-      lamports: new BN(minimumAccountBalance)
-        .add(new BN(amountToWrapInLamports))
-        .toNumber(),
+      lamports: minimumAccountBalance + amountToWrapInLamports,
       space: AccountLayout.span,
       programId: TOKEN_PROGRAM_ID,
     }),
@@ -1703,7 +1694,7 @@ export async function createAtaCreateInstruction(
 
 export async function createWrapSolInstructions(
   connection: Connection,
-  wSolAmountInLamports: number | BN,
+  wSolAmountInLamports: number,
   owner: PublicKey,
   ownerWSolTokenAccount: PublicKey,
   ownerWSolTokenAccountInfo: AccountInfo<Buffer> | null,
@@ -1736,7 +1727,7 @@ export async function createWrapSolInstructions(
       owner,
       ownerWSolTokenAccount,
       owner,
-      amountToWrapBn,
+      amountToWrapBn.toNumber(),
     );
     ixs.push(...wrapIxs);
     signers.push(newWrapAccount);
@@ -1832,7 +1823,7 @@ export const listVestingTreasuryActivity = async (
       initializer: i.initializer?.toBase58(),
       mint: i.mint?.toBase58(),
       blockTime: i.blockTime,
-      amount: i.amount ? (i.amount.bitLength() > maxNumberBit ? i.amount.toString() : i.amount.toNumber()) : 0,
+      amount: i.amount ? i.amount.toString() : '',
       beneficiary: i.beneficiary?.toBase58(),
       destination: i.destination?.toBase58(),
       template: i.template?.toBase58(),

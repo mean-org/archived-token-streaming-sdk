@@ -1,7 +1,7 @@
 /**
  * Solana
  */
-import {
+ import {
   AccountInfo,
   Commitment,
   Connection,
@@ -29,23 +29,25 @@ import { Msp } from './msp_idl_004';
  * MSP
  */
 import {
+  Category,
   ListStreamParams,
   Stream,
+  StreamTemplate,
   STREAM_STATUS,
   SubCategory,
+  TimeUnit,
   Treasury,
   TreasuryType,
   VestingTreasuryActivity,
   VestingTreasuryActivityRaw,
 } from './types';
-import { Category } from './types';
-import { StreamTemplate } from './types';
-import { TimeUnit } from './types';
 import {
   createProgram,
   createWrapSolInstructions,
+  findStreamTemplateAddress,
   getStream,
   getStreamCached,
+  getStreamTemplate,
   getTreasury,
   getValidTreasuryAllocation,
   listStreamActivity,
@@ -53,12 +55,10 @@ import {
   listStreamsCached,
   listVestingTreasuryActivity,
 } from './utils';
-import { getStreamTemplate } from './utils';
-import { findStreamTemplateAddress } from './utils';
-import { Constants, WARNING_TYPES } from './constants';
-import { LATEST_IDL_FILE_VERSION } from './constants';
+import { Constants, WARNING_TYPES, LATEST_IDL_FILE_VERSION } from './constants';
 import { Beneficiary, listTreasuries, StreamBeneficiary } from '.';
 import { u64Number } from './u64n';
+import { BigNumber } from "bignumber.js";
 
 /**
  * API class with functions to interact with the Money Streaming Program using Solana Web3 JS API
@@ -89,7 +89,7 @@ export class MSP {
     this.program = createProgram(
       this.connection,
       walletAddress,
-      this.customProgramId,
+      _customProgramId,
     );
   }
 
@@ -245,18 +245,11 @@ export class MSP {
     return getStreamTemplate(this.program, template, friendly);
   }
 
-  /**
-   * @param sender
-   * @param beneficiary
-   * @param mint
-   * @param amount
-   * @returns
-   */
   public async transfer(
     sender: PublicKey,
     beneficiary: PublicKey,
     mint: PublicKey,
-    amount: number | BN,
+    amount: number,
   ): Promise<Transaction> {
     const ixs: TransactionInstruction[] = [];
 
@@ -265,7 +258,7 @@ export class MSP {
         SystemProgram.transfer({
           fromPubkey: sender,
           toPubkey: beneficiary,
-          lamports: new BN(amount).toNumber(),
+          lamports: amount,
         }),
       );
     } else {
@@ -348,7 +341,7 @@ export class MSP {
 
     const tx = new Transaction().add(...ixs);
     tx.feePayer = sender;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -360,7 +353,7 @@ export class MSP {
     treasurer: PublicKey,
     beneficiary: PublicKey,
     mint: PublicKey,
-    amount: number | BN,
+    amount: number,
     startUtc?: Date,
     streamName?: string,
     feePayedByTreasurer = false,
@@ -561,7 +554,7 @@ export class MSP {
 
     const tx = new Transaction().add(...ixs);
     tx.feePayer = treasurer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -765,7 +758,7 @@ export class MSP {
 
     const tx = new Transaction().add(...ixs);
     tx.feePayer = treasurer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -874,7 +867,7 @@ export class MSP {
     );
 
     tx.feePayer = treasurer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -1003,7 +996,7 @@ export class MSP {
     );
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -1170,7 +1163,7 @@ export class MSP {
     }
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -1275,7 +1268,7 @@ export class MSP {
       .transaction();
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -1377,16 +1370,23 @@ export class MSP {
   }
 
   /**
-   * This creates a stream with template
+   * Creates a vesting stream based on the vesting contract template
+   * @param payer {PublicKey} - The public key of the wallet approving the transaction
+   * @param treasurer {PublicKey} - The public key of the contract treasurer
+   * @param treasury {PublicKey} - The public key of the vesting contract
+   * @param beneficiary {PublicKey} - The public key of the beneficiary
+   * @param allocationAssigned {string} - The token amount to be allocated to the stream. Use BN.toString() or BigNumber.toString() for best compatibility
+   * @param streamName {string} - The name of the string (up to 32 characters)
    */
   public async createStreamWithTemplate(
     payer: PublicKey,
     treasurer: PublicKey,
     treasury: PublicKey,
     beneficiary: PublicKey,
-    allocationAssigned: number | string,
+    allocationAssigned: string,
     streamName = '',
   ): Promise<[Transaction, PublicKey]> {
+
     if (treasurer.equals(beneficiary)) {
       throw Error('Beneficiary can not be the same Treasurer');
     }
@@ -1409,33 +1409,18 @@ export class MSP {
       throw Error("Stream template doesn't exist");
     }
 
+    const allocationAssignedBN = new BigNumber(allocationAssigned);
+    const percentReminderAfterCliff = 1 - templateInfo.cliffVestPercent / 1_000_000;
+    const durationNumberOfUnits = templateInfo.durationNumberOfUnits;
+
     // Calculate rate amount
-    const rateAmountOriginal = (parseInt(allocationAssigned as string) * (1 - templateInfo.cliffVestPercent / 1_000_000)) / templateInfo.durationNumberOfUnits;
-    console.log('Original rateAmount:', rateAmountOriginal);
+    // const rateAmount = (allocationAssignedBN.toNumber() * percentReminderAfterCliff) / durationNumberOfUnits;
 
-    /*
-    const a1 = new BN(allocationAssigned);
-    const a2 = 1 - templateInfo.cliffVestPercent / 1_000_000;
-    const a3 = templateInfo.durationNumberOfUnits;
-    console.log('a1 : ', a1.toString());
-    console.log('a2 : ', a2);
-    console.log('a3 : ', a3);
-
-    console.log('Calculate rateAmount with plain Javascript arithmetics...');
-    const rateAmount = (a1.toNumber() * a2) / a3;
-    console.log('JS rateAmount:', rateAmount);
-
-    const b1 = new BN(allocationAssigned);
-    const b2 = 1 - templateInfo.cliffVestPercent / 1_000_000;
-    const b3 = templateInfo.durationNumberOfUnits;
-    console.log('b1 : ', b1.toString());
-    console.log('b2 : ', b2);
-    console.log('b3 : ', b3);
-
-    console.log('Calculate rateAmount with BN arithmetics...');
-    const rateAmountb = (b1.muln(b2)).divn(b3);
-    console.log('BN rateAmount:', rateAmountb.toString());
-    */
+    const rateAmount = allocationAssignedBN.multipliedBy(percentReminderAfterCliff).dividedBy(durationNumberOfUnits).toString();
+    console.log('cliffVestPercent:', templateInfo.cliffVestPercent.toString());
+    console.log('percentReminderAfterCliff:', percentReminderAfterCliff);
+    console.log('durationNumberOfUnits:', durationNumberOfUnits);
+    console.log('rateAmount:', rateAmount);
 
     // Get the treasury token account
     const treasuryToken = await Token.getAssociatedTokenAddress(
@@ -1460,7 +1445,7 @@ export class MSP {
     const tx = this.program.transaction.createStreamWithTemplate(
       LATEST_IDL_FILE_VERSION,
       streamName,
-      new BN(rateAmountOriginal),
+      new BN(rateAmount),
       new BN(allocationAssigned),
       {
         accounts: {
@@ -1484,7 +1469,7 @@ export class MSP {
     );
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -1689,7 +1674,7 @@ export class MSP {
 
       const tx = new Transaction().add(...ixs);
       tx.feePayer = payer;
-      const { blockhash } = await this.connection.getRecentBlockhash(
+      const { blockhash } = await this.connection.getLatestBlockhash(
         (this.commitment as Commitment) || 'finalized',
       );
       tx.recentBlockhash = blockhash;
@@ -1841,7 +1826,7 @@ export class MSP {
 
     const tx = new Transaction().add(...ixs);
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -1953,7 +1938,7 @@ export class MSP {
     const tx = new Transaction().add(...ixs);
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -1970,7 +1955,7 @@ export class MSP {
     treasurer: PublicKey,
     treasury: PublicKey,
     stream: PublicKey,
-    amount: number | string,
+    amount: number,
   ): Promise<Transaction> {
     if (!amount) {
       throw Error('Amount should be greater than 0');
@@ -2037,7 +2022,7 @@ export class MSP {
     );
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -2140,7 +2125,7 @@ export class MSP {
     const tx = new Transaction().add(...ixs);
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -2181,7 +2166,7 @@ export class MSP {
     });
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -2218,7 +2203,7 @@ export class MSP {
     });
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -2358,7 +2343,7 @@ export class MSP {
 
     const tx = new Transaction().add(...ixs);
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -2463,7 +2448,7 @@ export class MSP {
     const tx = new Transaction().add(...ixs);
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -2497,11 +2482,11 @@ export class MSP {
     );
 
     // get treasury streams amount
-    const memcmpFilters = [
-      { memcmp: { offset: 8 + 170, bytes: treasury.toBase58() } },
-    ];
-    const totalStreams = (await this.program.account.stream.all(memcmpFilters))
-      .length;
+    // const memcmpFilters = [
+    //   { memcmp: { offset: 8 + 170, bytes: treasury.toBase58() } },
+    // ];
+    // const totalStreams = (await this.program.account.stream.all(memcmpFilters))
+    //   .length;
 
     const tx = this.program.transaction.refreshTreasuryData(
       LATEST_IDL_FILE_VERSION,
@@ -2515,7 +2500,7 @@ export class MSP {
     );
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -2554,7 +2539,7 @@ export class MSP {
     );
 
     tx.feePayer = beneficiary;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -2648,7 +2633,7 @@ export class MSP {
     );
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -2757,7 +2742,7 @@ export class MSP {
 
       const tx = new Transaction().add(...ixs);
       tx.feePayer = payer;
-      const { blockhash } = await this.connection.getRecentBlockhash(
+      const { blockhash } = await this.connection.getLatestBlockhash(
         (this.commitment as Commitment) || 'finalized',
       );
       tx.recentBlockhash = blockhash;
@@ -2854,7 +2839,7 @@ export class MSP {
     const tx = new Transaction().add(...ixs);
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -2868,7 +2853,7 @@ export class MSP {
 
   private async ensureAutoWrapSolInstructions(
     autoWSol: boolean,
-    amountInLamports: number | BN,
+    amountInLamports: number,
     owner: PublicKey,
     ownerWSolTokenAccount: PublicKey,
     ownerWSolTokenAccountInfo: AccountInfo<Buffer> | null,
