@@ -438,7 +438,7 @@ export const calculateActionFees = async (
 export const getValidTreasuryAllocation = async (
   connection: Connection,
   treasury: Treasury,
-  allocation: number,
+  allocation: string | number,
 ) => {
   const fees = await calculateActionFees(connection, MSP_ACTIONS.withdraw);
   //
@@ -1694,7 +1694,7 @@ export async function createAtaCreateInstruction(
 
 export async function createWrapSolInstructions(
   connection: Connection,
-  wSolAmountInLamports: number,
+  wSolAmountInLamports: number | BN | string,
   owner: PublicKey,
   ownerWSolTokenAccount: PublicKey,
   ownerWSolTokenAccountInfo: AccountInfo<Buffer> | null,

@@ -407,7 +407,7 @@ export class MSP {
     );
     await this.ensureAutoWrapSolInstructions(
       autoWSol,
-      new BN(amount).toNumber(),
+      amount, // new BN(amount).toNumber(),
       treasurer,
       treasurerToken,
       treasurerTokenInfo,
@@ -725,7 +725,7 @@ export class MSP {
     );
     await this.ensureAutoWrapSolInstructions(
       autoWSol,
-      new BN(allocationAssigned).toNumber(),
+      allocationAssigned, // new BN(allocationAssigned).toNumber(),
       treasurer,
       treasurerToken,
       treasurerTokenInfo,
@@ -1055,7 +1055,7 @@ export class MSP {
     treasuryAssociatedTokenMint: PublicKey,
     duration: number,
     durationUnit: TimeUnit,
-    fundingAmount: number,
+    fundingAmount: string | number,
     vestingCategory: SubCategory,
     startUtc?: Date,
     cliffVestPercent = 0,
@@ -1134,7 +1134,8 @@ export class MSP {
       },
     );
     const addFundsSigners: Signer[] = [];
-    if (fundingAmount > 0) {
+    const faBN = new BN(fundingAmount || 0);
+    if (faBN.gtn(0)) {
       const contributorToken = await Token.getAssociatedTokenAddress(
         ASSOCIATED_TOKEN_PROGRAM_ID,
         TOKEN_PROGRAM_ID,
@@ -1729,13 +1730,14 @@ export class MSP {
     contributor: PublicKey,
     treasury: PublicKey,
     stream: PublicKey,
-    amount: number,
+    amount: string | number,
     autoWSol = false,
   ): Promise<Transaction> {
     const ixs: TransactionInstruction[] = [];
     const txSigners: Signer[] = [];
+    const amountBN = new BN(amount || 0);
 
-    if (!amount) {
+    if (!amount || amountBN.isZero()) {
       throw Error('Amount should be greater than 0');
     }
 
@@ -1926,7 +1928,7 @@ export class MSP {
 
     await this.ensureAutoWrapSolInstructions(
       autoWSol,
-      new BN(amount).toNumber(),
+      amount, // new BN(amount).toNumber(),
       contributor,
       contributorToken,
       contributorTokenInfo,
@@ -2907,7 +2909,7 @@ export class MSP {
 
   private async ensureAutoWrapSolInstructions(
     autoWSol: boolean,
-    amountInLamports: number,
+    amountInLamports: number | string | BN,
     owner: PublicKey,
     ownerWSolTokenAccount: PublicKey,
     ownerWSolTokenAccountInfo: AccountInfo<Buffer> | null,
