@@ -359,11 +359,23 @@ export class MSP {
     return tx;
   }
 
+  /**
+   * Schedules a transfer as a stream without rate.
+   * @param treasurer {PublicKey} - The public key of the wallet approving the transaction.
+   * @param beneficiary {PublicKey} - The public key of the beneficiary.
+   * @param mint {PublicKey} - The public key of the token to be sent.
+   * @param amount {string | number} - The token amount to be allocated to the stream. Use BN.toString() or BigNumber.toString() for best compatibility.
+   * @param startUtc {Date} - The date on which the transfer will be executed.
+   * @param streamName {string} - The name of the transfer.
+   * @param feePayedByTreasurer {boolean} - Decides if protocol fees will be paid by the treasurer of the beneficiary at withdraw time.
+   * @param category {Category} - Optional. The category of the transfer. It should be Category.default for all transfers.
+   * @param subCategory {SubCategory} - Optional. The subcategory. It should be SubCategory.default for all transfers.
+   */
   public async scheduledTransfer(
     treasurer: PublicKey,
     beneficiary: PublicKey,
     mint: PublicKey,
-    amount: number,
+    amount: string | number,
     startUtc?: Date,
     streamName?: string,
     feePayedByTreasurer = false,
@@ -395,7 +407,7 @@ export class MSP {
     );
     await this.ensureAutoWrapSolInstructions(
       autoWSol,
-      amount,
+      new BN(amount).toNumber(),
       treasurer,
       treasurerToken,
       treasurerTokenInfo,
