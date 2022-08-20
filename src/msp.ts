@@ -364,10 +364,10 @@ export class MSP {
    * @param treasurer {PublicKey} - The public key of the wallet approving the transaction.
    * @param beneficiary {PublicKey} - The public key of the beneficiary.
    * @param mint {PublicKey} - The public key of the token to be sent.
-   * @param amount {string | number} - The token amount to be allocated to the stream. Use BN.toString() or BigNumber.toString() for best compatibility.
+   * @param amount {string | number} - The token amount to be allocated to the stream. Use BN.toString() or BigNumber.toString() for best compatibility and to overcome javascript number size limitation when using large amounts.
    * @param startUtc {Date} - The date on which the transfer will be executed.
    * @param streamName {string} - The name of the transfer.
-   * @param feePayedByTreasurer {boolean} - Decides if protocol fees will be paid by the treasurer of the beneficiary at withdraw time.
+   * @param feePayedByTreasurer {boolean} - Decides if protocol fees will be paid by the treasurer or by the beneficiary at withdraw time.
    * @param category {Category} - Optional. The category of the transfer. It should be Category.default for all transfers.
    * @param subCategory {SubCategory} - Optional. The subcategory. It should be SubCategory.default for all transfers.
    */
@@ -594,13 +594,13 @@ export class MSP {
    * @param beneficiary {PublicKey} - The public key of the beneficiary.
    * @param mint {PublicKey} - The public key of the token to be sent.
    * @param streamName {string} - The name of the transfer.
-   * @param allocationAssigned {string | number} - The token amount to be allocated to the stream. Use BN.toString() or BigNumber.toString() for best compatibility.
-   * @param rateAmount {string | number} - The rate at which the token will be sent. Use BN.toString() or BigNumber.toString() for best compatibility.
+   * @param allocationAssigned {string | number} - The token amount to be allocated to the stream. Use BN.toString() or BigNumber.toString() for best compatibility and to overcome javascript number size limitation when using large amounts.
+   * @param rateAmount {string | number} - The rate at which the token will be sent. Use BN.toString() or BigNumber.toString() for best compatibility and to overcome javascript number size limitation when using large amounts.
    * @param rateIntervalInSeconds {number} - The number of seconds for the send rate (minute=60, hour=3600, day=86400 and so on)
    * @param startUtc {Date} - The date on which the transfer will be executed.
    * @param cliffVestAmount {string | number} - The cliff amount to be released at start date. Should be 0 for streamPayment.
    * @param cliffVestPercent {number} - The cliff percent of the total amount to be released at start date. Should be 0 for streamPayment.
-   * @param feePayedByTreasurer {boolean} - Decides if protocol fees will be paid by the treasurer of the beneficiary at withdraw time.
+   * @param feePayedByTreasurer {boolean} - Decides if protocol fees will be paid by the treasurer or by the beneficiary at withdraw time.
    * @param category {Category} - Optional. The category of the transfer. It should be Category.default for all transfers.
    * @param subCategory {SubCategory} - Optional. The subcategory. It should be SubCategory.default for all transfers.
    */
@@ -1044,7 +1044,20 @@ export class MSP {
   }
 
   /**
-   * This creates a vesting stream treasury with template.
+   * Creates a vesting contract and the stream template
+   * @param payer {PublicKey} - The public key of the wallet approving the transaction
+   * @param treasurer {PublicKey} - The public key of the contract treasurer
+   * @param label {string} - The name of the vesting contract (up to 32 characters)
+   * @param type {TreasuryType} - Locked or Open type of contract. Defaults to Locked
+   * @param solFeePayedByTreasury {boolean} - Determines if the gas fees for contract operations will be paid from the contract account
+   * @param treasuryAssociatedTokenMint {PublicKey} - The public key of the token to be vested.
+   * @param duration {number} - The amount of durationUnit that comprises the vesting period (3 months or 180 days)
+   * @param durationUnit {TimeUnit} - The lapse in seconds for the send rate (minute=60, hour=3600, day=86400 and so on). @see TimeUnit TimeUnit enum for details.
+   * @param fundingAmount {string | number} - The token amount to fund the account. Use BN.toString() or BigNumber.toString() for best compatibility and to overcome javascript number size limitation when using large amounts.
+   * @param vestingCategory {SubCategory} - The category of the vesting contract for filtering purposes.
+   * @param startUtc {Date} - The vesting contract start date.
+   * @param cliffVestPercent {number} - The cliff percent of the total amount to be released at start date. Use 0 to disable cliff.
+   * @param feePayedByTreasurer {boolean} - Decides if protocol fees will be paid by the treasurer or by the beneficiary at withdraw time.
    */
   public async createVestingTreasury(
     payer: PublicKey,
@@ -1455,7 +1468,8 @@ export class MSP {
     // Calculate rate amount
     // const rateAmount = (allocationAssignedBN.toNumber() * percentReminderAfterCliff) / durationNumberOfUnits;
 
-    const rateAmount = allocationAssignedBN.multipliedBy(percentReminderAfterCliff).dividedBy(durationNumberOfUnits).toString();
+    const rateAmount = allocationAssignedBN.multipliedBy(percentReminderAfterCliff).dividedToIntegerBy(durationNumberOfUnits).toString();
+    console.log('allocationAssigned:', allocationAssignedBN.toString());
     console.log('cliffVestPercent:', templateInfo.cliffVestPercent.toString());
     console.log('percentReminderAfterCliff:', percentReminderAfterCliff);
     console.log('durationNumberOfUnits:', durationNumberOfUnits);
@@ -1884,7 +1898,7 @@ export class MSP {
    * @param contributor {PublicKey} - The public key of the contributor
    * @param treasury {PublicKey} - The public key of the vesting contract
    * @param mint {PublicKey} - The public key of the token to be sent.
-   * @param amount {string | number} - The token amount to fund the account. Use BN.toString() or BigNumber.toString() for best compatibility.
+   * @param amount {string | number} - The token amount to fund the account. Use BN.toString() or BigNumber.toString() for best compatibility and to overcome javascript number size limitation when using large amounts.
    */
   public async addFunds(
     payer: PublicKey,
