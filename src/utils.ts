@@ -124,8 +124,8 @@ export const getStreamCached = async (
   streamInfo: Stream,
   friendly = true,
 ): Promise<Stream> => {
-  const timeDiff =
-    streamInfo.lastRetrievedTimeInSeconds - streamInfo.lastRetrievedBlockTime;
+
+  const timeDiff = new BN(streamInfo.lastRetrievedTimeInSeconds).toNumber() - new BN(streamInfo.lastRetrievedBlockTime).toNumber();
   const blocktime = parseInt((Date.now() / 1_000).toString()) - timeDiff;
 
   const parsedStream = parseStreamItemData(
@@ -201,7 +201,7 @@ export const listStreamsCached = async (
 
   for (const streamInfo of streamInfoList) {
     const timeDiff =
-      streamInfo.lastRetrievedTimeInSeconds - streamInfo.lastRetrievedBlockTime;
+      new BN(streamInfo.lastRetrievedTimeInSeconds).toNumber() - new BN(streamInfo.lastRetrievedBlockTime).toNumber();
     const blockTime = parseInt((Date.now() / 1_000).toString()) - timeDiff;
 
     const parsedStream = parseStreamItemData(
@@ -638,9 +638,6 @@ const parseGetStreamData = (
       ? parseInt((Date.now() / 1_000).toString())
       : new BN(parseInt((Date.now() / 1_000).toString())),
 
-    totalWithdrawals: friendly
-      ? event.totalWithdrawalsUnits.toNumber()
-      : event.totalWithdrawalsUnits,
     feePayedByTreasurer: event.feePayedByTreasurer,
     createdBlockTime: effectiveCreatedOnUtcInSeconds,
     createdOnUtc: friendly

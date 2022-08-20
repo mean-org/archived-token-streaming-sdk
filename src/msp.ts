@@ -1368,7 +1368,7 @@ export class MSP {
    */
   public async getVestingFlowRate(
     vestingTreasury: PublicKey,
-  ): Promise<[number, TimeUnit, number]> {
+  ): Promise<[BN, TimeUnit, BN]> {
     const treasuryInfo = await getTreasury(this.program, vestingTreasury);
 
     if (!treasuryInfo) {
@@ -1385,8 +1385,13 @@ export class MSP {
       throw Error("Stream template doesn't exist");
     }
 
-    if (treasuryInfo.totalStreams === 0)
-      return [0, templateInfo.rateIntervalInSeconds as TimeUnit, 0];
+    if (treasuryInfo.totalStreams === 0) {
+      return [
+        new BN(0),
+        templateInfo.rateIntervalInSeconds as TimeUnit,
+        new BN(0)
+      ];
+    }
 
     const streams = await listStreams(
       this.program,
@@ -1394,24 +1399,25 @@ export class MSP {
       vestingTreasury,
       undefined,
     );
-    let streamRate = 0;
-    let totalAllocation = 0;
+    const totalAllocation = new BN(0);
+    const streamRate = new BN(0);
     for (const stream of streams) {
-      totalAllocation = totalAllocation + stream.allocationAssigned;
+      // totalAllocation = totalAllocation + stream.allocationAssigned;
+      totalAllocation.add(new BN(stream.allocationAssigned))
       switch (stream.status) {
         case STREAM_STATUS.Paused:
         case STREAM_STATUS.Schedule:
           continue;
       }
-      if (stream.remainingAllocationAmount <= 0) {
+      if (new BN(stream.remainingAllocationAmount).lten(0)) {
         // all streamed
         continue;
       }
-      const rateAmount =
-        (stream.allocationAssigned *
-          (1 - templateInfo.cliffVestPercent / 1_000_000)) /
-        templateInfo.durationNumberOfUnits;
-      streamRate = streamRate + rateAmount;
+      const allocationAssignedBN = new BigNumber(new BN(stream.allocationAssigned).toString());
+      const percentReminderAfterCliff = 1 - templateInfo.cliffVestPercent / 1_000_000;
+      const durationNumberOfUnits = templateInfo.durationNumberOfUnits;
+      const rateAmount = allocationAssignedBN.multipliedBy(percentReminderAfterCliff).dividedToIntegerBy(durationNumberOfUnits).toString();
+      streamRate.add(new BN(rateAmount));
     }
 
     return [
@@ -1464,10 +1470,6 @@ export class MSP {
     const allocationAssignedBN = new BigNumber(allocationAssigned);
     const percentReminderAfterCliff = 1 - templateInfo.cliffVestPercent / 1_000_000;
     const durationNumberOfUnits = templateInfo.durationNumberOfUnits;
-
-    // Calculate rate amount
-    // const rateAmount = (allocationAssignedBN.toNumber() * percentReminderAfterCliff) / durationNumberOfUnits;
-
     const rateAmount = allocationAssignedBN.multipliedBy(percentReminderAfterCliff).dividedToIntegerBy(durationNumberOfUnits).toString();
     console.log('allocationAssigned:', allocationAssignedBN.toString());
     console.log('cliffVestPercent:', templateInfo.cliffVestPercent.toString());
