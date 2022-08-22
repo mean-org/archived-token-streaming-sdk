@@ -251,7 +251,7 @@ export type Stream = {
   fundsLeftInStream: number | BN;
   fundsSentToBeneficiary: number | BN;
   remainingAllocationAmount: number | BN;
-  streamUnitsPerSecond: number;
+  streamUnitsPerSecond: number | BN;
   isManuallyPaused: boolean;
   feePayedByTreasurer: boolean;
   category: Category;

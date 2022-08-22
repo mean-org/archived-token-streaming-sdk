@@ -1393,11 +1393,21 @@ export class MSP {
       ];
     }
 
+    /**
+     * program: Program<Msp>
+     * treasurer?: PublicKey | undefined
+     * treasury?: PublicKey | undefined
+     * beneficiary?: PublicKey | undefined
+     * friendly?: boolean
+     * category?: Category | undefined
+     * subCategory?: SubCategory | undefined
+     */
     const streams = await listStreams(
       this.program,
       undefined,
       vestingTreasury,
       undefined,
+      false
     );
     const totalAllocation = new BN(0);
     const streamRate = new BN(0);

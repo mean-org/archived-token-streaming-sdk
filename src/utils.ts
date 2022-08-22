@@ -49,6 +49,7 @@ import {
 } from '@solana/spl-token';
 import * as anchor from '@project-serum/anchor';
 import { MemcmpFilter } from '@solana/web3.js';
+import BigNumber from 'bignumber.js';
 
 String.prototype.toPublicKey = function (): PublicKey {
   return new PublicKey(this.toString());
@@ -286,6 +287,7 @@ export const getStreamTemplate = async (
   address: PublicKey,
   friendly = true,
 ): Promise<StreamTemplate> => {
+  console.log('getStreamTemplate - friendly:', friendly);
   const template = await program.account.streamTemplate.fetch(address);
   return parseStreamTemplateData(template, address, friendly);
 };
@@ -627,7 +629,9 @@ const parseGetStreamData = (
       ? event.beneficiaryWithdrawableAmount.toNumber()
       : event.beneficiaryWithdrawableAmount,
 
-    streamUnitsPerSecond: getStreamUnitsPerSecond(event),
+    streamUnitsPerSecond: friendly
+      ? getStreamUnitsPerSecond(event).toNumber()
+      : getStreamUnitsPerSecond(event),
     isManuallyPaused: event.isManualPause,
     status:
       event.status === 'Scheduled' ? 1 : event.status === 'Running' ? 2 : 3,
@@ -713,17 +717,17 @@ const parseStreamItemData = (
       ? stream.totalWithdrawalsUnits.toNumber()
       : stream.totalWithdrawalsUnits,
     fundsLeftInStream: friendly
-      ? getFundsLeftInStream(stream, timeDiff)
-      : new BN(getFundsLeftInStream(stream, timeDiff)),
+      ? getFundsLeftInStream(stream, timeDiff).toNumber()
+      : getFundsLeftInStream(stream, timeDiff),
     fundsSentToBeneficiary: friendly
-      ? getFundsSentToBeneficiary(stream, timeDiff)
-      : new BN(getFundsSentToBeneficiary(stream, timeDiff)),
+      ? getFundsSentToBeneficiary(stream, timeDiff).toNumber()
+      : getFundsSentToBeneficiary(stream, timeDiff),
     remainingAllocationAmount: friendly
-      ? getStreamRemainingAllocation(stream)
-      : new BN(getStreamRemainingAllocation(stream)),
+      ? getStreamRemainingAllocation(stream).toNumber()
+      : getStreamRemainingAllocation(stream),
     withdrawableAmount: friendly
-      ? getStreamWithdrawableAmount(stream, timeDiff)
-      : new BN(getStreamWithdrawableAmount(stream, timeDiff)),
+      ? getStreamWithdrawableAmount(stream, timeDiff).toNumber()
+      : getStreamWithdrawableAmount(stream, timeDiff),
     streamUnitsPerSecond: getStreamUnitsPerSecond(stream),
     isManuallyPaused: isStreamManuallyPaused(stream),
     status: getStreamStatus(stream, timeDiff),
@@ -800,25 +804,35 @@ const parseStreamItemData = (
       withdrawableUnitsWhilePaused: new BN(
         getStreamWithdrawableUnitsWhilePaused(stream),
       ),
-      nonStopEarningUnits: new BN(
-        getStreamNonStopEarningUnits(stream, timeDiff),
-      ),
-      missedUnitsWhilePaused: new BN(
-        getStreamMissedEarningUnitsWhilePaused(stream),
-      ),
-      entitledEarningsUnits: new BN(
-        Math.max(
-          0,
-          getStreamNonStopEarningUnits(stream, timeDiff) -
-            getStreamMissedEarningUnitsWhilePaused(stream),
-        ),
-      ),
-      withdrawableUnitsWhileRunning: new BN(
-        Math.max(
-          getStreamNonStopEarningUnits(stream, timeDiff) -
-            getStreamMissedEarningUnitsWhilePaused(stream),
-        ) + stream.totalWithdrawalsUnits.toNumber(),
-      ),
+
+      // nonStopEarningUnits: new BN(
+      //   getStreamNonStopEarningUnits(stream, timeDiff),
+      // ),
+
+      // missedUnitsWhilePaused: new BN(
+      //   getStreamMissedEarningUnitsWhilePaused(stream),
+      // ),
+
+      // entitledEarningsUnits: BN.max(new BN(0), getStreamNonStopEarningUnits(stream, timeDiff).sub(getStreamMissedEarningUnitsWhilePaused(stream))),
+      // entitledEarningsUnits: new BN(
+      //   Math.max(
+      //     0,
+      //     getStreamNonStopEarningUnits(stream, timeDiff) - getStreamMissedEarningUnitsWhilePaused(stream),
+      //   ),
+      // ),
+
+      // TODO: OJO with this one
+      // withdrawableUnitsWhileRunning: BN.max(
+      //     getStreamNonStopEarningUnits(stream, timeDiff).sub(getStreamMissedEarningUnitsWhilePaused(stream)),
+      //     stream.totalWithdrawalsUnits
+      // ),
+
+      // withdrawableUnitsWhileRunning: new BN(
+      //   Math.max(
+      //     getStreamNonStopEarningUnits(stream, timeDiff) - getStreamMissedEarningUnitsWhilePaused(stream),
+      //   ) + stream.totalWithdrawalsUnits.toNumber(),
+      // ),
+
       beneficiaryRemainingAllocation: new BN(
         getStreamRemainingAllocation(stream),
       ),
@@ -1318,6 +1332,7 @@ const parseStreamTemplateData = (
   address: PublicKey,
   friendly = true,
 ) => {
+  console.log('parseStreamTemplateData - friendly:', friendly);
   return {
     id: friendly ? address.toBase58() : address,
     version: template.version,
@@ -1340,101 +1355,95 @@ const getStreamEstDepletionDate = (stream: any) => {
   }
 
   const cliffAmount = getStreamCliffAmount(stream);
-  const streamableAmount = Math.max(
-    0,
-    stream.allocationAssignedUnits.toNumber() - cliffAmount,
-  );
-  const rateAmount =
-    stream.rateIntervalInSeconds.toNumber() === 0
-      ? 0
-      : stream.rateAmountUnits.toNumber() /
-        stream.rateIntervalInSeconds.toNumber();
+  const allocationAssignedUnits = new BigNumber(stream.allocationAssignedUnits);
+  const allocationMinusCliff = allocationAssignedUnits.minus(new BigNumber(cliffAmount.toString()))
+  const streamableAmount = new BigNumber(BigNumber.max(0, allocationMinusCliff));
 
-  const streamableSeconds = streamableAmount / rateAmount;
-  const duration =
-    streamableSeconds + stream.lastKnownTotalSecondsInPausedStatus.toNumber();
+  const rateInterval = new BigNumber(stream.rateIntervalInSeconds);
+  const rateAmountUnits = new BigNumber(stream.rateAmountUnits);
+  const rateAmount = rateInterval.isZero()
+    ? rateInterval
+    : rateAmountUnits.dividedBy(rateInterval);
+
+  const streamableSeconds = streamableAmount.dividedToIntegerBy(rateAmount);
+  const duration = streamableSeconds.plus(stream.lastKnownTotalSecondsInPausedStatus);
   const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
 
-  return new Date((startUtcInSeconds + duration) * 1_000);
+  return new Date((startUtcInSeconds + duration.toNumber()) * 1_000);
 };
 
 const getStreamCliffAmount = (stream: any) => {
-  let cliffAmount = stream.cliffVestAmountUnits.toNumber();
+  let cliffAmount = stream.cliffVestAmountUnits as BN;
 
-  if (stream.cliffVestPercent > 0) {
-    cliffAmount =
-      (stream.cliffVestPercent.toNumber() *
-        stream.allocationAssignedUnits.toNumber()) /
-      Constants.CLIFF_PERCENT_DENOMINATOR;
+  if (stream.cliffVestPercent.gtn(0)) {
+    // cliffAmount = (stream.cliffVestPercent.toNumber() * stream.allocationAssignedUnits.toNumber()) / Constants.CLIFF_PERCENT_DENOMINATOR;
+    const cliffVestPercent = new BigNumber(stream.cliffVestPercent);
+    const allocationAssignedUnits = new BigNumber(stream.allocationAssignedUnits);
+    const result = cliffVestPercent.multipliedBy(allocationAssignedUnits).dividedToIntegerBy(Constants.CLIFF_PERCENT_DENOMINATOR);
+    cliffAmount = new BN(result.toString());
   }
 
-  return parseInt(cliffAmount.toString());
+  return cliffAmount;
 };
 
 const getFundsLeftInStream = (stream: any, timeDiff = 0) => {
   const withdrawableAmount = getStreamWithdrawableAmount(stream, timeDiff);
-  const fundsLeft =
-    stream.allocationAssignedUnits.toNumber() -
-    stream.totalWithdrawalsUnits.toNumber() -
-    withdrawableAmount;
+  // const fundsLeft = stream.allocationAssignedUnits.toNumber() - stream.totalWithdrawalsUnits.toNumber() - withdrawableAmount;
+  const fundsLeft = stream.allocationAssignedUnits.sub(stream.totalWithdrawalsUnits).sub(withdrawableAmount);
 
-  return Math.max(0, fundsLeft);
+  return BN.max(new BN(0), fundsLeft);
 };
 
 const getFundsSentToBeneficiary = (stream: any, timeDiff = 0) => {
   const withdrawableAmount = getStreamWithdrawableAmount(stream, timeDiff);
-  const fundsSent =
-    stream.totalWithdrawalsUnits.toNumber() + withdrawableAmount;
-  return fundsSent;
+  const fundsSent = stream.totalWithdrawalsUnits.add(withdrawableAmount);
+  return fundsSent as BN;
 };
 
 const getStreamRemainingAllocation = (stream: any) => {
-  const remainingAlloc =
-    stream.allocationAssignedUnits.toNumber() -
-    stream.totalWithdrawalsUnits.toNumber();
-  return Math.max(0, remainingAlloc);
+  const allocationAssignedUnits = new BigNumber(stream.allocationAssignedUnits);
+  const totalWithdrawalsUnits = new BigNumber(stream.totalWithdrawalsUnits);
+  const remainingAlloc = allocationAssignedUnits.minus(totalWithdrawalsUnits);
+  const max = BigNumber.max(0, remainingAlloc);
+  return new BN(max.toString());
 };
 
 const getStreamWithdrawableAmount = (stream: any, timeDiff = 0) => {
   const remainingAllocation = getStreamRemainingAllocation(stream);
 
-  if (remainingAllocation === 0) {
-    return 0;
+  if (remainingAllocation.isZero()) {
+    return remainingAllocation;
   }
 
   const status = getStreamStatus(stream, timeDiff);
 
   // Check if SCHEDULED
   if (status === STREAM_STATUS.Schedule) {
-    return 0;
+    return new BN(0);
   }
 
   // Check if PAUSED
   if (status === STREAM_STATUS.Paused) {
     const manuallyPaused = isStreamManuallyPaused(stream);
     const withdrawableWhilePausedAmount = manuallyPaused
-      ? stream.lastManualStopWithdrawableUnitsSnap.toNumber()
-      : stream.allocationAssignedUnits.toNumber() -
-        stream.totalWithdrawalsUnits.toNumber();
+      ? stream.lastManualStopWithdrawableUnitsSnap
+      : stream.allocationAssignedUnits.sub(stream.totalWithdrawalsUnits);
 
-    return Math.max(0, withdrawableWhilePausedAmount);
+    return BN.max(new BN(0), withdrawableWhilePausedAmount);
   }
 
   // Check if RUNNING
-  if (
-    stream.rateAmountUnits.toNumber() === 0 ||
-    stream.rateIntervalInSeconds.toNumber() === 0
-  ) {
-    return 0;
+  if (stream.rateAmountUnits.isZero() || stream.rateIntervalInSeconds.isZero()) {
+    return new BN(0);
   }
 
   const streamedUnitsPerSecond = getStreamUnitsPerSecond(stream);
   const cliffAmount = getStreamCliffAmount(stream);
   const blocktime = parseInt((Date.now() / 1_000).toString()) - timeDiff;
-  const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
+  const startUtcInSeconds = getStreamStartUtcInSeconds(stream) as number;
   const timeSinceStart = blocktime - startUtcInSeconds;
-  const nonStopEarningUnits =
-    cliffAmount + streamedUnitsPerSecond * timeSinceStart;
+  // const nonStopEarningUnits = cliffAmount + streamedUnitsPerSecond * timeSinceStart;
+  const nonStopEarningUnits = streamedUnitsPerSecond.muln(timeSinceStart).add(cliffAmount);
   const totalSecondsPaused =
     stream.lastKnownTotalSecondsInPausedStatus.toNumber().length >= 10
       ? parseInt(
@@ -1444,27 +1453,23 @@ const getStreamWithdrawableAmount = (stream: any, timeDiff = 0) => {
         )
       : stream.lastKnownTotalSecondsInPausedStatus.toNumber();
 
-  const missedEarningUnitsWhilePaused =
-    streamedUnitsPerSecond * totalSecondsPaused;
+  // const missedEarningUnitsWhilePaused = streamedUnitsPerSecond * totalSecondsPaused;
+  const missedEarningUnitsWhilePaused = streamedUnitsPerSecond.muln(totalSecondsPaused);
   let entitledEarnings = nonStopEarningUnits;
 
-  if (nonStopEarningUnits >= missedEarningUnitsWhilePaused) {
-    entitledEarnings = nonStopEarningUnits - missedEarningUnitsWhilePaused;
+  if (nonStopEarningUnits.gte(missedEarningUnitsWhilePaused)) {
+    entitledEarnings = nonStopEarningUnits.sub(missedEarningUnitsWhilePaused);
   }
 
   let withdrawableUnitsWhileRunning = entitledEarnings;
 
-  if (entitledEarnings >= stream.totalWithdrawalsUnits.toNumber()) {
-    withdrawableUnitsWhileRunning =
-      entitledEarnings - stream.totalWithdrawalsUnits.toNumber();
+  if (entitledEarnings.gte(stream.totalWithdrawalsUnits)) {
+    withdrawableUnitsWhileRunning = entitledEarnings.sub(stream.totalWithdrawalsUnits);
   }
 
-  const withdrawableAmount = Math.min(
-    remainingAllocation,
-    withdrawableUnitsWhileRunning,
-  );
+  const withdrawableAmount = BN.min(remainingAllocation, withdrawableUnitsWhileRunning);
 
-  return Math.max(0, parseInt(withdrawableAmount.toString()));
+  return BN.max(new BN(0), withdrawableAmount);
 };
 
 const getStreamStatus = (stream: any, timeDiff: number) => {
@@ -1487,19 +1492,18 @@ const getStreamStatus = (stream: any, timeDiff: number) => {
   const streamedUnitsPerSecond = getStreamUnitsPerSecond(stream);
   const cliffAmount = getStreamCliffAmount(stream);
   const timeSinceStart = now - startUtcInSeconds;
-  const nonStopEarningUnits =
-    cliffAmount + streamedUnitsPerSecond * timeSinceStart;
-  const missedEarningUnitsWhilePaused =
-    streamedUnitsPerSecond *
-    stream.lastKnownTotalSecondsInPausedStatus.toNumber();
+  // const nonStopEarningUnits = cliffAmount + streamedUnitsPerSecond * timeSinceStart;
+  const nonStopEarningUnits = streamedUnitsPerSecond.muln(timeSinceStart).add(cliffAmount);
+  // const missedEarningUnitsWhilePaused = streamedUnitsPerSecond * stream.lastKnownTotalSecondsInPausedStatus.toNumber();
+  const missedEarningUnitsWhilePaused = streamedUnitsPerSecond.mul(stream.lastKnownTotalSecondsInPausedStatus);
   let entitledEarnings = nonStopEarningUnits;
 
-  if (nonStopEarningUnits >= missedEarningUnitsWhilePaused) {
-    entitledEarnings = nonStopEarningUnits - missedEarningUnitsWhilePaused;
+  if (nonStopEarningUnits.gte(missedEarningUnitsWhilePaused)) {
+    entitledEarnings = nonStopEarningUnits.sub(missedEarningUnitsWhilePaused);
   }
 
   // Running
-  if (stream.allocationAssignedUnits.toNumber() > entitledEarnings) {
+  if (stream.allocationAssignedUnits.gt(entitledEarnings)) {
     return STREAM_STATUS.Running;
   }
 
@@ -1518,12 +1522,10 @@ const isStreamManuallyPaused = (stream: any) => {
 };
 
 const getStreamUnitsPerSecond = (stream: any) => {
-  if (stream.rateIntervalInSeconds.toNumber() === 0) {
-    return 0;
+  if (stream.rateIntervalInSeconds.isZero()) {
+    return new BN(0);
   }
-  return (
-    stream.rateAmountUnits.toNumber() / stream.rateIntervalInSeconds.toNumber()
-  );
+  return new BN(stream.rateAmountUnits).div(stream.rateIntervalInSeconds);
 };
 
 const getStreamStartUtcInSeconds = (stream: any) => {
@@ -1532,60 +1534,63 @@ const getStreamStartUtcInSeconds = (stream: any) => {
     startUtcFixed = parseInt(stream.startUtc.toString().substr(0, 10));
     return startUtcFixed;
   }
-  if (stream.startUtcInSeconds && stream.startUtcInSeconds.toNumber() > 0) {
-    return stream.startUtcInSeconds.toNumber();
+  if (stream.startUtcInSeconds > 0) {
+    return stream.startUtcInSeconds;
   }
   return stream.startUtc.toNumber();
 };
 
 const getStreamWithdrawableUnitsWhilePaused = (stream: any) => {
-  let withdrawableWhilePaused = 0;
+  let withdrawableWhilePaused = new BN(0);
   const isManuallyPaused = isStreamManuallyPaused(stream);
 
   if (isManuallyPaused) {
-    withdrawableWhilePaused =
-      stream.lastManualStopWithdrawableUnitsSnap.toNumber();
+    withdrawableWhilePaused = stream.lastManualStopWithdrawableUnitsSnap;
   } else {
-    withdrawableWhilePaused = stream.allocationAssignedUnits
-      .sub(stream.totalWithdrawalsUnits)
-      .toNumber();
+    withdrawableWhilePaused = stream.allocationAssignedUnits.sub(stream.totalWithdrawalsUnits);
   }
 
-  return Math.max(0, withdrawableWhilePaused);
+  return BN.max(new BN(0), withdrawableWhilePaused);
+  // return Math.max(0, withdrawableWhilePaused);
 };
 
-const getStreamNonStopEarningUnits = (stream: any, timeDiff: number) => {
-  const cliffUnits = getStreamCliffAmount(stream);
-  const blocktime = parseInt((Date.now() / 1_000).toString()) - timeDiff;
-  const secondsSinceStart = Math.max(
-    0,
-    blocktime - getStreamStartUtcInSeconds(stream),
-  );
-  const streamUnitsSinceStarted =
-    (stream.rateIntervalInSeconds.toNumber() * secondsSinceStart) /
-    stream.rateAmountUnits.toNumber();
+// const getStreamNonStopEarningUnits = (stream: any, timeDiff: number) => {
+//   const cliffUnits = getStreamCliffAmount(stream);
+//   const blocktime = parseInt((Date.now() / 1_000).toString()) - timeDiff;
+//   const secondsSinceStart = Math.max(
+//     0,
+//     blocktime - getStreamStartUtcInSeconds(stream),
+//   );
 
-  const nonStopEarningUnits =
-    cliffUnits + parseInt(streamUnitsSinceStarted.toString());
+//   if (stream.rateAmountUnits.gtn(0)) {
+//     const streamUnitsSinceStarted = stream.rateIntervalInSeconds.muln(secondsSinceStart).div(stream.rateAmountUnits);
+//     const nonStopEarningUnits = cliffUnits.add(streamUnitsSinceStarted);
+//     return nonStopEarningUnits;
+//   }
 
-  return parseInt(nonStopEarningUnits.toString());
-};
+//   return BN.max(new BN(0), cliffUnits);
+// };
 
 const getStreamMissedEarningUnitsWhilePaused = (stream: any) => {
-  if (stream.rateIntervalInSeconds.toNumber() === 0) {
-    return 0;
+  if (stream.rateIntervalInSeconds.isZero()) {
+    return stream.rateIntervalInSeconds as BN;
   }
 
-  const totalSecondsPaused =
-    stream.lastKnownTotalSecondsInPausedStatus.toString().length > 10
-      ? parseInt(stream.startUtc.toString().substring(0, 10))
-      : stream.lastKnownTotalSecondsInPausedStatus.toNumber();
+  if (stream.rateAmountUnits.gtn(0)) {
+    const totalSecondsPaused =
+      stream.lastKnownTotalSecondsInPausedStatus.toString().length > 10
+        ? parseInt(stream.startUtc.toString().substring(0, 10))
+        : stream.lastKnownTotalSecondsInPausedStatus.toNumber();
 
-  const withdrawableWhilePaused =
-    (stream.rateIntervalInSeconds.toNumber() * totalSecondsPaused) /
-    stream.rateAmountUnits.toNumber();
+    console.log('totalSecondsPaused:', totalSecondsPaused);
+    console.log('rateIntervalInSeconds:', stream.rateIntervalInSeconds.toString());
+    console.log('rateAmountUnits:', stream.rateAmountUnits.toString());
 
-  return parseInt(withdrawableWhilePaused.toString());
+    const withdrawableWhilePaused = stream.rateIntervalInSeconds.muln(totalSecondsPaused || 0).div(stream.rateAmountUnits);
+    return withdrawableWhilePaused;
+  }
+
+  return new BN(0);
 };
 
 export async function fundExistingWSolAccountInstructions(
