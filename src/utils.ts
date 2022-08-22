@@ -287,7 +287,6 @@ export const getStreamTemplate = async (
   address: PublicKey,
   friendly = true,
 ): Promise<StreamTemplate> => {
-  console.log('getStreamTemplate - friendly:', friendly);
   const template = await program.account.streamTemplate.fetch(address);
   return parseStreamTemplateData(template, address, friendly);
 };
@@ -562,6 +561,8 @@ const parseGetStreamData = (
       ? createdOnUtcInSeconds
       : event.startUtc.toNumber();
 
+  console.log('allocationAssignedUnits:', event.allocationAssignedUnits);
+
   const stream = {
     id: friendly ? address.toBase58() : address,
     version: event.version,
@@ -583,13 +584,13 @@ const parseGetStreamData = (
       ? event.beneficiaryAssociatedToken.toBase58()
       : event.beneficiaryAssociatedToken,
     cliffVestAmount: friendly
-      ? event.cliffVestAmountUnits.toNumber()
+      ? event.cliffVestAmountUnits.toString()
       : event.cliffVestAmountUnits,
     cliffVestPercent: friendly
       ? event.cliffVestPercent.toNumber() / 10_000
       : event.cliffVestPercent.div(new BN(10_000)),
     allocationAssigned: friendly
-      ? event.allocationAssignedUnits.toNumber()
+      ? event.allocationAssignedUnits.toString()
       : event.allocationAssignedUnits,
     // allocationReserved: friendly ? event.allocationReservedUnits.toNumber() : event.allocationReservedUnits,
 
@@ -605,32 +606,32 @@ const parseGetStreamData = (
       : new Date(event.estDepletionTime.toNumber() * 1_000),
 
     rateAmount: friendly
-      ? event.rateAmountUnits.toNumber()
+      ? event.rateAmountUnits.toString()
       : event.rateAmountUnits,
     rateIntervalInSeconds: friendly
       ? event.rateIntervalInSeconds.toNumber()
       : event.rateIntervalInSeconds,
     totalWithdrawalsAmount: friendly
-      ? event.totalWithdrawalsUnits.toNumber()
+      ? event.totalWithdrawalsUnits.toString()
       : event.totalWithdrawalsUnits,
     fundsLeftInStream: friendly
-      ? event.fundsLeftInStream.toNumber()
+      ? event.fundsLeftInStream.toString()
       : event.fundsLeftInStream,
 
     fundsSentToBeneficiary: friendly
-      ? event.fundsSentToBeneficiary.toNumber()
+      ? event.fundsSentToBeneficiary.toString()
       : new BN(event.fundsSentToBeneficiary),
 
     remainingAllocationAmount: friendly
-      ? event.beneficiaryRemainingAllocation.toNumber()
+      ? event.beneficiaryRemainingAllocation.toString()
       : event.beneficiaryRemainingAllocation,
 
     withdrawableAmount: friendly
-      ? event.beneficiaryWithdrawableAmount.toNumber()
+      ? event.beneficiaryWithdrawableAmount.toString()
       : event.beneficiaryWithdrawableAmount,
 
     streamUnitsPerSecond: friendly
-      ? getStreamUnitsPerSecond(event).toNumber()
+      ? getStreamUnitsPerSecond(event).toString()
       : getStreamUnitsPerSecond(event),
     isManuallyPaused: event.isManualPause,
     status:
@@ -1332,7 +1333,6 @@ const parseStreamTemplateData = (
   address: PublicKey,
   friendly = true,
 ) => {
-  console.log('parseStreamTemplateData - friendly:', friendly);
   return {
     id: friendly ? address.toBase58() : address,
     version: template.version,
