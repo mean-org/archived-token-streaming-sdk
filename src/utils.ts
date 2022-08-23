@@ -561,8 +561,6 @@ const parseGetStreamData = (
       ? createdOnUtcInSeconds
       : event.startUtc.toNumber();
 
-  console.log('allocationAssignedUnits:', event.allocationAssignedUnits);
-
   const stream = {
     id: friendly ? address.toBase58() : address,
     version: event.version,
@@ -1369,7 +1367,12 @@ const getStreamEstDepletionDate = (stream: any) => {
   const duration = streamableSeconds.plus(stream.lastKnownTotalSecondsInPausedStatus);
   const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
 
-  return new Date((startUtcInSeconds + duration.toNumber()) * 1_000);
+  const depletionTimestamp = (startUtcInSeconds + duration.toNumber()) * 1_000;
+  const depletionDate = new Date(depletionTimestamp);
+  if (depletionDate.toString() !== 'Invalid Date') {
+    return new Date(depletionTimestamp);
+  }
+  return new Date();
 };
 
 const getStreamCliffAmount = (stream: any) => {
@@ -1581,10 +1584,6 @@ const getStreamMissedEarningUnitsWhilePaused = (stream: any) => {
       stream.lastKnownTotalSecondsInPausedStatus.toString().length > 10
         ? parseInt(stream.startUtc.toString().substring(0, 10))
         : stream.lastKnownTotalSecondsInPausedStatus.toNumber();
-
-    console.log('totalSecondsPaused:', totalSecondsPaused);
-    console.log('rateIntervalInSeconds:', stream.rateIntervalInSeconds.toString());
-    console.log('rateAmountUnits:', stream.rateAmountUnits.toString());
 
     const withdrawableWhilePaused = stream.rateIntervalInSeconds.muln(totalSecondsPaused || 0).div(stream.rateAmountUnits);
     return withdrawableWhilePaused;

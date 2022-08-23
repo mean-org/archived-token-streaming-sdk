@@ -1472,7 +1472,7 @@ export class MSP {
       treasury,
       this.program.programId,
     );
-    const templateInfo = await getStreamTemplate(this.program, template);
+    const templateInfo = await getStreamTemplate(this.program, template, false);
     if (!templateInfo) {
       throw Error("Stream template doesn't exist");
     }
