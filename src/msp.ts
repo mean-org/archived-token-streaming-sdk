@@ -1147,7 +1147,7 @@ export class MSP {
       },
     );
     const addFundsSigners: Signer[] = [];
-    const faBN = new BN(fundingAmount || 0);
+    const faBN = new BN(fundingAmount);
     if (faBN.gtn(0)) {
       const contributorToken = await Token.getAssociatedTokenAddress(
         ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -1385,6 +1385,8 @@ export class MSP {
       throw Error("Stream template doesn't exist");
     }
 
+    console.log('templateInfo:', templateInfo);
+
     if (treasuryInfo.totalStreams === 0) {
       return [
         new BN(0),
@@ -1409,11 +1411,11 @@ export class MSP {
       undefined,
       false
     );
-    const totalAllocation = new BN(0);
-    const streamRate = new BN(0);
+    let totalAllocation = new BN(0);
+    let streamRate = new BN(0);
     for (const stream of streams) {
       // totalAllocation = totalAllocation + stream.allocationAssigned;
-      totalAllocation.add(new BN(stream.allocationAssigned))
+      totalAllocation = totalAllocation.add(new BN(stream.allocationAssigned))
       switch (stream.status) {
         case STREAM_STATUS.Paused:
         case STREAM_STATUS.Schedule:
@@ -1427,7 +1429,7 @@ export class MSP {
       const percentReminderAfterCliff = 1 - templateInfo.cliffVestPercent / 1_000_000;
       const durationNumberOfUnits = templateInfo.durationNumberOfUnits;
       const rateAmount = allocationAssignedBN.multipliedBy(percentReminderAfterCliff).dividedToIntegerBy(durationNumberOfUnits).toString();
-      streamRate.add(new BN(rateAmount));
+      streamRate = streamRate.add(new BN(rateAmount));
     }
 
     return [

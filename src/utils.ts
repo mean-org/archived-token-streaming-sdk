@@ -1361,7 +1361,7 @@ const getStreamEstDepletionDate = (stream: any) => {
   const rateAmountUnits = new BigNumber(stream.rateAmountUnits);
   const rateAmount = rateInterval.isZero()
     ? rateInterval
-    : rateAmountUnits.dividedBy(rateInterval);
+    : rateAmountUnits.dividedToIntegerBy(rateInterval);
 
   const streamableSeconds = streamableAmount.dividedToIntegerBy(rateAmount);
   const duration = streamableSeconds.plus(stream.lastKnownTotalSecondsInPausedStatus);
@@ -1370,7 +1370,7 @@ const getStreamEstDepletionDate = (stream: any) => {
   const depletionTimestamp = (startUtcInSeconds + duration.toNumber()) * 1_000;
   const depletionDate = new Date(depletionTimestamp);
   if (depletionDate.toString() !== 'Invalid Date') {
-    return new Date(depletionTimestamp);
+    return depletionDate;
   }
   return new Date();
 };
