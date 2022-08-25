@@ -423,15 +423,6 @@ export class MSP {
       treasurySeeds,
       this.program.programId,
     );
-    const treasuryMintSeeds = [
-      treasurer.toBuffer(),
-      treasury.toBuffer(),
-      slotBuffer,
-    ];
-    const [treasuryMint] = await PublicKey.findProgramAddress(
-      treasuryMintSeeds,
-      this.program.programId,
-    );
 
     // Get the treasury token account
     const treasuryToken = await Token.getAssociatedTokenAddress(
@@ -439,15 +430,6 @@ export class MSP {
       TOKEN_PROGRAM_ID,
       mint,
       treasury,
-      true,
-    );
-
-    // Get the treasury pool treasurer token
-    const treasurerTreasuryToken = await Token.getAssociatedTokenAddress(
-      ASSOCIATED_TOKEN_PROGRAM_ID,
-      TOKEN_PROGRAM_ID,
-      treasuryMint,
-      treasurer,
       true,
     );
 
@@ -642,10 +624,6 @@ export class MSP {
       true,
     );
 
-    const cliffVestPercentValue = cliffVestPercent
-      ? cliffVestPercent * Constants.CLIFF_PERCENT_NUMERATOR
-      : 0;
-
     const slot = await this.connection.getSlot(
       (this.commitment as Commitment) || 'finalized',
     );
@@ -655,15 +633,6 @@ export class MSP {
       treasurySeeds,
       this.program.programId,
     );
-    const treasuryMintSeeds = [
-      treasurer.toBuffer(),
-      treasury.toBuffer(),
-      slotBuffer,
-    ];
-    const [treasuryMint] = await PublicKey.findProgramAddress(
-      treasuryMintSeeds,
-      this.program.programId,
-    );
 
     // Get the treasury token account
     const treasuryToken = await Token.getAssociatedTokenAddress(
@@ -671,15 +640,6 @@ export class MSP {
       TOKEN_PROGRAM_ID,
       mint,
       treasury,
-      true,
-    );
-
-    // Get the treasury pool treasurer token
-    const treasurerTreasuryToken = await Token.getAssociatedTokenAddress(
-      ASSOCIATED_TOKEN_PROGRAM_ID,
-      TOKEN_PROGRAM_ID,
-      treasuryMint,
-      treasurer,
       true,
     );
 
@@ -723,9 +683,10 @@ export class MSP {
     const treasurerTokenInfo = await this.connection.getAccountInfo(
       treasurerToken,
     );
+
     await this.ensureAutoWrapSolInstructions(
       autoWSol,
-      allocationAssigned, // new BN(allocationAssigned).toNumber(),
+      new BN(allocationAssigned),
       treasurer,
       treasurerToken,
       treasurerTokenInfo,
@@ -761,17 +722,21 @@ export class MSP {
     txSigners.push(streamAccount);
     const startUtcInSeconds = parseInt((start.getTime() / 1000).toString());
 
+    const cliffVestPercentValue = cliffVestPercent
+      ? cliffVestPercent * Constants.CLIFF_PERCENT_NUMERATOR
+      : 0;
+
     // Create Stream
     ixs.push(
       this.program.instruction.createStream(
         LATEST_IDL_FILE_VERSION,
         streamName,
         new BN(startUtcInSeconds),
-        new BN(rateAmount ?? 0), // rate amount units
-        new BN(rateIntervalInSeconds ?? 0), // rate interval in seconds
+        new BN(rateAmount || 0), // rate amount units
+        new BN(rateIntervalInSeconds || 0), // rate interval in seconds
         new BN(allocationAssigned), // allocation assigned
-        new BN(cliffVestAmount ?? 0), // cliff vest amount
-        new BN((cliffVestPercent ?? 0) * 10_000), // cliff vest percent
+        new BN(cliffVestAmount || 0), // cliff vest amount
+        new BN(cliffVestPercentValue), // cliff vest percent
         feePayedByTreasurer,
         {
           accounts: {
@@ -856,16 +821,6 @@ export class MSP {
       treasurySeeds,
       this.program.programId,
     );
-    const treasuryPoolMintSeeds = [
-      treasurer.toBuffer(),
-      treasury.toBuffer(),
-      slotBuffer,
-    ];
-    // Treasury Pool Mint PDA
-    const [treasuryMint] = await PublicKey.findProgramAddress(
-      treasuryPoolMintSeeds,
-      this.program.programId,
-    );
 
     if (associatedTokenMint.equals(Constants.SOL_MINT)) {
       associatedTokenMint = NATIVE_WSOL_MINT;
@@ -919,11 +874,11 @@ export class MSP {
     treasury: PublicKey,
     beneficiary: PublicKey,
     streamName: string,
-    allocationAssigned: number,
-    rateAmount?: number,
+    allocationAssigned: number | string,
+    rateAmount?: number | string,
     rateIntervalInSeconds?: number,
     startUtc?: Date,
-    cliffVestAmount?: number,
+    cliffVestAmount?: number | string,
     cliffVestPercent?: number,
     feePayedByTreasurer?: boolean,
   ): Promise<Transaction> {
@@ -954,11 +909,11 @@ export class MSP {
     treasury: PublicKey,
     beneficiary: PublicKey,
     streamName: string,
-    allocationAssigned: number,
-    rateAmount?: number,
+    allocationAssigned: number | string,
+    rateAmount?: number | string,
     rateIntervalInSeconds?: number,
     startUtc?: Date,
-    cliffVestAmount?: number,
+    cliffVestAmount?: number | string,
     cliffVestPercent?: number,
     feePayedByTreasurer?: boolean,
   ): Promise<[Transaction, PublicKey]> {
@@ -1007,10 +962,10 @@ export class MSP {
       LATEST_IDL_FILE_VERSION,
       streamName,
       new BN(startUtcInSeconds),
-      new BN(rateAmount as number),
+      new BN(rateAmount || 0),
       new BN(rateIntervalInSeconds as number),
       new BN(allocationAssigned),
-      new BN(cliffVestAmount as number),
+      new BN(cliffVestAmount || 0),
       new BN(cliffVestPercentValue),
       feePayedByTreasurer ?? false,
       {
@@ -1385,8 +1340,6 @@ export class MSP {
       throw Error("Stream template doesn't exist");
     }
 
-    console.log('templateInfo:', templateInfo);
-
     if (treasuryInfo.totalStreams === 0) {
       return [
         new BN(0),
@@ -1414,8 +1367,7 @@ export class MSP {
     let totalAllocation = new BN(0);
     let streamRate = new BN(0);
     for (const stream of streams) {
-      // totalAllocation = totalAllocation + stream.allocationAssigned;
-      totalAllocation = totalAllocation.add(new BN(stream.allocationAssigned))
+      totalAllocation = totalAllocation.add(stream.allocationAssigned)
       switch (stream.status) {
         case STREAM_STATUS.Paused:
         case STREAM_STATUS.Schedule:
@@ -1425,7 +1377,7 @@ export class MSP {
         // all streamed
         continue;
       }
-      const allocationAssignedBN = new BigNumber(new BN(stream.allocationAssigned).toString());
+      const allocationAssignedBN = new BigNumber(stream.allocationAssigned.toString());
       const percentReminderAfterCliff = 1 - templateInfo.cliffVestPercent / 1_000_000;
       const durationNumberOfUnits = templateInfo.durationNumberOfUnits;
       const rateAmount = allocationAssignedBN.multipliedBy(percentReminderAfterCliff).dividedToIntegerBy(durationNumberOfUnits).toString();
@@ -1554,7 +1506,7 @@ export class MSP {
     treasury: PublicKey,
     stream: PublicKey,
     beneficiary: PublicKey,
-    allocationAssigned: number,
+    allocationAssigned: number | string,
     streamName = '',
   ): Promise<Transaction> {
     if (treasurer.equals(beneficiary)) {
@@ -1581,9 +1533,14 @@ export class MSP {
     }
 
     // Calculate rate amount
-    const rateAmount =
-      (allocationAssigned * (1 - templateInfo.cliffVestPercent / 1_000_000)) /
-      templateInfo.durationNumberOfUnits;
+    // const rateAmount =
+    //   (allocationAssigned * (1 - templateInfo.cliffVestPercent / 1_000_000)) /
+    //   templateInfo.durationNumberOfUnits;
+
+    const allocationAssignedBN = new BigNumber(allocationAssigned);
+    const percentReminderAfterCliff = 1 - templateInfo.cliffVestPercent / 1_000_000;
+    const durationNumberOfUnits = templateInfo.durationNumberOfUnits;
+    const rateAmount = allocationAssignedBN.multipliedBy(percentReminderAfterCliff).dividedToIntegerBy(durationNumberOfUnits).toString();
 
     // Get the treasury token account
     const treasuryToken = await Token.getAssociatedTokenAddress(
@@ -1606,7 +1563,7 @@ export class MSP {
     const tx = this.program.transaction.createStreamWithTemplate(
       LATEST_IDL_FILE_VERSION,
       streamName,
-      new BN(rateAmount),
+      rateAmount,
       new BN(allocationAssigned),
       {
         accounts: {
@@ -1643,11 +1600,11 @@ export class MSP {
     treasury: PublicKey,
     beneficiaries: Beneficiary[],
     associatedToken: PublicKey,
-    allocationAssigned: number,
-    rateAmount?: number,
+    allocationAssigned: number | string,
+    rateAmount?: number | string,
     rateIntervalInSeconds?: number,
     startUtc?: Date,
-    cliffVestAmount?: number,
+    cliffVestAmount?: number | string,
     cliffVestPercent?: number,
     feePayedByTreasurer?: boolean,
   ): Promise<Transaction[]> {
@@ -1710,10 +1667,10 @@ export class MSP {
           LATEST_IDL_FILE_VERSION,
           beneficiary.streamName,
           new BN(startUtcInSeconds),
-          new BN(rateAmount as number),
+          new BN(rateAmount || 0),
           new BN(rateIntervalInSeconds as number),
           new BN(allocationAssigned),
-          new BN(cliffVestAmount as number),
+          new BN(cliffVestAmount || 0),
           new BN(cliffVestPercentValue),
           feePayedByTreasurer ?? false,
           {
@@ -2639,11 +2596,11 @@ export class MSP {
     associatedToken: PublicKey,
     stream: PublicKey,
     streamName: string,
-    allocationAssigned: number,
-    rateAmount?: number,
+    allocationAssigned: number | string,
+    rateAmount?: number | string,
     rateIntervalInSeconds?: number,
     startUtc?: Date,
-    cliffVestAmount?: number,
+    cliffVestAmount?: number | string,
     cliffVestPercent?: number,
     feePayedByTreasurer?: boolean,
   ): Promise<any> {
@@ -2691,10 +2648,10 @@ export class MSP {
       LATEST_IDL_FILE_VERSION,
       streamName,
       new BN(startUtcInSeconds),
-      new BN(rateAmount as number),
+      new BN(rateAmount || 0),
       new BN(rateIntervalInSeconds as number),
       new BN(allocationAssigned),
-      new BN(cliffVestAmount as number),
+      new BN(cliffVestAmount || 0),
       new BN(cliffVestPercentValue),
       feePayedByTreasurer ?? false,
       {
@@ -2731,11 +2688,11 @@ export class MSP {
     treasury: PublicKey,
     associatedToken: PublicKey,
     streams: StreamBeneficiary[],
-    allocationAssigned: number,
-    rateAmount?: number,
+    allocationAssigned: number | string,
+    rateAmount?: number | string,
     rateIntervalInSeconds?: number,
     startUtc?: Date,
-    cliffVestAmount?: number,
+    cliffVestAmount?: number | string,
     cliffVestPercent?: number,
     feePayedByTreasurer?: boolean,
   ): Promise<Transaction[]> {
@@ -2796,10 +2753,10 @@ export class MSP {
           LATEST_IDL_FILE_VERSION,
           streamBeneficiary.streamName,
           new BN(startUtcInSeconds),
-          new BN(rateAmount as number),
+          new BN(rateAmount || 0),
           new BN(rateIntervalInSeconds as number),
           new BN(allocationAssigned),
-          new BN(cliffVestAmount as number),
+          new BN(cliffVestAmount || 0),
           new BN(cliffVestPercentValue),
           feePayedByTreasurer ?? false,
           {

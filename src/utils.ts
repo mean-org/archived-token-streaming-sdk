@@ -581,16 +581,9 @@ const parseGetStreamData = (
     associatedToken: friendly
       ? event.beneficiaryAssociatedToken.toBase58()
       : event.beneficiaryAssociatedToken,
-    cliffVestAmount: friendly
-      ? event.cliffVestAmountUnits.toString()
-      : event.cliffVestAmountUnits,
-    cliffVestPercent: friendly
-      ? event.cliffVestPercent.toNumber() / 10_000
-      : event.cliffVestPercent.div(new BN(10_000)),
-    allocationAssigned: friendly
-      ? event.allocationAssignedUnits.toString()
-      : event.allocationAssignedUnits,
-    // allocationReserved: friendly ? event.allocationReservedUnits.toNumber() : event.allocationReservedUnits,
+    cliffVestAmount: event.cliffVestAmountUnits,
+    cliffVestPercent: event.cliffVestPercent.toNumber() / 10_000,
+    allocationAssigned: event.allocationAssignedUnits,
 
     secondsSinceStart: friendly
       ? Math.max(
@@ -603,9 +596,7 @@ const parseGetStreamData = (
       ? new Date(event.estDepletionTime.toNumber() * 1_000).toString()
       : new Date(event.estDepletionTime.toNumber() * 1_000),
 
-    rateAmount: friendly
-      ? event.rateAmountUnits.toString()
-      : event.rateAmountUnits,
+    rateAmount: event.rateAmountUnits,
     rateIntervalInSeconds: friendly
       ? event.rateIntervalInSeconds.toNumber()
       : event.rateIntervalInSeconds,
@@ -690,25 +681,16 @@ const parseStreamItemData = (
     associatedToken: friendly
       ? stream.beneficiaryAssociatedToken.toBase58()
       : stream.beneficiaryAssociatedToken,
-    cliffVestAmount: friendly
-      ? stream.cliffVestAmountUnits.toNumber()
-      : stream.cliffVestAmountUnits,
-    cliffVestPercent: friendly
-      ? stream.cliffVestPercent.toNumber() / 10_000
-      : stream.cliffVestPercent.div(new BN(10_000)),
-    allocationAssigned: friendly
-      ? stream.allocationAssignedUnits.toNumber()
-      : stream.allocationAssignedUnits,
-    // allocationReserved: friendly ? stream.allocationReservedUnits.toNumber() : stream.allocationReservedUnits,
+    cliffVestAmount: stream.cliffVestAmountUnits,
+    cliffVestPercent: stream.cliffVestPercent.toNumber() / 10_000,
+    allocationAssigned: stream.allocationAssignedUnits,
     secondsSinceStart: friendly
       ? blockTime - getStreamStartUtcInSeconds(stream)
       : new BN(blockTime).sub(new BN(startUtcInSeconds * 1000)),
     estimatedDepletionDate: friendly
       ? getStreamEstDepletionDate(stream).toString()
       : getStreamEstDepletionDate(stream),
-    rateAmount: friendly
-      ? stream.rateAmountUnits.toNumber()
-      : stream.rateAmountUnits,
+    rateAmount: stream.rateAmountUnits,
     rateIntervalInSeconds: friendly
       ? stream.rateIntervalInSeconds.toNumber()
       : stream.rateIntervalInSeconds,
@@ -1447,13 +1429,16 @@ const getStreamWithdrawableAmount = (stream: any, timeDiff = 0) => {
   const timeSinceStart = blocktime - startUtcInSeconds;
   // const nonStopEarningUnits = cliffAmount + streamedUnitsPerSecond * timeSinceStart;
   const nonStopEarningUnits = streamedUnitsPerSecond.muln(timeSinceStart).add(cliffAmount);
-  const totalSecondsPaused =
-    stream.lastKnownTotalSecondsInPausedStatus.toNumber().length >= 10
-      ? parseInt(
-          (
-            stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1_000
-          ).toString(),
-        )
+  // const totalSecondsPaused =
+  //   stream.lastKnownTotalSecondsInPausedStatus.toNumber().length >= 10
+  //     ? parseInt(
+  //         (
+  //           stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1_000
+  //         ).toString(),
+  //       )
+  //     : stream.lastKnownTotalSecondsInPausedStatus.toNumber();
+  const totalSecondsPaused = stream.lastKnownTotalSecondsInPausedStatus.toString().length >= 10
+      ? parseInt((stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1_000).toString())
       : stream.lastKnownTotalSecondsInPausedStatus.toNumber();
 
   // const missedEarningUnitsWhilePaused = streamedUnitsPerSecond * totalSecondsPaused;

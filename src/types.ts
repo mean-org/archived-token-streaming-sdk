@@ -232,26 +232,27 @@ export type Stream = {
   treasury: PublicKey | string;
   beneficiary: PublicKey | string;
   associatedToken: PublicKey | string;
-  cliffVestAmount: number | BN | string;
-  cliffVestPercent: number | BN;
-  allocationAssigned: number | BN | string;
-  // allocationReserved: number,
+  cliffVestPercent: number;
+  // Amounts -
+  cliffVestAmount: BN;
+  rateAmount: BN;
+  allocationAssigned: BN;
+  totalWithdrawalsAmount: number | BN | string;
+  withdrawableAmount: number | BN | string;
+  fundsLeftInStream: number | BN | string;
+  fundsSentToBeneficiary: number | BN | string;
+  remainingAllocationAmount: number | BN | string;
+  streamUnitsPerSecond: number | BN | string;
+  // Amounts -
   secondsSinceStart: number | BN;
   estimatedDepletionDate: Date | string;
-  rateAmount: number | BN | string;
   rateIntervalInSeconds: number | BN;
-  totalWithdrawalsAmount: number | BN | string;
   createdBlockTime: number;
   createdOnUtc: Date | string;
   lastRetrievedBlockTime: number | BN;
   lastRetrievedTimeInSeconds: number | BN;
   upgradeRequired: boolean;
   status: STREAM_STATUS | string;
-  withdrawableAmount: number | BN | string;
-  fundsLeftInStream: number | BN | string;
-  fundsSentToBeneficiary: number | BN | string;
-  remainingAllocationAmount: number | BN | string;
-  streamUnitsPerSecond: number | BN | string;
   isManuallyPaused: boolean;
   feePayedByTreasurer: boolean;
   category: Category;
