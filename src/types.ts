@@ -223,34 +223,37 @@ export enum AllocationType {
  * Stream info
  */
 export type Stream = {
-  id: PublicKey | string | undefined;
-  initialized: boolean;
-  version: number;
-  name: string;
-  startUtc: Date | string;
+  // Public keys
+  id: PublicKey;
   treasurer: PublicKey | string;
   treasury: PublicKey | string;
   beneficiary: PublicKey | string;
   associatedToken: PublicKey | string;
-  cliffVestPercent: number;
-  // Amounts -
+  // Amounts
   cliffVestAmount: BN;
   rateAmount: BN;
   allocationAssigned: BN;
-  totalWithdrawalsAmount: number | BN | string;
-  withdrawableAmount: number | BN | string;
-  fundsLeftInStream: number | BN | string;
-  fundsSentToBeneficiary: number | BN | string;
-  remainingAllocationAmount: number | BN | string;
-  streamUnitsPerSecond: number | BN | string;
-  // Amounts -
+  totalWithdrawalsAmount: BN;
+  withdrawableAmount: BN;
+  fundsLeftInStream: BN;
+  fundsSentToBeneficiary: BN;
+  remainingAllocationAmount: BN;
+  streamUnitsPerSecond: BN;
+  // Dates
+  startUtc: string;
+  createdOnUtc: string;
+  estimatedDepletionDate: string;
+  // Time(s)
   secondsSinceStart: number | BN;
-  estimatedDepletionDate: Date | string;
   rateIntervalInSeconds: number | BN;
   createdBlockTime: number;
-  createdOnUtc: Date | string;
   lastRetrievedBlockTime: number | BN;
   lastRetrievedTimeInSeconds: number | BN;
+  // General
+  initialized: boolean;
+  version: number;
+  name: string;
+  cliffVestPercent: number;
   upgradeRequired: boolean;
   status: STREAM_STATUS | string;
   isManuallyPaused: boolean;

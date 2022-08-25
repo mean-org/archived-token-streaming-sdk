@@ -1373,7 +1373,7 @@ export class MSP {
         case STREAM_STATUS.Schedule:
           continue;
       }
-      if (new BN(stream.remainingAllocationAmount).lten(0)) {
+      if (stream.remainingAllocationAmount.lten(0)) {
         // all streamed
         continue;
       }
@@ -2091,7 +2091,7 @@ export class MSP {
       throw Error('Stream has not started');
     }
 
-    if (streamInfo.withdrawableAmount === 0) {
+    if (streamInfo.withdrawableAmount.isZero()) {
       throw Error('Stream withdrawable amount is zero');
     }
 

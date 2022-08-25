@@ -131,7 +131,7 @@ export const getStreamCached = async (
 
   const parsedStream = parseStreamItemData(
     streamInfo.data,
-    new PublicKey(streamInfo.id as string),
+    streamInfo.id,
     blocktime,
     friendly,
   );
@@ -207,7 +207,7 @@ export const listStreamsCached = async (
 
     const parsedStream = parseStreamItemData(
       streamInfo.data,
-      new PublicKey(streamInfo.id as string),
+      streamInfo.id,
       blockTime,
       friendly,
     );
@@ -562,13 +562,11 @@ const parseGetStreamData = (
       : event.startUtc.toNumber();
 
   const stream = {
-    id: friendly ? address.toBase58() : address,
+    id: address,
     version: event.version,
     initialized: event.initialized,
     name: new TextDecoder().decode(nameBuffer),
-    startUtc: friendly
-      ? new Date(startUtcInSeconds * 1000).toString()
-      : new Date(startUtcInSeconds * 1000),
+    startUtc: new Date(startUtcInSeconds * 1000).toString(),
     treasurer: friendly
       ? event.treasurerAddress.toBase58()
       : event.treasurerAddress,
@@ -584,7 +582,6 @@ const parseGetStreamData = (
     cliffVestAmount: event.cliffVestAmountUnits,
     cliffVestPercent: event.cliffVestPercent.toNumber() / 10_000,
     allocationAssigned: event.allocationAssignedUnits,
-
     secondsSinceStart: friendly
       ? Math.max(
           0,
@@ -592,36 +589,17 @@ const parseGetStreamData = (
         )
       : event.currentBlockTime.sub(new BN(event.startUtc)),
 
-    estimatedDepletionDate: friendly
-      ? new Date(event.estDepletionTime.toNumber() * 1_000).toString()
-      : new Date(event.estDepletionTime.toNumber() * 1_000),
-
+    estimatedDepletionDate: new Date(event.estDepletionTime.toNumber() * 1_000).toString(),
     rateAmount: event.rateAmountUnits,
     rateIntervalInSeconds: friendly
       ? event.rateIntervalInSeconds.toNumber()
       : event.rateIntervalInSeconds,
-    totalWithdrawalsAmount: friendly
-      ? event.totalWithdrawalsUnits.toString()
-      : event.totalWithdrawalsUnits,
-    fundsLeftInStream: friendly
-      ? event.fundsLeftInStream.toString()
-      : event.fundsLeftInStream,
-
-    fundsSentToBeneficiary: friendly
-      ? event.fundsSentToBeneficiary.toString()
-      : new BN(event.fundsSentToBeneficiary),
-
-    remainingAllocationAmount: friendly
-      ? event.beneficiaryRemainingAllocation.toString()
-      : event.beneficiaryRemainingAllocation,
-
-    withdrawableAmount: friendly
-      ? event.beneficiaryWithdrawableAmount.toString()
-      : event.beneficiaryWithdrawableAmount,
-
-    streamUnitsPerSecond: friendly
-      ? getStreamUnitsPerSecond(event).toString()
-      : getStreamUnitsPerSecond(event),
+    totalWithdrawalsAmount: event.totalWithdrawalsUnits,
+    fundsLeftInStream: event.fundsLeftInStream,
+    fundsSentToBeneficiary: event.fundsSentToBeneficiary,
+    remainingAllocationAmount: event.beneficiaryRemainingAllocation,
+    withdrawableAmount: event.beneficiaryWithdrawableAmount,
+    streamUnitsPerSecond: getStreamUnitsPerSecond(event),
     isManuallyPaused: event.isManualPause,
     status:
       event.status === 'Scheduled' ? 1 : event.status === 'Running' ? 2 : 3,
@@ -634,9 +612,7 @@ const parseGetStreamData = (
 
     feePayedByTreasurer: event.feePayedByTreasurer,
     createdBlockTime: effectiveCreatedOnUtcInSeconds,
-    createdOnUtc: friendly
-      ? new Date(effectiveCreatedOnUtcInSeconds * 1000).toString()
-      : new Date(effectiveCreatedOnUtcInSeconds * 1000),
+    createdOnUtc: new Date(effectiveCreatedOnUtcInSeconds * 1000).toString(),
     category: event.category as Category,
     subCategory: event.subCategory as SubCategory,
     upgradeRequired: false,
@@ -657,18 +633,15 @@ const parseStreamItemData = (
     ? stream.createdOnUtc.toNumber()
     : 0;
   const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
-  const effectiveCreatedOnUticInSeconds =
-    createdOnUtcInSeconds > 0 ? createdOnUtcInSeconds : startUtcInSeconds;
+  const effectiveCreatedOnUtcInSeconds = createdOnUtcInSeconds > 0 ? createdOnUtcInSeconds : startUtcInSeconds;
   const timeDiff = parseInt((Date.now() / 1_000).toString()) - blockTime;
 
   const streamInfo = {
-    id: friendly ? address.toBase58() : address,
+    id: address,
     version: stream.version,
     initialized: stream.initialized,
     name: new TextDecoder().decode(nameBuffer),
-    startUtc: friendly
-      ? new Date(startUtcInSeconds * 1000).toString()
-      : new Date(startUtcInSeconds * 1000),
+    startUtc: new Date(startUtcInSeconds * 1000).toString(),
     treasurer: friendly
       ? stream.treasurerAddress.toBase58()
       : stream.treasurerAddress,
@@ -687,28 +660,16 @@ const parseStreamItemData = (
     secondsSinceStart: friendly
       ? blockTime - getStreamStartUtcInSeconds(stream)
       : new BN(blockTime).sub(new BN(startUtcInSeconds * 1000)),
-    estimatedDepletionDate: friendly
-      ? getStreamEstDepletionDate(stream).toString()
-      : getStreamEstDepletionDate(stream),
+    estimatedDepletionDate: getStreamEstDepletionDate(stream).toString(),
     rateAmount: stream.rateAmountUnits,
     rateIntervalInSeconds: friendly
       ? stream.rateIntervalInSeconds.toNumber()
       : stream.rateIntervalInSeconds,
-    totalWithdrawalsAmount: friendly
-      ? stream.totalWithdrawalsUnits.toNumber()
-      : stream.totalWithdrawalsUnits,
-    fundsLeftInStream: friendly
-      ? getFundsLeftInStream(stream, timeDiff).toNumber()
-      : getFundsLeftInStream(stream, timeDiff),
-    fundsSentToBeneficiary: friendly
-      ? getFundsSentToBeneficiary(stream, timeDiff).toNumber()
-      : getFundsSentToBeneficiary(stream, timeDiff),
-    remainingAllocationAmount: friendly
-      ? getStreamRemainingAllocation(stream).toNumber()
-      : getStreamRemainingAllocation(stream),
-    withdrawableAmount: friendly
-      ? getStreamWithdrawableAmount(stream, timeDiff).toNumber()
-      : getStreamWithdrawableAmount(stream, timeDiff),
+    totalWithdrawalsAmount: stream.totalWithdrawalsUnits,
+    fundsLeftInStream: getFundsLeftInStream(stream, timeDiff),
+    fundsSentToBeneficiary: getFundsSentToBeneficiary(stream, timeDiff),
+    remainingAllocationAmount: getStreamRemainingAllocation(stream),
+    withdrawableAmount: getStreamWithdrawableAmount(stream, timeDiff),
     streamUnitsPerSecond: getStreamUnitsPerSecond(stream),
     isManuallyPaused: isStreamManuallyPaused(stream),
     status: getStreamStatus(stream, timeDiff),
@@ -723,11 +684,8 @@ const parseStreamItemData = (
     category: stream.category as Category,
     subCategory: stream.subCategory as SubCategory,
     transactionSignature: '',
-    createdBlockTime:
-      createdOnUtcInSeconds > 0 ? createdOnUtcInSeconds : startUtcInSeconds,
-    createdOnUtc: friendly
-      ? new Date(effectiveCreatedOnUticInSeconds).toString()
-      : new Date(effectiveCreatedOnUticInSeconds),
+    createdBlockTime: createdOnUtcInSeconds > 0 ? createdOnUtcInSeconds : startUtcInSeconds,
+    createdOnUtc: new Date(effectiveCreatedOnUtcInSeconds * 1000).toString(),
     upgradeRequired: false,
     data: {
       version: stream.version,
