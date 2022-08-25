@@ -225,10 +225,10 @@ export enum AllocationType {
 export type Stream = {
   // Public keys
   id: PublicKey;
-  treasurer: PublicKey | string;
-  treasury: PublicKey | string;
-  beneficiary: PublicKey | string;
-  associatedToken: PublicKey | string;
+  treasurer: PublicKey;
+  treasury: PublicKey;
+  beneficiary: PublicKey;
+  associatedToken: PublicKey;
   // Amounts
   cliffVestAmount: BN;
   rateAmount: BN;
@@ -244,11 +244,11 @@ export type Stream = {
   createdOnUtc: string;
   estimatedDepletionDate: string;
   // Time(s)
-  secondsSinceStart: number | BN;
-  rateIntervalInSeconds: number | BN;
+  secondsSinceStart: number;
+  rateIntervalInSeconds: number;
   createdBlockTime: number;
-  lastRetrievedBlockTime: number | BN;
-  lastRetrievedTimeInSeconds: number | BN;
+  lastRetrievedBlockTime: number;
+  lastRetrievedTimeInSeconds: number;
   // General
   initialized: boolean;
   version: number;

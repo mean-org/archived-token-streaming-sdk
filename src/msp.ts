@@ -963,7 +963,7 @@ export class MSP {
       streamName,
       new BN(startUtcInSeconds),
       new BN(rateAmount || 0),
-      new BN(rateIntervalInSeconds as number),
+      new BN(rateIntervalInSeconds || 0),
       new BN(allocationAssigned),
       new BN(cliffVestAmount || 0),
       new BN(cliffVestPercentValue),
@@ -1668,7 +1668,7 @@ export class MSP {
           beneficiary.streamName,
           new BN(startUtcInSeconds),
           new BN(rateAmount || 0),
-          new BN(rateIntervalInSeconds as number),
+          new BN(rateIntervalInSeconds || 0),
           new BN(allocationAssigned),
           new BN(cliffVestAmount || 0),
           new BN(cliffVestPercentValue),
@@ -1738,7 +1738,7 @@ export class MSP {
       throw Error('Stream account not found');
     }
 
-    if (treasuryInfo.associatedToken !== streamInfo.associatedToken) {
+    if (treasuryInfo.associatedToken as string !== streamInfo.associatedToken.toBase58()) {
       throw Error('Invalid stream beneficiary associated token');
     }
 
@@ -2018,17 +2018,17 @@ export class MSP {
       throw Error('Stream account not found');
     }
 
-    if (treasuryInfo.associatedToken !== streamInfo.associatedToken) {
+    if (treasuryInfo.associatedToken as string !== streamInfo.associatedToken.toBase58()) {
       throw Error('Invalid stream beneficiary associated token');
     }
 
-    const associatedToken = new PublicKey(
+    const treasuryAssociatedTokenMint = new PublicKey(
       treasuryInfo.associatedToken as string,
     );
     const treasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
-      associatedToken,
+      treasuryAssociatedTokenMint,
       treasury,
       true,
     );
@@ -2036,7 +2036,7 @@ export class MSP {
     const feeTreasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
-      associatedToken,
+      treasuryAssociatedTokenMint,
       Constants.FEE_TREASURY,
       true,
     );
@@ -2050,7 +2050,7 @@ export class MSP {
           treasurer: treasurer,
           treasury: treasury,
           treasuryToken: treasuryToken,
-          associatedToken: associatedToken,
+          associatedToken: treasuryAssociatedTokenMint,
           stream: stream,
           feeTreasury: Constants.FEE_TREASURY,
           feeTreasuryToken: feeTreasuryToken,
@@ -2095,11 +2095,9 @@ export class MSP {
       throw Error('Stream withdrawable amount is zero');
     }
 
-    const beneficiary = new PublicKey(streamInfo.beneficiary as string);
+    const beneficiary = streamInfo.beneficiary;
     // Check for the beneficiary associated token account
-    const treasuryAssociatedTokenMint = new PublicKey(
-      streamInfo.associatedToken as string,
-    );
+    const treasuryAssociatedTokenMint = streamInfo.associatedToken;
     const beneficiaryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
@@ -2108,7 +2106,7 @@ export class MSP {
       true,
     );
 
-    const treasury = new PublicKey(streamInfo.treasury as PublicKey);
+    const treasury = streamInfo.treasury;
     const treasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
@@ -2189,14 +2187,12 @@ export class MSP {
       throw Error("Stream doesn't exist");
     }
 
-    const treasury = new PublicKey(streamInfo.treasury as string);
+    const treasury = streamInfo.treasury;
     const treasuryInfo = await this.getTreasury(treasury);
 
     if (!treasuryInfo) {
       throw Error("Treasury doesn't exist");
     }
-
-    const associatedToken = new PublicKey(streamInfo.associatedToken as string);
 
     const tx = this.program.transaction.pauseStream(LATEST_IDL_FILE_VERSION, {
       accounts: {
@@ -2226,14 +2222,12 @@ export class MSP {
       throw Error("Stream doesn't exist");
     }
 
-    const treasury = new PublicKey(streamInfo.treasury as string);
+    const treasury = streamInfo.treasury;
     const treasuryInfo = await this.getTreasury(treasury);
 
     if (!treasuryInfo) {
       throw Error("Treasury doesn't exist");
     }
-
-    const associatedToken = new PublicKey(streamInfo.associatedToken as string);
 
     const tx = this.program.transaction.resumeStream(LATEST_IDL_FILE_VERSION, {
       accounts: {
@@ -2265,7 +2259,7 @@ export class MSP {
       throw Error("Stream doesn't exist");
     }
 
-    const treasury = new PublicKey(streamInfo.treasury as string);
+    const treasury = streamInfo.treasury;
     const treasuryInfo = await getTreasury(this.program, treasury);
 
     if (!treasuryInfo) {
@@ -2276,11 +2270,9 @@ export class MSP {
       throw Error('Invalid stream beneficiary associated token');
     }
 
-    const treasurer = new PublicKey(streamInfo.treasurer as string);
-    const beneficiary = new PublicKey(streamInfo.beneficiary as string);
-    const treasuryAssociatedTokenMint = new PublicKey(
-      streamInfo.associatedToken as string,
-    );
+    const treasurer = streamInfo.treasurer;
+    const beneficiary = streamInfo.beneficiary;
+    const treasuryAssociatedTokenMint = streamInfo.associatedToken;
     const beneficiaryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
@@ -2560,7 +2552,7 @@ export class MSP {
       throw Error("Stream doesn't exist");
     }
 
-    const beneficiaryAddress = new PublicKey(streamInfo.beneficiary as string);
+    const beneficiaryAddress = streamInfo.beneficiary;
 
     if (!beneficiary.equals(beneficiaryAddress)) {
       throw Error('Not authorized');
@@ -2649,7 +2641,7 @@ export class MSP {
       streamName,
       new BN(startUtcInSeconds),
       new BN(rateAmount || 0),
-      new BN(rateIntervalInSeconds as number),
+      new BN(rateIntervalInSeconds || 0),
       new BN(allocationAssigned),
       new BN(cliffVestAmount || 0),
       new BN(cliffVestPercentValue),
@@ -2754,7 +2746,7 @@ export class MSP {
           streamBeneficiary.streamName,
           new BN(startUtcInSeconds),
           new BN(rateAmount || 0),
-          new BN(rateIntervalInSeconds as number),
+          new BN(rateIntervalInSeconds || 0),
           new BN(allocationAssigned),
           new BN(cliffVestAmount || 0),
           new BN(cliffVestPercentValue),
