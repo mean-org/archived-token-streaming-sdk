@@ -55,16 +55,6 @@ String.prototype.toPublicKey = function (): PublicKey {
   return new PublicKey(this.toString());
 };
 
-const defaultStreamActivity: StreamActivity = {
-  signature: '',
-  initializer: '',
-  action: '',
-  amount: '',
-  mint: '',
-  blockTime: 0,
-  utcDate: '',
-};
-
 export const createProgram = (
   connection: Connection,
   walletAddress: string,
@@ -90,7 +80,6 @@ export const createProgram = (
 export const getStream = async (
   program: Program<Msp>,
   address: PublicKey,
-  friendly = true,
 ): Promise<any> => {
   try {
     const streamEventResponse = await program.simulate.getStream(
@@ -112,7 +101,7 @@ export const getStream = async (
     }
 
     const event: any = streamEventResponse.events[0].data;
-    const streamInfo = parseGetStreamData(event, address, friendly);
+    const streamInfo = parseGetStreamData(event, address);
 
     return streamInfo;
   } catch (error: any) {
@@ -123,7 +112,6 @@ export const getStream = async (
 
 export const getStreamCached = async (
   streamInfo: Stream,
-  friendly = true,
 ): Promise<Stream> => {
 
   const timeDiff = new BN(streamInfo.lastRetrievedTimeInSeconds).toNumber() - new BN(streamInfo.lastRetrievedBlockTime).toNumber();
@@ -133,7 +121,6 @@ export const getStreamCached = async (
     streamInfo.data,
     streamInfo.id,
     blocktime,
-    friendly,
   );
 
   parsedStream.createdBlockTime = streamInfo.createdBlockTime;
@@ -146,7 +133,6 @@ export const listStreams = async (
   treasurer?: PublicKey | undefined,
   treasury?: PublicKey | undefined,
   beneficiary?: PublicKey | undefined,
-  friendly = true,
   category?: Category,
   subCategory?: SubCategory,
 ): Promise<Stream[]> => {
@@ -170,18 +156,8 @@ export const listStreams = async (
         item.account,
         item.publicKey,
         blockTime,
-        friendly,
       );
       const info = Object.assign({}, parsedStream);
-      // let signatures = await program.provider.connection.getConfirmedSignaturesForAddress2(
-      //   friendly ? new PublicKey(info.id as string) : (info.id as PublicKey),
-      //   { limit: 1 },
-      //   'confirmed'
-      // );
-
-      // if (signatures.length > 0) {
-      //   info.createdBlockTime = signatures[0].blockTime as number;
-      // }
 
       streamInfoList.push(info);
     }
@@ -201,7 +177,6 @@ export const listStreams = async (
 
 export const listStreamsCached = async (
   streamInfoList: Stream[],
-  friendly = true,
 ): Promise<Stream[]> => {
   const streamList: Stream[] = [];
 
@@ -213,7 +188,6 @@ export const listStreamsCached = async (
       streamInfo.data,
       streamInfo.id,
       blockTime,
-      friendly,
     );
 
     parsedStream.createdBlockTime = streamInfo.createdBlockTime;
@@ -229,7 +203,6 @@ export const listStreamActivity = async (
   before = '',
   limit = 10,
   commitment?: Finality | undefined,
-  friendly = true,
 ): Promise<StreamActivityRaw[] | StreamActivity[]> => {
   let activityRaw: StreamActivityRaw[] = [];
   const finality = commitment !== undefined ? commitment : 'finalized';
@@ -258,8 +231,6 @@ export const listStreamActivity = async (
     activityRaw.sort((a, b) => (b.blockTime ?? 0) - (a.blockTime ?? 0));
   }
 
-  if (!friendly) return activityRaw;
-
   const activity = activityRaw.map(i => {
     return {
       signature: i.signature,
@@ -278,10 +249,9 @@ export const listStreamActivity = async (
 export const getTreasury = async (
   program: Program<Msp>,
   address: PublicKey,
-  friendly = true,
 ): Promise<Treasury> => {
   const treasury = await program.account.treasury.fetch(address);
-  const parsedTreasury = parseTreasuryData(treasury, address, friendly);
+  const parsedTreasury = parseTreasuryData(treasury, address);
 
   return parsedTreasury;
 };
@@ -289,10 +259,9 @@ export const getTreasury = async (
 export const getStreamTemplate = async (
   program: Program<Msp>,
   address: PublicKey,
-  friendly = true,
 ): Promise<StreamTemplate> => {
   const template = await program.account.streamTemplate.fetch(address);
-  return parseStreamTemplateData(template, address, friendly);
+  return parseStreamTemplateData(template, address);
 };
 
 export const findStreamTemplateAddress = async (
@@ -308,7 +277,6 @@ export const findStreamTemplateAddress = async (
 export const listTreasuries = async (
   program: Program<Msp>,
   treasurer?: PublicKey | undefined,
-  friendly = true,
   excludeAutoClose?: boolean,
   category?: Category,
   subCategory?: SubCategory,
@@ -348,7 +316,6 @@ export const listTreasuries = async (
         const parsedTreasury = parseTreasuryData(
           item.account,
           item.publicKey,
-          friendly,
         );
         const info = Object.assign({}, parsedTreasury);
 
@@ -547,13 +514,11 @@ const getFilteredStreamAccounts = async (
  * Parses the event returned by the get_stream getter in the mps program.
  * @param event
  * @param address stream address
- * @param friendly
  * @returns Stream
  */
 const parseGetStreamData = (
   event: any,
   address: PublicKey,
-  friendly = true,
 ) => {
   const nameBuffer = Buffer.from(event.name);
   const createdOnUtcInSeconds = event.createdOnUtc
@@ -608,7 +573,6 @@ const parseStreamItemData = (
   stream: any,
   address: PublicKey,
   blockTime: number,
-  friendly = true,
 ) => {
   const nameBuffer = Buffer.from(stream.name);
   const createdOnUtcInSeconds = stream.createdOnUtc
@@ -645,9 +609,7 @@ const parseStreamItemData = (
     status: getStreamStatus(stream, timeDiff),
     lastRetrievedBlockTime: blockTime,
     lastRetrievedTimeInSeconds: parseInt((Date.now() / 1_000).toString()),
-    totalWithdrawals: friendly
-      ? stream.totalWithdrawalsUnits.toNumber()
-      : stream.totalWithdrawalsUnits,
+    totalWithdrawals: stream.totalWithdrawalsUnits,
     feePayedByTreasurer: stream.feePayedByTreasurer,
     category: stream.category as Category,
     subCategory: stream.subCategory as SubCategory,
@@ -1188,15 +1150,17 @@ async function parseStreamTransactions(
 const parseTreasuryData = (
   treasury: any,
   address: PublicKey,
-  friendly = true,
 ) => {
+
   const nameBuffer = Buffer.from(treasury.name);
 
-  const treasuryAssocatedTokenMint = friendly
-    ? (treasury.associatedTokenAddress as PublicKey).equals(PublicKey.default)
-      ? ''
-      : treasury.associatedTokenAddress.toBase58()
-    : treasury.associatedTokenAddress;
+  const treasuryAssocatedTokenMint = !(treasury.associatedTokenAddress as PublicKey).equals(PublicKey.default)
+    ? treasury.associatedTokenAddress.toBase58()
+    : '';
+
+  if (!treasuryAssocatedTokenMint) {
+    console.warn('Invalid treasuryAssocatedTokenMint for account:', address.toBase58());
+  }
 
   const treasuryCreatedUtc =
     treasury.createdOnUtc.toString().length > 10
@@ -1204,24 +1168,18 @@ const parseTreasuryData = (
       : treasury.createdOnUtc.toNumber();
 
   return {
-    id: friendly ? address.toBase58() : address,
+    id: address.toBase58(),
     version: treasury.version,
     initialized: treasury.initialized,
     name: new TextDecoder().decode(nameBuffer),
     bump: treasury.bump,
     slot: treasury.slot.toNumber(),
     labels: treasury.labels,
-    mint: friendly ? treasury.mintAddress.toBase58() : treasury.mintAddress,
+    mint: treasury.mintAddress.toBase58(),
     autoClose: treasury.autoClose,
-    createdOnUtc: friendly
-      ? new Date(treasuryCreatedUtc * 1_000).toString()
-      : new Date(treasuryCreatedUtc * 1_000),
-
-    treasuryType:
-      treasury.treasuryType === 0 ? TreasuryType.Open : TreasuryType.Lock,
-    treasurer: friendly
-      ? treasury.treasurerAddress.toBase58()
-      : treasury.treasurerAddress,
+    createdOnUtc: new Date(treasuryCreatedUtc * 1_000).toString(),
+    treasuryType: treasury.treasuryType === 0 ? TreasuryType.Open : TreasuryType.Lock,
+    treasurer: treasury.treasurerAddress.toBase58(),
     associatedToken: treasuryAssocatedTokenMint,
     balance: treasury.lastKnownBalanceUnits,
     allocationReserved: treasury.allocationReservedUnits,
@@ -1237,19 +1195,14 @@ const parseTreasuryData = (
 const parseStreamTemplateData = (
   template: any,
   address: PublicKey,
-  friendly = true,
 ) => {
   return {
-    id: friendly ? address.toBase58() : address,
+    id: address,
     version: template.version,
     bump: template.bump,
     durationNumberOfUnits: template.durationNumberOfUnits.toNumber(),
-    rateIntervalInSeconds: friendly
-      ? template.rateIntervalInSeconds.toNumber()
-      : template.rateIntervalInSeconds,
-    startUtc: friendly
-      ? new Date(template.startUtcInSeconds * 1000).toString()
-      : new Date(template.startUtcInSeconds * 1000),
+    rateIntervalInSeconds: template.rateIntervalInSeconds.toNumber(),
+    startUtc: new Date(template.startUtcInSeconds * 1000).toString(),
     cliffVestPercent: template.cliffVestPercent.toNumber(),
     feePayedByTreasurer: template.feePayedByTreasurer,
   } as StreamTemplate;
@@ -1712,7 +1665,6 @@ export const listVestingTreasuryActivity = async (
   before = '',
   limit = 10,
   commitment?: Finality | undefined,
-  friendly = true,
 ): Promise<VestingTreasuryActivityRaw[] | VestingTreasuryActivity[]> => {
   let activityRaw: VestingTreasuryActivityRaw[] = [];
   const finality = commitment !== undefined ? commitment : 'finalized';
@@ -1750,8 +1702,6 @@ export const listVestingTreasuryActivity = async (
       activityRaw.push(createVestingTreasuryActivity);
     }
   }
-
-  if (!friendly) return activityRaw;
 
   const activity = activityRaw.map(i => {
     return {

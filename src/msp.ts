@@ -94,20 +94,19 @@ export class MSP {
     );
   }
 
-  public async getStream(id: PublicKey, friendly = true): Promise<any> {
+  public async getStream(id: PublicKey): Promise<any> {
     const program = createProgram(
       this.connection,
       Constants.FEE_TREASURY.toBase58(),
       this.customProgramId,
     );
 
-    return getStream(program, id, friendly);
+    return getStream(program, id);
   }
 
   public async refreshStream(
     streamInfo: any,
     hardUpdate = false,
-    friendly = true,
   ): Promise<any> {
     const copyStreamInfo = Object.assign({}, streamInfo);
 
@@ -126,14 +125,13 @@ export class MSP {
       return await getStream(program, streamId);
     }
 
-    return getStreamCached(copyStreamInfo, friendly);
+    return getStreamCached(copyStreamInfo);
   }
 
   public async listStreams({
     treasurer,
     treasury,
     beneficiary,
-    friendly = true,
     category = undefined,
     subCategory = undefined,
   }: ListStreamParams): Promise<Stream[]> {
@@ -142,7 +140,6 @@ export class MSP {
       treasurer,
       treasury,
       beneficiary,
-      friendly,
       category,
       subCategory,
     );
@@ -154,7 +151,6 @@ export class MSP {
     treasury?: PublicKey | undefined,
     beneficiary?: PublicKey | undefined,
     hardUpdate = false,
-    friendly = true,
   ): Promise<Stream[]> {
     if (hardUpdate) {
       return await listStreams(
@@ -162,11 +158,10 @@ export class MSP {
         treasurer,
         treasury,
         beneficiary,
-        friendly,
       );
     }
 
-    return listStreamsCached(streamInfoList, friendly);
+    return listStreamsCached(streamInfoList);
   }
 
   /**
@@ -175,7 +170,6 @@ export class MSP {
    * @param before The signature to start searching backwards from.
    * @param limit The max amount of elements to retrieve
    * @param commitment Commitment to query the stream activity
-   * @param friendly The data will be displayed in a user readable format
    * @returns
    */
   public async listStreamActivity(
@@ -183,7 +177,6 @@ export class MSP {
     before: string,
     limit = 10,
     commitment?: Finality | undefined,
-    friendly = true,
   ): Promise<any[]> {
     const accountInfo = await this.connection.getAccountInfo(id, commitment);
 
@@ -197,14 +190,12 @@ export class MSP {
       before,
       limit,
       commitment,
-      friendly,
     );
   }
 
   public async getTreasury(
     id: PublicKey,
     commitment?: Commitment | undefined,
-    friendly = true,
   ): Promise<Treasury> {
     const accountInfo = await this.program.account.treasury.getAccountInfo(
       id,
@@ -215,12 +206,11 @@ export class MSP {
       throw Error("Treasury doesn't exists");
     }
 
-    return getTreasury(this.program, id, friendly);
+    return getTreasury(this.program, id);
   }
 
   public async listTreasuries(
     treasurer: PublicKey | undefined,
-    friendly = true,
     excludeAutoClose?: boolean,
     category?: Category,
     subCategory?: SubCategory,
@@ -228,7 +218,6 @@ export class MSP {
     return listTreasuries(
       this.program,
       treasurer,
-      friendly,
       excludeAutoClose,
       category,
       subCategory,
@@ -237,13 +226,12 @@ export class MSP {
 
   public async getStreamTemplate(
     treasury: PublicKey,
-    friendly = true,
   ): Promise<StreamTemplate> {
     const [template] = await findStreamTemplateAddress(
       treasury,
       this.program.programId,
     );
-    return getStreamTemplate(this.program, template, friendly);
+    return getStreamTemplate(this.program, template);
   }
 
   /**
@@ -1289,7 +1277,6 @@ export class MSP {
    * @param before The signature to start searching backwards from.
    * @param limit The max amount of elements to retrieve
    * @param commitment Commitment to query the treasury activity
-   * @param friendly The data will be displayed in a user readable format
    * @returns
    */
   public async listVestingTreasuryActivity(
@@ -1297,7 +1284,6 @@ export class MSP {
     before: string,
     limit = 10,
     commitment?: Finality | undefined,
-    friendly = true,
   ): Promise<VestingTreasuryActivity[] | VestingTreasuryActivityRaw[]> {
     const accountInfo = await this.connection.getAccountInfo(id, commitment);
 
@@ -1311,7 +1297,6 @@ export class MSP {
       before,
       limit,
       commitment,
-      friendly,
     );
   }
 
@@ -1335,7 +1320,7 @@ export class MSP {
       vestingTreasury,
       this.program.programId,
     );
-    const templateInfo = await getStreamTemplate(this.program, templateAddress, false);
+    const templateInfo = await getStreamTemplate(this.program, templateAddress);
     if (!templateInfo) {
       throw Error("Stream template doesn't exist");
     }
@@ -1353,7 +1338,6 @@ export class MSP {
      * treasurer?: PublicKey | undefined
      * treasury?: PublicKey | undefined
      * beneficiary?: PublicKey | undefined
-     * friendly?: boolean
      * category?: Category | undefined
      * subCategory?: SubCategory | undefined
      */
@@ -1362,7 +1346,6 @@ export class MSP {
       undefined,
       vestingTreasury,
       undefined,
-      false
     );
     let totalAllocation = new BN(0);
     let streamRate = new BN(0);
@@ -1426,7 +1409,7 @@ export class MSP {
       treasury,
       this.program.programId,
     );
-    const templateInfo = await getStreamTemplate(this.program, template, false);
+    const templateInfo = await getStreamTemplate(this.program, template);
     if (!templateInfo) {
       throw Error("Stream template doesn't exist");
     }
@@ -2266,7 +2249,7 @@ export class MSP {
       throw Error("Treasury doesn't exist");
     }
 
-    if (streamInfo.associatedToken !== treasuryInfo.associatedToken) {
+    if (streamInfo.associatedToken.toBase58() !== treasuryInfo.associatedToken) {
       throw Error('Invalid stream beneficiary associated token');
     }
 
