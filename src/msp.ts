@@ -48,6 +48,7 @@ import {
   findStreamTemplateAddress,
   getStream,
   getStreamCached,
+  getStreamRaw,
   getStreamTemplate,
   getTreasury,
   getValidTreasuryAllocation,
@@ -102,6 +103,16 @@ export class MSP {
     );
 
     return getStream(program, id);
+  }
+
+  public async getStreamRaw(id: PublicKey): Promise<any> {
+    const program = createProgram(
+      this.connection,
+      Constants.FEE_TREASURY.toBase58(),
+      this.customProgramId,
+    );
+
+    return getStreamRaw(program, id);
   }
 
   public async refreshStream(

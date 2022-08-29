@@ -110,6 +110,38 @@ export const getStream = async (
   }
 };
 
+export const getStreamRaw = async (
+  program: Program<Msp>,
+  address: PublicKey,
+): Promise<any> => {
+  try {
+    const streamEventResponse = await program.simulate.getStream(
+      LATEST_IDL_FILE_VERSION,
+      {
+        accounts: {
+          stream: address,
+        },
+      },
+    );
+
+    if (
+      !streamEventResponse ||
+      !streamEventResponse.events ||
+      !streamEventResponse.events.length ||
+      !streamEventResponse.events[0].data
+    ) {
+      return null;
+    }
+
+    const event: any = streamEventResponse.events[0].data;
+
+    return event;
+  } catch (error: any) {
+    console.log(error);
+    return null;
+  }
+};
+
 export const getStreamCached = async (
   streamInfo: Stream,
 ): Promise<Stream> => {
@@ -152,12 +184,10 @@ export const listStreams = async (
 
   for (const item of accounts) {
     if (item.account !== undefined) {
-      // const isDebugging = item.publicKey.toBase58() === 'H3kQsWVJJETPMEP5u8r3Q9GAP4w5MtE8wS7DwgneBN3t' ? true : false;
       const parsedStream = parseStreamItemData(
         item.account,
         item.publicKey,
         blockTime,
-        true
       );
       const info = Object.assign({}, parsedStream);
 
@@ -168,11 +198,6 @@ export const listStreams = async (
   const orderedStreams = streamInfoList.sort(
     (a, b) => b.createdBlockTime - a.createdBlockTime,
   );
-
-  // TODO: Remove after debugging
-  if (accounts.length > 0) {
-    console.log('items:', accounts.map((i: any) => i.account));
-  }
 
   return orderedStreams;
 };
@@ -583,7 +608,6 @@ const parseStreamItemData = (
   stream: any,
   address: PublicKey,
   blockTime: number,
-  isDebugging = false
 ) => {
   const nameBuffer = Buffer.from(stream.name);
   const createdOnUtcInSeconds = stream.createdOnUtc
@@ -604,7 +628,7 @@ const parseStreamItemData = (
   // console.log('startUtc:', startUtc.toString());
   const depletionDate = getStreamEstDepletionDate(stream);
   // console.log('depletionDate:', depletionDate.toString());
-  const streamStatus = getStreamStatus(stream, timeDiff, isDebugging);
+  const streamStatus = getStreamStatus(stream, timeDiff);
 
   const streamInfo = {
     id: address,
@@ -1400,7 +1424,7 @@ const getStreamWithdrawableAmount = (stream: any, timeDiff = 0) => {
   return BN.max(new BN(0), withdrawableAmount);
 };
 
-const getStreamStatus = (stream: any, timeDiff: number, isDebugging = false) => {
+const getStreamStatus = (stream: any, timeDiff: number) => {
   // Get the blockchain kind of "now" given the client timeDiff
   const blocktimeRelativeNow = (Date.now() / 1_000) - timeDiff;
   const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
@@ -1427,23 +1451,6 @@ const getStreamStatus = (stream: any, timeDiff: number, isDebugging = false) => 
 
   if (nonStopEarningUnits.gte(missedEarningUnitsWhilePaused)) {
     entitledEarnings = nonStopEarningUnits.sub(missedEarningUnitsWhilePaused);
-  }
-
-  if (isDebugging) {
-    console.log(`%cDEBUG STARTS:`, 'color:darkorange');
-
-    const streamName = new TextDecoder().decode(Buffer.from(stream.name));
-    console.log('Stream name:', streamName.trim());
-    console.log('cliffUnits:', cliffUnits.toString());
-    console.log('actualEarnedUnits:', entitledEarnings.toString());
-    console.log('allocationAssignedUnits:', stream.allocationAssignedUnits.toString());
-    const status = stream.allocationAssignedUnits.gt(entitledEarnings)
-      ? STREAM_STATUS.Running
-      : STREAM_STATUS.Paused;
-    console.log('Status:', STREAM_STATUS[status]);
-    console.log(status === STREAM_STATUS.Running ? 'allocationAssignedUnits > actualEarnedUnits' : 'allocationAssignedUnits <= actualEarnedUnits');
-
-    console.log(`%cDEBUG ENDS:`, 'color:darkorange');
   }
 
   // Running
