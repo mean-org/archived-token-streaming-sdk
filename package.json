@@ -1,6 +1,6 @@
 {
   "name": "@mean-dao/msp",
-  "version": "3.0.0-alpha.8",
+  "version": "3.0.0-alpha.9",
   "description": "MSP Typescript SDK",
   "private": false,
   "main": "lib/index.js",

@@ -1335,13 +1335,13 @@ export const getStreamWithdrawableAmount = (stream: any, timeDiff = 0) => {
 
 
   const streamedUnitsPerSecond = getStreamUnitsPerSecond(stream);
-  const cliffAmount = getStreamCliffAmount(stream);
+  const cliffUnits = new BigNumber(getStreamCliffAmount(stream).toString());
   // Get the blockchain kind of "now" given the client timeDiff
   const blocktimeRelativeNow = Math.round((Date.now() / 1_000) - timeDiff);
   const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
-  const timeSinceStart = blocktimeRelativeNow - startUtcInSeconds;
+  const secondsSinceStart = blocktimeRelativeNow - startUtcInSeconds;
   // const nonStopEarningUnits = cliffAmount + streamedUnitsPerSecond * timeSinceStart;
-  const nonStopEarningUnits = cliffAmount.addn(streamedUnitsPerSecond * timeSinceStart);
+  const nonStopEarningUnits = cliffUnits.plus(streamedUnitsPerSecond * secondsSinceStart);
   // const totalSecondsPaused =
   //   stream.lastKnownTotalSecondsInPausedStatus.toNumber().length >= 10
   //     ? parseInt(
@@ -1357,17 +1357,17 @@ export const getStreamWithdrawableAmount = (stream: any, timeDiff = 0) => {
   const missedEarningUnitsWhilePaused = streamedUnitsPerSecond * totalSecondsPaused;
   let entitledEarnings = nonStopEarningUnits;
 
-  if (nonStopEarningUnits.gten(missedEarningUnitsWhilePaused)) {
-    entitledEarnings = nonStopEarningUnits.subn(missedEarningUnitsWhilePaused);
+  if (nonStopEarningUnits.gte(missedEarningUnitsWhilePaused)) {
+    entitledEarnings = nonStopEarningUnits.plus(missedEarningUnitsWhilePaused);
   }
 
   let withdrawableUnitsWhileRunning = entitledEarnings;
 
   if (entitledEarnings.gte(stream.totalWithdrawalsUnits)) {
-    withdrawableUnitsWhileRunning = entitledEarnings.sub(stream.totalWithdrawalsUnits);
+    withdrawableUnitsWhileRunning = entitledEarnings.minus(stream.totalWithdrawalsUnits);
   }
 
-  const withdrawableAmount = BN.min(remainingAllocation, withdrawableUnitsWhileRunning);
+  const withdrawableAmount = BN.min(remainingAllocation, new BN(withdrawableUnitsWhileRunning.toNumber()));
 
   return BN.max(new BN(0), withdrawableAmount);
 };
@@ -1392,19 +1392,20 @@ export const getStreamStatus = (stream: any, timeDiff: number) => {
   const totalSecondsPaused = stream.lastKnownTotalSecondsInPausedStatus.toString().length >= 10
     ? parseInt((stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1_000).toString())
     : stream.lastKnownTotalSecondsInPausedStatus.toNumber();
-  const cliffUnits = getStreamCliffAmount(stream);
+  const cliffUnits = new BigNumber(getStreamCliffAmount(stream).toString());
   const secondsSinceStart = blocktimeRelativeNow - startUtcInSeconds;
   const streamedUnitsPerSecond = getStreamUnitsPerSecond(stream);
-  const nonStopEarningUnits = cliffUnits.addn(streamedUnitsPerSecond * secondsSinceStart);
+  const nonStopEarningUnits = cliffUnits.plus(streamedUnitsPerSecond * secondsSinceStart);
   const missedEarningUnitsWhilePaused = streamedUnitsPerSecond * totalSecondsPaused;
   let entitledEarnings = nonStopEarningUnits;
 
-  if (nonStopEarningUnits.gten(missedEarningUnitsWhilePaused)) {
-    entitledEarnings = nonStopEarningUnits.subn(missedEarningUnitsWhilePaused);
+  if (nonStopEarningUnits.gte(missedEarningUnitsWhilePaused)) {
+    entitledEarnings = nonStopEarningUnits.minus(missedEarningUnitsWhilePaused);
   }
 
+  const allocation = new BigNumber(stream.allocationAssignedUnits.toString());
   // Running
-  if (stream.allocationAssignedUnits.gt(entitledEarnings)) {
+  if (allocation.gt(entitledEarnings)) {
     return STREAM_STATUS.Running;
   }
 

@@ -237,7 +237,6 @@ export type Stream = {
   fundsLeftInStream: BN;
   fundsSentToBeneficiary: BN;
   remainingAllocationAmount: BN;
-  streamUnitsPerSecond: number;
   // Dates
   startUtc: string;
   createdOnUtc: string;
@@ -252,6 +251,7 @@ export type Stream = {
   initialized: boolean;
   version: number;
   name: string;
+  streamUnitsPerSecond: number;
   cliffVestPercent: number;
   upgradeRequired: boolean;
   status: STREAM_STATUS | string;
