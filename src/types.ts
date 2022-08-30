@@ -65,7 +65,6 @@ export interface ListStreamParams {
   treasury?: PublicKey | undefined;
   beneficiary?: PublicKey | undefined;
   commitment?: Commitment;
-  friendly?: boolean;
   category?: Category;
   subCategory?: SubCategory;
 }
@@ -260,7 +259,7 @@ export type Stream = {
   feePayedByTreasurer: boolean;
   category: Category;
   subCategory: SubCategory;
-  data: any;
+  data?: any;
 };
 
 /**

@@ -4,17 +4,29 @@ import {
   Keypair,
   Connection,
   PublicKey,
-  Transaction,
-  LAMPORTS_PER_SOL,
-  sendAndConfirmRawTransaction,
-  sendAndConfirmTransaction,
-  SystemProgram,
   clusterApiUrl
 } from '@solana/web3.js';
 
-import { Constants, Msp, MSP, TreasuryType, SubCategory, listTreasuries } from '../src';
-import { createProgram, getDefaultKeyPair, sleep } from "./utils";
-import { Category, TimeUnit } from "../src/types";
+import {
+  Constants,
+  Msp,
+  MSP,
+  getFilteredStreamAccounts,
+  getStreamStartUtcInSeconds,
+  getStreamEstDepletionDate,
+  getStreamStatus,
+  getStreamRemainingAllocation,
+  isStreamManuallyPaused,
+  getStreamUnitsPerSecond,
+  getStreamCliffAmount
+} from '../src';
+import { createProgram, getDefaultKeyPair } from "./utils";
+import { Category, STREAM_STATUS } from "../src/types";
+import { BN } from "bn.js";
+
+interface LooseObject {
+  [key: string]: any
+}
 
 const endpoint = clusterApiUrl('devnet'); //'http://localhost:8899';
 // deploy msp locally
@@ -22,10 +34,13 @@ const endpoint = clusterApiUrl('devnet'); //'http://localhost:8899';
 
 let msp: MSP;
 
-describe('Tests creating a vesting treasury\n', async () => {
-  let connection: Connection, program: Program<Msp>;
-  let user1Wallet: Keypair, user2Wallet: Keypair;
-  const yamelWalletAddress = new PublicKey('GFefRR6EASXvnphnJApp2PRH1wF1B5pJijKBZGFzq1x1');
+describe('MSP Tests\n', async () => {
+  let connection: Connection;
+  let program: Program<Msp>;
+  let user1Wallet: Keypair;
+  let user2Wallet: Keypair;
+  const userWalletAddress = new PublicKey('GFefRR6EASXvnphnJApp2PRH1wF1B5pJijKBZGFzq1x1');
+  let debugObject: LooseObject;
 
   before(async () => {
 
@@ -33,6 +48,7 @@ describe('Tests creating a vesting treasury\n', async () => {
     user2Wallet = Keypair.generate();
     const root = await getDefaultKeyPair();
     connection = new Connection(endpoint, 'confirmed');
+    debugObject = {};
     /*
     const tx = new Transaction();
     tx.add(SystemProgram.transfer({
@@ -58,15 +74,22 @@ describe('Tests creating a vesting treasury\n', async () => {
     msp = new MSP(endpoint, user1Wallet.publicKey.toBase58(), 'confirmed',
       // comment out to avoid error 'Attempt to load a program that does not exist'
       new PublicKey("2nZ8KDGdPBexJwWznPZosioWJzNBSM3doUXUYdo37ndN")
-    );*/
+    );
+    */
+
+    // For testing special use case
+    msp = new MSP(endpoint, userWalletAddress.toBase58(), 'confirmed',
+      new PublicKey("MSPCUMbLfy2MeT6geLMMzrUkv1Tx88XRApaVRdyxTuu")
+    );
 
     program = createProgram(
       connection,
-      yamelWalletAddress,
+      userWalletAddress,
       Constants.MSP
     );
 
   });
+
 /*
   it('Creates a vesting treasury and vesting stream', async () => {
     console.log('Creating a vesting treasury');
@@ -330,14 +353,173 @@ describe('Tests creating a vesting treasury\n', async () => {
     console.log("Close stream1 success.\n");
   });*/
 
-  it('utils > listTreasuries', async () => {
+  // it('utils > listTreasuries', async () => {
+  //   try {
+  //     const treasuries = await listTreasuries(program, userWalletAddress, true, Category.vesting);
+  //     console.log('treasuries:', treasuries);
+  //     expect(treasuries.length).not.eq(0);
+  //   } catch (error) {
+  //     console.error(error);
+  //     expect(true).eq(false);
+  //   }
+  // })
+
+  // it('MSP > listStreams', async () => {
+  //   try {
+
+  //     console.log("List streams");
+  //     const streams = await msp.listStreams({
+  //       treasurer: userWalletAddress,
+  //       beneficiary: userWalletAddress,
+  //       category: Category.default,
+  //     });
+  //     console.log('Streams:');
+  //     streams.forEach(s => console.log(`id: ${s.id.toBase58()} | name: ${s.name}`));
+  //     expect(streams.length).not.eq(0);
+  //     console.log("List streams success.");
+
+  //   } catch (error) {
+  //     console.error(error);
+  //     expect(true).eq(false);
+  //   }
+  // })
+
+  it('MSP > listStreams > select stream using filter and get info', async () => {
+    const targetStreamAddress = 'Nxw6ryFz7ycgzzGnTBCayEW6Rr8wKFT3por5JnybbMH';
     try {
-      const treasuries = await listTreasuries(program, yamelWalletAddress, true, true, Category.vesting);
-      console.log('treasuries:', treasuries);
-      expect(treasuries.length).not.eq(0);
+      console.log("Get list of streams...");
+      const accounts = await getFilteredStreamAccounts(
+        program,
+        userWalletAddress,
+        undefined,
+        userWalletAddress,
+        Category.default,
+      );
+      console.log("Selecting stream:", targetStreamAddress);
+      expect(accounts.length).not.eq(0);
+
+      const item = accounts.find(a => a.publicKey.toString() === targetStreamAddress);
+      expect(item).not.be.undefined;
+      expect(item.publicKey.toBase58()).equal(targetStreamAddress);
+      expect(item.account).not.be.undefined;
+
+      // To hold the value of the withdrawable amount
+      let streamWithdrawableAmount = new BN(0);
+
+      if (item) {
+        if (item.account !== undefined) {
+          const slot = await program.provider.connection.getSlot('finalized');
+          const blockTime = (await program.provider.connection.getBlockTime(slot)) as number;
+
+          // const parsedStream = parseStreamItemData(
+          //   item.account,
+          //   item.publicKey,
+          //   blockTime,
+          // );
+          // console.log('parsedStream:', parsedStream);
+          // expect(parsedStream).not.to.be.undefined;
+
+          const stream = item.account;
+          const address = item.publicKey;
+          const nameBuffer = Buffer.from(stream.name);
+          const createdOnUtcInSeconds = stream.createdOnUtc
+            ? stream.createdOnUtc.toNumber()
+            : 0;
+          const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
+          const effectiveCreatedOnUtcInSeconds = createdOnUtcInSeconds > 0
+            ? createdOnUtcInSeconds
+            : startUtcInSeconds;
+          const timeDiff = Math.round((Date.now() / 1_000) - blockTime);
+          const startUtc = new Date(startUtcInSeconds * 1000);
+          const depletionDate = getStreamEstDepletionDate(stream);
+          const status = getStreamStatus(stream, timeDiff);
+          // const streamMissedEarningUnitsWhilePaused = getStreamMissedEarningUnitsWhilePaused(stream);
+          const remainingAllocation = getStreamRemainingAllocation(stream);
+          const manuallyPaused = isStreamManuallyPaused(stream);
+          const cliffAmount = getStreamCliffAmount(stream);
+
+          debugObject = {
+            id: address.toBase58(),
+            version: stream.version,
+            name: new TextDecoder().decode(nameBuffer),
+            startUtc: startUtc.toString(),
+            secondsSinceStart: blockTime - startUtcInSeconds,
+            cliffVestPercent: stream.cliffVestPercent.toNumber() / 10_000,
+            cliffVestAmount: cliffAmount.toString(),
+            allocationAssigned: stream.allocationAssignedUnits.toString(),
+            estimatedDepletionDate: depletionDate.toString(),
+            rateAmount: stream.rateAmountUnits.toString(),
+            rateIntervalInSeconds: stream.rateIntervalInSeconds.toNumber(),
+            totalWithdrawalsAmount: stream.totalWithdrawalsUnits.toString(),
+            remainingAllocation: remainingAllocation.toString(),
+            status: `${STREAM_STATUS[status]} = ${status}`,
+            manuallyPaused: manuallyPaused,
+          };
+
+          // Continue evaluating if there is remaining allocation
+          if (remainingAllocation.gtn(0)) {
+            // Continue evaluating if the stream is not scheduled
+            if (status !== STREAM_STATUS.Schedule) {
+
+              if (status === STREAM_STATUS.Paused) {  // Check if PAUSED
+                const manuallyPaused = isStreamManuallyPaused(stream);
+                const withdrawableWhilePausedAmount = manuallyPaused
+                  ? stream.lastManualStopWithdrawableUnitsSnap
+                  : remainingAllocation;
+                streamWithdrawableAmount = BN.max(new BN(0), withdrawableWhilePausedAmount);
+              } else if (stream.rateAmountUnits.isZero() ||
+                         stream.rateIntervalInSeconds.isZero()) {  // Check if NOT RUNNING
+                streamWithdrawableAmount = new BN(0);
+              } else {
+                const streamUnitsPerSecond = getStreamUnitsPerSecond(stream);
+                console.log('streamUnitsPerSecond:', streamUnitsPerSecond);
+                const blocktimeRelativeNow = Math.round((Date.now() / 1_000) - timeDiff);
+                const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
+                const timeSinceStart = blocktimeRelativeNow - startUtcInSeconds;
+                const nonStopEarningUnits = streamUnitsPerSecond.muln(timeSinceStart).add(cliffAmount);
+                const totalSecondsPaused = stream.lastKnownTotalSecondsInPausedStatus.toString().length >= 10
+                    ? parseInt((stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1_000).toString())
+                    : stream.lastKnownTotalSecondsInPausedStatus.toNumber();
+                const missedEarningUnitsWhilePaused = streamUnitsPerSecond.muln(totalSecondsPaused);
+                let entitledEarnings = nonStopEarningUnits;
+
+                if (nonStopEarningUnits.gte(missedEarningUnitsWhilePaused)) {
+                  entitledEarnings = nonStopEarningUnits.sub(missedEarningUnitsWhilePaused);
+                }
+
+                let withdrawableUnitsWhileRunning = entitledEarnings;
+
+                if (entitledEarnings.gte(stream.totalWithdrawalsUnits)) {
+                  withdrawableUnitsWhileRunning = entitledEarnings.sub(stream.totalWithdrawalsUnits);
+                }
+
+                const withdrawableAmount = BN.min(remainingAllocation, withdrawableUnitsWhileRunning);
+
+                streamWithdrawableAmount = BN.max(new BN(0), withdrawableAmount);
+
+                debugObject.streamUnitsPerSecond = streamUnitsPerSecond.toString();
+                debugObject.startUtcInSeconds = startUtcInSeconds;
+                debugObject.timeSinceStart = timeSinceStart;
+                debugObject.nonStopEarningUnits = nonStopEarningUnits.toString();
+                debugObject.missedEarningUnitsWhilePaused = missedEarningUnitsWhilePaused.toString();
+                debugObject.withdrawableUnitsWhileRunning = withdrawableUnitsWhileRunning.toString();
+              }
+
+            }
+          }
+
+          debugObject.withdrawableAmount = streamWithdrawableAmount.toString();  // last
+          console.table(debugObject);
+
+        }
+      }
+
+      console.log("Selecting stream and get info success.");
+
     } catch (error) {
       console.error(error);
       expect(true).eq(false);
     }
-  })
+  });
+
 });
