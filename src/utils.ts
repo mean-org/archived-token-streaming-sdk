@@ -550,7 +550,6 @@ const parseGetStreamData = (
     ? event.createdOnUtc.toNumber()
     : 0;
 
-  // const startUtcInSeconds = event.startUtc.toNumber();
   const startUtcInSeconds = getStreamStartUtcInSeconds(event);
   const effectiveCreatedOnUtcInSeconds =
     createdOnUtcInSeconds > 0
@@ -558,9 +557,7 @@ const parseGetStreamData = (
       : event.startUtc.toNumber();
 
   const startUtc = new Date(startUtcInSeconds * 1000);
-  // console.log('startUtc:', startUtc.toString());
   const depletionDate = getStreamEstDepletionDate(event);
-  // console.log('depletionDate:', depletionDate.toString());
 
   const stream = {
     id: address,
@@ -630,9 +627,7 @@ export const parseStreamItemData = (
   const timeDiff = Math.round((Date.now() / 1_000) - blockTime);
 
   const startUtc = new Date(startUtcInSeconds * 1000);
-  // console.log('startUtc:', startUtc.toString());
   const depletionDate = getStreamEstDepletionDate(stream);
-  // console.log('depletionDate:', depletionDate.toString());
   const streamStatus = getStreamStatus(stream, timeDiff);
   const streamMissedEarningUnitsWhilePaused = getStreamMissedEarningUnitsWhilePaused(stream);
   const streamWithdrawableAmount = getStreamWithdrawableAmount(stream, timeDiff);
@@ -1346,7 +1341,7 @@ export const getStreamWithdrawableAmount = (stream: any, timeDiff = 0) => {
   const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
   const timeSinceStart = blocktimeRelativeNow - startUtcInSeconds;
   // const nonStopEarningUnits = cliffAmount + streamedUnitsPerSecond * timeSinceStart;
-  const nonStopEarningUnits = streamedUnitsPerSecond.muln(timeSinceStart).add(cliffAmount);
+  const nonStopEarningUnits = cliffAmount.addn(streamedUnitsPerSecond * timeSinceStart);
   // const totalSecondsPaused =
   //   stream.lastKnownTotalSecondsInPausedStatus.toNumber().length >= 10
   //     ? parseInt(
@@ -1359,12 +1354,11 @@ export const getStreamWithdrawableAmount = (stream: any, timeDiff = 0) => {
       ? parseInt((stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1_000).toString())
       : stream.lastKnownTotalSecondsInPausedStatus.toNumber();
 
-  // const missedEarningUnitsWhilePaused = streamedUnitsPerSecond * totalSecondsPaused;
-  const missedEarningUnitsWhilePaused = streamedUnitsPerSecond.muln(totalSecondsPaused);
+  const missedEarningUnitsWhilePaused = streamedUnitsPerSecond * totalSecondsPaused;
   let entitledEarnings = nonStopEarningUnits;
 
-  if (nonStopEarningUnits.gte(missedEarningUnitsWhilePaused)) {
-    entitledEarnings = nonStopEarningUnits.sub(missedEarningUnitsWhilePaused);
+  if (nonStopEarningUnits.gten(missedEarningUnitsWhilePaused)) {
+    entitledEarnings = nonStopEarningUnits.subn(missedEarningUnitsWhilePaused);
   }
 
   let withdrawableUnitsWhileRunning = entitledEarnings;
@@ -1395,16 +1389,18 @@ export const getStreamStatus = (stream: any, timeDiff: number) => {
     return STREAM_STATUS.Paused;
   }
 
-  // Running or automatically paused (ran out of funds)
+  const totalSecondsPaused = stream.lastKnownTotalSecondsInPausedStatus.toString().length >= 10
+    ? parseInt((stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1_000).toString())
+    : stream.lastKnownTotalSecondsInPausedStatus.toNumber();
   const cliffUnits = getStreamCliffAmount(stream);
   const secondsSinceStart = blocktimeRelativeNow - startUtcInSeconds;
   const streamedUnitsPerSecond = getStreamUnitsPerSecond(stream);
-  const nonStopEarningUnits = streamedUnitsPerSecond.muln(secondsSinceStart).add(cliffUnits);
-  const missedEarningUnitsWhilePaused = streamedUnitsPerSecond.mul(stream.lastKnownTotalSecondsInPausedStatus);
+  const nonStopEarningUnits = cliffUnits.addn(streamedUnitsPerSecond * secondsSinceStart);
+  const missedEarningUnitsWhilePaused = streamedUnitsPerSecond * totalSecondsPaused;
   let entitledEarnings = nonStopEarningUnits;
 
-  if (nonStopEarningUnits.gte(missedEarningUnitsWhilePaused)) {
-    entitledEarnings = nonStopEarningUnits.sub(missedEarningUnitsWhilePaused);
+  if (nonStopEarningUnits.gten(missedEarningUnitsWhilePaused)) {
+    entitledEarnings = nonStopEarningUnits.subn(missedEarningUnitsWhilePaused);
   }
 
   // Running
@@ -1428,17 +1424,13 @@ export const getStreamUnitsPerSecond = (stream: any) => {
 
   const interval = stream.rateIntervalInSeconds.toNumber();
   if (interval === 0) {
-    return new BN(0);
+    return 0;
   }
 
   const rateAmountUnits = new BigNumber(stream.rateAmountUnits.toString());
   const streamUnitsPerSecond = rateAmountUnits.dividedBy(interval);
 
-  if (streamUnitsPerSecond.lt(1)) {
-    return new BN(1);
-  }
-
-  return new BN(streamUnitsPerSecond.toNumber());
+  return streamUnitsPerSecond.toNumber();
 };
 
 export const getStreamStartUtcInSeconds = (stream: any): number => {

@@ -237,7 +237,7 @@ export type Stream = {
   fundsLeftInStream: BN;
   fundsSentToBeneficiary: BN;
   remainingAllocationAmount: BN;
-  streamUnitsPerSecond: BN;
+  streamUnitsPerSecond: number;
   // Dates
   startUtc: string;
   createdOnUtc: string;

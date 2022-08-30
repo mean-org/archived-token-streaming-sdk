@@ -472,19 +472,18 @@ describe('MSP Tests\n', async () => {
                 streamWithdrawableAmount = new BN(0);
               } else {
                 const streamUnitsPerSecond = getStreamUnitsPerSecond(stream);
-                console.log('streamUnitsPerSecond:', streamUnitsPerSecond);
                 const blocktimeRelativeNow = Math.round((Date.now() / 1_000) - timeDiff);
                 const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
                 const timeSinceStart = blocktimeRelativeNow - startUtcInSeconds;
-                const nonStopEarningUnits = streamUnitsPerSecond.muln(timeSinceStart).add(cliffAmount);
+                const nonStopEarningUnits = cliffAmount.addn(streamUnitsPerSecond * timeSinceStart);
                 const totalSecondsPaused = stream.lastKnownTotalSecondsInPausedStatus.toString().length >= 10
                     ? parseInt((stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1_000).toString())
                     : stream.lastKnownTotalSecondsInPausedStatus.toNumber();
-                const missedEarningUnitsWhilePaused = streamUnitsPerSecond.muln(totalSecondsPaused);
+                const missedEarningUnitsWhilePaused = streamUnitsPerSecond * totalSecondsPaused;
                 let entitledEarnings = nonStopEarningUnits;
 
-                if (nonStopEarningUnits.gte(missedEarningUnitsWhilePaused)) {
-                  entitledEarnings = nonStopEarningUnits.sub(missedEarningUnitsWhilePaused);
+                if (nonStopEarningUnits.gten(missedEarningUnitsWhilePaused)) {
+                  entitledEarnings = nonStopEarningUnits.subn(missedEarningUnitsWhilePaused);
                 }
 
                 let withdrawableUnitsWhileRunning = entitledEarnings;
@@ -497,7 +496,7 @@ describe('MSP Tests\n', async () => {
 
                 streamWithdrawableAmount = BN.max(new BN(0), withdrawableAmount);
 
-                debugObject.streamUnitsPerSecond = streamUnitsPerSecond.toString();
+                debugObject.streamUnitsPerSecond = streamUnitsPerSecond;
                 debugObject.startUtcInSeconds = startUtcInSeconds;
                 debugObject.timeSinceStart = timeSinceStart;
                 debugObject.nonStopEarningUnits = nonStopEarningUnits.toString();
