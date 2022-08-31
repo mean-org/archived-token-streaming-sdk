@@ -18,7 +18,8 @@ import {
   getStreamRemainingAllocation,
   isStreamManuallyPaused,
   getStreamUnitsPerSecond,
-  getStreamCliffAmount
+  getStreamCliffAmount,
+  listTreasuries
 } from '../src';
 import { createProgram, getDefaultKeyPair } from "./utils";
 import { Category, STREAM_STATUS } from "../src/types";
@@ -39,7 +40,7 @@ describe('MSP Tests\n', async () => {
   let program: Program<Msp>;
   let user1Wallet: Keypair;
   let user2Wallet: Keypair;
-  const userWalletAddress = new PublicKey('GFefRR6EASXvnphnJApp2PRH1wF1B5pJijKBZGFzq1x1');
+  const userWalletAddress = new PublicKey('DG6nJknzbAq8xitEjMEqUbc77PTzPDpzLjknEXn3vdXZ');
   let debugObject: LooseObject;
 
   before(async () => {
@@ -353,39 +354,39 @@ describe('MSP Tests\n', async () => {
     console.log("Close stream1 success.\n");
   });*/
 
-  // it('utils > listTreasuries', async () => {
-  //   try {
-  //     const treasuries = await listTreasuries(program, userWalletAddress, true, Category.vesting);
-  //     console.log('treasuries:', treasuries);
-  //     expect(treasuries.length).not.eq(0);
-  //   } catch (error) {
-  //     console.error(error);
-  //     expect(true).eq(false);
-  //   }
-  // })
+  it('utils > listTreasuries', async () => {
+    try {
+      const treasuries = await listTreasuries(program, userWalletAddress, true, Category.vesting);
+      console.log('treasuries:', treasuries);
+      expect(treasuries.length).not.eq(0);
+    } catch (error) {
+      console.error(error);
+      expect(true).eq(false);
+    }
+  })
 
-  // it('MSP > listStreams', async () => {
-  //   try {
+  it('MSP > listStreams', async () => {
+    try {
 
-  //     console.log("List streams");
-  //     const streams = await msp.listStreams({
-  //       treasurer: userWalletAddress,
-  //       beneficiary: userWalletAddress,
-  //       category: Category.default,
-  //     });
-  //     console.log('Streams:');
-  //     streams.forEach(s => console.log(`id: ${s.id.toBase58()} | name: ${s.name}`));
-  //     expect(streams.length).not.eq(0);
-  //     console.log("List streams success.");
+      console.log("List streams");
+      const streams = await msp.listStreams({
+        treasurer: userWalletAddress,
+        beneficiary: userWalletAddress,
+        category: Category.default,
+      });
+      console.log('Streams:');
+      streams.forEach(s => console.log(`id: ${s.id.toBase58()} | name: ${s.name}`));
+      expect(streams.length).not.eq(0);
+      console.log("List streams success.");
 
-  //   } catch (error) {
-  //     console.error(error);
-  //     expect(true).eq(false);
-  //   }
-  // })
+    } catch (error) {
+      console.error(error);
+      expect(true).eq(false);
+    }
+  })
 
   it('MSP > listStreams > select stream using filter and get info', async () => {
-    const targetStreamAddress = 'Nxw6ryFz7ycgzzGnTBCayEW6Rr8wKFT3por5JnybbMH';
+    const targetStreamAddress = '6h2aPBP8Mw6XPPBSGEqvBZ48JvzQAMKwmc7stqmwR2Z2';
     try {
       console.log("Get list of streams...");
       const accounts = await getFilteredStreamAccounts(
@@ -410,15 +411,6 @@ describe('MSP Tests\n', async () => {
         if (item.account !== undefined) {
           const slot = await program.provider.connection.getSlot('finalized');
           const blockTime = (await program.provider.connection.getBlockTime(slot)) as number;
-
-          // const parsedStream = parseStreamItemData(
-          //   item.account,
-          //   item.publicKey,
-          //   blockTime,
-          // );
-          // console.log('parsedStream:', parsedStream);
-          // expect(parsedStream).not.to.be.undefined;
-
           const stream = item.account;
           const address = item.publicKey;
           const nameBuffer = Buffer.from(stream.name);
@@ -437,6 +429,7 @@ describe('MSP Tests\n', async () => {
           const remainingAllocation = getStreamRemainingAllocation(stream);
           const manuallyPaused = isStreamManuallyPaused(stream);
           const cliffAmount = getStreamCliffAmount(stream);
+          const streamUnitsPerSecond = getStreamUnitsPerSecond(stream);
 
           debugObject = {
             id: address.toBase58(),
@@ -454,6 +447,7 @@ describe('MSP Tests\n', async () => {
             remainingAllocation: remainingAllocation.toString(),
             status: `${STREAM_STATUS[status]} = ${status}`,
             manuallyPaused: manuallyPaused,
+            streamUnitsPerSecond: streamUnitsPerSecond,
           };
 
           // Continue evaluating if there is remaining allocation
@@ -471,7 +465,6 @@ describe('MSP Tests\n', async () => {
                          stream.rateIntervalInSeconds.isZero()) {  // Check if NOT RUNNING
                 streamWithdrawableAmount = new BN(0);
               } else {
-                const streamUnitsPerSecond = getStreamUnitsPerSecond(stream);
                 const blocktimeRelativeNow = Math.round((Date.now() / 1_000) - timeDiff);
                 const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
                 const timeSinceStart = blocktimeRelativeNow - startUtcInSeconds;
@@ -496,7 +489,6 @@ describe('MSP Tests\n', async () => {
 
                 streamWithdrawableAmount = BN.max(new BN(0), withdrawableAmount);
 
-                debugObject.streamUnitsPerSecond = streamUnitsPerSecond;
                 debugObject.startUtcInSeconds = startUtcInSeconds;
                 debugObject.timeSinceStart = timeSinceStart;
                 debugObject.nonStopEarningUnits = nonStopEarningUnits.toString();
