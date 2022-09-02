@@ -88,8 +88,8 @@ export class MSP {
     this.program = createProgram(this.connection, programId);
   }
 
-  public async getStream(id: PublicKey, friendly = true): Promise<any> {
-    return getStream(this.program, id, friendly);
+  public async getStream(id: PublicKey): Promise<any> {
+    return getStream(this.program, id);
   }
 
   public async refreshStream(

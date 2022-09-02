@@ -61,16 +61,16 @@ export type TransactionMessage = {
 };
 
 export interface ListStreamParams {
-  treasurer?: PublicKey | undefined;
-  treasury?: PublicKey | undefined;
-  beneficiary?: PublicKey | undefined;
+  treasurer?: PublicKey;
+  treasury?: PublicKey;
+  beneficiary?: PublicKey;
   commitment?: Commitment;
   category?: Category;
   subCategory?: SubCategory;
 }
 
 /**
- * Stream activity (Friendly version with PublicKeys converted to string)
+ * Stream activity
  */
 export type StreamActivity = {
   signature: string;
@@ -96,7 +96,7 @@ export type StreamActivityRaw = {
 };
 
 /**
- *  Vesting treasury activity (Friendly version with PublicKeys converted to string)
+ *  Vesting treasury activity
  */
 export type VestingTreasuryActivity = {
   signature: string;
