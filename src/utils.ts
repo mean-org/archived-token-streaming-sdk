@@ -65,8 +65,7 @@ const defaultStreamActivity: StreamActivity = {
 
 export const createProgram = (
   connection: Connection,
-  walletAddress: string,
-  _customProgramId?: PublicKey,
+  programId: string,
 ): Program<Msp> => {
   const opts: ConfirmOptions = {
     preflightCommitment: 'finalized',
@@ -74,15 +73,14 @@ export const createProgram = (
   };
 
   const wallet: Wallet = {
-    publicKey: new PublicKey(walletAddress),
+    publicKey: Constants.READONLY_PUBKEY,
     signAllTransactions: async txs => txs,
     signTransaction: async tx => tx,
   };
 
   const provider = new AnchorProvider(connection, wallet, opts);
 
-  if (_customProgramId) return new Program(IDL, _customProgramId, provider);
-  return new Program(IDL, Constants.MSP, provider);
+  return new Program(IDL, programId, provider);
 };
 
 export const getStream = async (
