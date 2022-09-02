@@ -4,7 +4,8 @@ import { PublicKey } from '@solana/web3.js';
  * Constants
  */
 export class Constants {
-  static MSP = new PublicKey('MSPCUMbLfy2MeT6geLMMzrUkv1Tx88XRApaVRdyxTuu');
+  // DEVNET MSP program address: MSPdQo5ZdrPh6rU1LsvUv5nRhAnj1mj6YQEqBUq8YwZ
+  // MAINNET MSP program address: MSPCUMbLfy2MeT6geLMMzrUkv1Tx88XRApaVRdyxTuu
   static FEE_TREASURY = new PublicKey(
     '3TD6SWY9M1mLY2kZWJNavPLhwXvcRsWdnZLRaMzERJBw',
   );
@@ -15,6 +16,9 @@ export class Constants {
   static MAX_TX_SIZE = 1200;
   // This is an internal convention to identify the intention to use NATIVE sol and not SPL wSOL
   static SOL_MINT = new PublicKey('11111111111111111111111111111111');
+  static READONLY_PUBKEY = new PublicKey(
+    '3KmMEv7A8R3MMhScQceXBQe69qLmnFfxSM3q8HyzkrSx',
+  );
 }
 
 export const LATEST_IDL_FILE_VERSION = 4;
