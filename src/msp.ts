@@ -92,6 +92,10 @@ export class MSP {
     return getStream(this.program, id);
   }
 
+  public async getStreamRaw(id: PublicKey): Promise<any> {
+    return getStreamRaw(this.program, id);
+  }
+
   public async refreshStream(
     streamInfo: any,
     hardUpdate = false,
