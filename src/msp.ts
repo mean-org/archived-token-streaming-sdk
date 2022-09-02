@@ -69,7 +69,6 @@ export class MSP {
   private connection: Connection;
   private program: Program<Msp>;
   private commitment: Commitment | ConnectionConfig | undefined;
-  private customProgramId: PublicKey | undefined;
 
   /**
    * Create a Streaming API object
@@ -78,41 +77,19 @@ export class MSP {
    */
   constructor(
     rpcUrl: string,
-    walletAddress: string,
+    programId: string,
     commitment: Commitment | string = 'finalized',
-    _customProgramId?: PublicKey,
   ) {
     this.commitment = commitment as Commitment;
     this.connection = new Connection(
       rpcUrl,
       (this.commitment as Commitment) || 'finalized',
     );
-    this.customProgramId = _customProgramId;
-    this.program = createProgram(
-      this.connection,
-      walletAddress,
-      _customProgramId,
-    );
+    this.program = createProgram(this.connection, programId);
   }
 
-  public async getStream(id: PublicKey): Promise<any> {
-    const program = createProgram(
-      this.connection,
-      Constants.FEE_TREASURY.toBase58(),
-      this.customProgramId,
-    );
-
-    return getStream(program, id);
-  }
-
-  public async getStreamRaw(id: PublicKey): Promise<any> {
-    const program = createProgram(
-      this.connection,
-      Constants.FEE_TREASURY.toBase58(),
-      this.customProgramId,
-    );
-
-    return getStreamRaw(program, id);
+  public async getStream(id: PublicKey, friendly = true): Promise<any> {
+    return getStream(this.program, id, friendly);
   }
 
   public async refreshStream(
@@ -122,18 +99,12 @@ export class MSP {
     const copyStreamInfo = Object.assign({}, streamInfo);
 
     if (hardUpdate) {
-      const program = createProgram(
-        this.connection,
-        Constants.FEE_TREASURY.toBase58(),
-        this.customProgramId,
-      );
-
       const streamId =
         typeof copyStreamInfo.id === 'string'
           ? new PublicKey(copyStreamInfo.id)
           : (copyStreamInfo.id as PublicKey);
 
-      return await getStream(program, streamId);
+      return await getStream(this.program, streamId);
     }
 
     return getStreamCached(copyStreamInfo);
