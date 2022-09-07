@@ -19,11 +19,13 @@ import {
   isStreamManuallyPaused,
   getStreamUnitsPerSecond,
   getStreamCliffAmount,
-  listTreasuries
+  listTreasuries,
+  createProgram
 } from '../src';
-import { createProgram, getDefaultKeyPair } from "./utils";
+import { getDefaultKeyPair } from "./utils";
 import { Category, STREAM_STATUS } from "../src/types";
 import { BN } from "bn.js";
+import BigNumber from "bignumber.js";
 
 interface LooseObject {
   [key: string]: any
@@ -40,7 +42,9 @@ describe('MSP Tests\n', async () => {
   let program: Program<Msp>;
   let user1Wallet: Keypair;
   let user2Wallet: Keypair;
-  const userWalletAddress = new PublicKey('DG6nJknzbAq8xitEjMEqUbc77PTzPDpzLjknEXn3vdXZ');
+  // const userWalletAddress = new PublicKey('DG6nJknzbAq8xitEjMEqUbc77PTzPDpzLjknEXn3vdXZ');
+  const userWalletAddress = new PublicKey('4esXsAJjoExvhPZf1EMvDaajJeCTm72EYt3aurn3fFUG');
+  const programId = 'MSPdQo5ZdrPh6rU1LsvUv5nRhAnj1mj6YQEqBUq8YwZ';
   let debugObject: LooseObject;
 
   before(async () => {
@@ -48,8 +52,9 @@ describe('MSP Tests\n', async () => {
     user1Wallet = Keypair.generate();
     user2Wallet = Keypair.generate();
     const root = await getDefaultKeyPair();
-    connection = new Connection(endpoint, 'confirmed');
     debugObject = {};
+    connection = new Connection(endpoint, 'confirmed');
+    program = createProgram(connection, programId);
     /*
     const tx = new Transaction();
     tx.add(SystemProgram.transfer({
@@ -76,8 +81,8 @@ describe('MSP Tests\n', async () => {
     await sendAndConfirmTransaction(connection, tx, [root], { commitment: 'confirmed' });
     console.log("Balance user1: : ", await connection.getBalance(user1Wallet.publicKey, 'confirmed'));
     console.log("Balance user2: : ", await connection.getBalance(user2Wallet.publicKey, 'confirmed'));
-
-    msp = new MSP(endpoint, "MSPdQo5ZdrPh6rU1LsvUv5nRhAnj1mj6YQEqBUq8YwZ", 'confirmed');
+    */
+    msp = new MSP(endpoint, programId, 'confirmed');
   });
 
 /*
@@ -345,8 +350,9 @@ describe('MSP Tests\n', async () => {
 
   it('utils > listTreasuries', async () => {
     try {
-      const treasuries = await listTreasuries(program, userWalletAddress, true, Category.vesting);
-      console.log('treasuries:', treasuries);
+      const treasuries = await msp.listTreasuries(userWalletAddress, true, Category.default);
+      console.log('treasuries:');
+      treasuries.forEach(s => console.log(`id: ${s.id} | name: ${s.name}`));
       expect(treasuries.length).not.eq(0);
     } catch (error) {
       console.error(error);
@@ -356,7 +362,6 @@ describe('MSP Tests\n', async () => {
 
   it('MSP > listStreams', async () => {
     try {
-
       console.log("List streams");
       const streams = await msp.listStreams({
         treasurer: userWalletAddress,
@@ -364,7 +369,7 @@ describe('MSP Tests\n', async () => {
         category: Category.default,
       });
       console.log('Streams:');
-      streams.forEach(s => console.log(`id: ${s.id.toBase58()} | name: ${s.name}`));
+      streams.forEach(s => console.log(`id: ${s.id.toBase58()} | name: ${s.name} | wAmount: ${s.withdrawableAmount.toString()}`));
       expect(streams.length).not.eq(0);
       console.log("List streams success.");
 
@@ -375,7 +380,7 @@ describe('MSP Tests\n', async () => {
   })
 
   it('MSP > listStreams > select stream using filter and get info', async () => {
-    const targetStreamAddress = '6h2aPBP8Mw6XPPBSGEqvBZ48JvzQAMKwmc7stqmwR2Z2';
+    const targetStreamAddress = 'Cx14kzEJJqUsXYdKS6BcXGGM4Mtn6m3VbRpr3o1FifdK';
     try {
       console.log("Get list of streams...");
       const accounts = await getFilteredStreamAccounts(
@@ -457,7 +462,12 @@ describe('MSP Tests\n', async () => {
                 const blocktimeRelativeNow = Math.round((Date.now() / 1_000) - timeDiff);
                 const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
                 const timeSinceStart = blocktimeRelativeNow - startUtcInSeconds;
-                const nonStopEarningUnits = cliffAmount.addn(streamUnitsPerSecond * timeSinceStart);
+
+                const cliffAmount2 = new BigNumber(cliffAmount.toString());
+                const unitsSinceStart = new BigNumber(streamUnitsPerSecond * timeSinceStart);
+                const nonStopEarningUnits2 = cliffAmount2.plus(unitsSinceStart).toString();
+
+                const nonStopEarningUnits = new BN(nonStopEarningUnits2);
                 const totalSecondsPaused = stream.lastKnownTotalSecondsInPausedStatus.toString().length >= 10
                     ? parseInt((stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1_000).toString())
                     : stream.lastKnownTotalSecondsInPausedStatus.toNumber();

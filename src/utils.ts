@@ -1331,23 +1331,13 @@ export const getStreamWithdrawableAmount = (stream: any, timeDiff = 0) => {
     return new BN(0);
   }
 
-
   const streamedUnitsPerSecond = getStreamUnitsPerSecond(stream);
   const cliffUnits = new BigNumber(getStreamCliffAmount(stream).toString());
   // Get the blockchain kind of "now" given the client timeDiff
   const blocktimeRelativeNow = Math.round((Date.now() / 1_000) - timeDiff);
   const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
   const secondsSinceStart = blocktimeRelativeNow - startUtcInSeconds;
-  // const nonStopEarningUnits = cliffAmount + streamedUnitsPerSecond * timeSinceStart;
   const nonStopEarningUnits = cliffUnits.plus(streamedUnitsPerSecond * secondsSinceStart);
-  // const totalSecondsPaused =
-  //   stream.lastKnownTotalSecondsInPausedStatus.toNumber().length >= 10
-  //     ? parseInt(
-  //         (
-  //           stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1_000
-  //         ).toString(),
-  //       )
-  //     : stream.lastKnownTotalSecondsInPausedStatus.toNumber();
   const totalSecondsPaused = stream.lastKnownTotalSecondsInPausedStatus.toString().length >= 10
       ? parseInt((stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1_000).toString())
       : stream.lastKnownTotalSecondsInPausedStatus.toNumber();
@@ -1365,9 +1355,9 @@ export const getStreamWithdrawableAmount = (stream: any, timeDiff = 0) => {
     withdrawableUnitsWhileRunning = entitledEarnings.minus(stream.totalWithdrawalsUnits);
   }
 
-  const withdrawableAmount = BN.min(remainingAllocation, new BN(withdrawableUnitsWhileRunning.toNumber()));
+  const withdrawableAmount = BigNumber.min(new BigNumber(remainingAllocation.toString()), new BigNumber(withdrawableUnitsWhileRunning.toString())).integerValue();
 
-  return BN.max(new BN(0), withdrawableAmount);
+  return BN.max(new BN(0), new BN(withdrawableAmount.toString()));
 };
 
 export const getStreamStatus = (stream: any, timeDiff: number) => {
