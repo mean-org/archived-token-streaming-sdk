@@ -1526,7 +1526,7 @@ export class MSP {
     const tx = this.program.transaction.createStreamWithTemplate(
       LATEST_IDL_FILE_VERSION,
       streamName,
-      rateAmount,
+      new BN(rateAmount),
       new BN(allocationAssigned),
       {
         accounts: {
