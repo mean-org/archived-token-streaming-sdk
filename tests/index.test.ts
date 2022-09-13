@@ -58,8 +58,8 @@ describe('MSP Tests\n', async () => {
     debugObject = {};
     connection = new Connection(endpoint, 'confirmed');
 
-    // await connection.requestAirdrop(user1Wallet.publicKey, 2 * LAMPORTS_PER_SOL);
-    // console.log('before airdrop #1..');
+    //await connection.requestAirdrop(user1Wallet.publicKey, 2 * LAMPORTS_PER_SOL);
+    //console.log('before airdrop #1..');
     // await sleep(2000);
     // await connection.requestAirdrop(user2Wallet.publicKey, 2 * LAMPORTS_PER_SOL);
     // console.log('before airdrop #2..');
@@ -69,6 +69,16 @@ describe('MSP Tests\n', async () => {
     console.log("Balance user1: : ", await connection.getBalance(user1Wallet.publicKey, 'confirmed'));
     //console.log("Balance user2: : ", await connection.getBalance(user2Wallet.publicKey, 'confirmed'));
     msp = new MSP(endpoint, programId, 'confirmed');
+  });
+
+  it('Cliff calculation limit', () => {
+    const PERCENT_DENOMINATOR = 1_000_000;
+    const rateAmount = "29207750000000";
+    const allocationAssigned = "368940000000000";
+    const cliffMul = new BigNumber(rateAmount).multipliedBy(new BigNumber(allocationAssigned));
+    console.log(`effective_cliff_units multiplied: ${cliffMul.toFixed(0)}, length: ${cliffMul.toFixed(0).length}`);
+    const cliff = cliffMul.dividedBy(new BigNumber(PERCENT_DENOMINATOR));
+    console.log(`effective_cliff_units final result: ${cliff.toFixed(0)}, length: ${cliff.toFixed(0).length}`);
   });
 
   xit('Withdraw VC funds from 12-decimals token', async () => {
@@ -83,47 +93,45 @@ describe('MSP Tests\n', async () => {
     console.log(`Withdraw from stream1 success. TX_ID: ${withdrawStreamTxId}\n`);
   });
 
-  it('Create VC for 12-decimals token', async () => {
+  xit('Create VC for 12-decimals token', async () => {
     const decimals = 12;
     const fundingAmount = 1_000_000;
     const fundingAmountRaw = toTokenAmountBn(fundingAmount, decimals);
     const mint12Decimals = new PublicKey('Dma8Hv94ByVHMXDU8ioh6iW3P1gWTYk6PerAnGCtZMpv');
 
-    const treasury = new PublicKey('BNNsc1mrMzQjBc1jzpkEjttJxHKpLvZjrBmRTjwEN9Ve');
+    console.log('Creating a vesting treasury');
+    const [createVestingTreasuryTx, treasury] = await msp.createVestingTreasury(
+      user1Wallet.publicKey,
+      user1Wallet.publicKey,
+      `${decimals}D CreateVestingTreasury ${Date.now()}`.slice(0, 32),
+      TreasuryType.Open,
+      false,
+      mint12Decimals,
+      12,
+      TimeUnit.Minute,
+      fundingAmountRaw.toString(),
+      SubCategory.seed,
+      new Date(),
+    );
+    createVestingTreasuryTx.partialSign(user1Wallet);
+    const createVestingTreasuryTxSerialized = createVestingTreasuryTx.serialize({ verifySignatures: true });
+    console.log(createVestingTreasuryTxSerialized.toString('base64'));
+    const createVestingTreasuryTxId = await sendAndConfirmRawTransaction(connection, createVestingTreasuryTxSerialized, { commitment: 'confirmed' });
+    console.log(`Created a vesting treasury: ${treasury.toBase58()} TX_ID: ${createVestingTreasuryTxId}\n`);
 
-    // console.log('Creating a vesting treasury');
-    // const [createVestingTreasuryTx, treasury] = await msp.createVestingTreasury(
-    //   user1Wallet.publicKey,
-    //   user1Wallet.publicKey,
-    //   `MSP createVestingTreasury ${Date.now()}`.slice(0, 32),
-    //   TreasuryType.Open,
-    //   false,
-    //   mint12Decimals,
-    //   12,
-    //   TimeUnit.Minute,
-    //   fundingAmountRaw.toString(),
-    //   SubCategory.seed,
-    //   new Date(),
-    // );
-    // createVestingTreasuryTx.partialSign(user1Wallet);
-    // const createVestingTreasuryTxSerialized = createVestingTreasuryTx.serialize({ verifySignatures: true });
-    // console.log(createVestingTreasuryTxSerialized.toString('base64'));
-    // const createVestingTreasuryTxId = await sendAndConfirmRawTransaction(connection, createVestingTreasuryTxSerialized, { commitment: 'confirmed' });
-    // console.log(`Created a vesting treasury: ${treasury.toBase58()} TX_ID: ${createVestingTreasuryTxId}\n`);
-
-    // console.log('Adding funds to the treasury');
-    // const addFundsTx = await msp.addFunds(
-    //   user1Wallet.publicKey,
-    //   user1Wallet.publicKey,
-    //   treasury,
-    //   mint12Decimals,
-    //   fundingAmountRaw.toString(),
-    // );
-    // addFundsTx.partialSign(user1Wallet);
-    // const addFundsTxSerialized = addFundsTx.serialize({ verifySignatures: true });
-    // console.log(addFundsTxSerialized.toString('base64'));
-    // const addFundsTxId = await sendAndConfirmRawTransaction(connection, addFundsTxSerialized, { commitment: 'confirmed' });
-    // console.log(`Funds added TX_ID: ${addFundsTxId}\n`);
+    console.log('Adding funds to the treasury');
+    const addFundsTx = await msp.addFunds(
+      user1Wallet.publicKey,
+      user1Wallet.publicKey,
+      treasury,
+      mint12Decimals,
+      fundingAmountRaw.toString(),
+    );
+    addFundsTx.partialSign(user1Wallet);
+    const addFundsTxSerialized = addFundsTx.serialize({ verifySignatures: true });
+    console.log(addFundsTxSerialized.toString('base64'));
+    const addFundsTxId = await sendAndConfirmRawTransaction(connection, addFundsTxSerialized, { commitment: 'confirmed' });
+    console.log(`Funds added TX_ID: ${addFundsTxId}\n`);
 
     console.log('Creating vesting stream...');
     const [createStreamTx, stream] = await msp.createStreamWithTemplate(
@@ -132,15 +140,36 @@ describe('MSP Tests\n', async () => {
       treasury,
       user2Wallet.publicKey,
       fundingAmountRaw.toString(),
-      `MSP StreamWithTemplate at ${Date.now()}`.slice(0, 32)
+      `${decimals}D StreamWithTemplate at ${Date.now()}`.slice(0, 30)
     );
     createStreamTx.partialSign(user1Wallet);
-    const createStreamTxSerialized = createStreamTx.serialize({ verifySignatures: true });    
+    const createStreamTxSerialized = createStreamTx.serialize({ verifySignatures: true });
     console.log(createStreamTxSerialized.toString('base64'));
     const createStreamTxId = await sendAndConfirmRawTransaction(connection, createStreamTxSerialized, { commitment: 'confirmed' });
     console.log(`Stream created: ${stream.toBase58()} TX_ID: ${createStreamTxId}\n`);
-
   });
+
+  xit('Create VC Stream for 12-decimals token', async () => {
+    const decimals = 12;
+    const fundingAmount = 368.94;
+    const fundingAmountRaw = toTokenAmountBn(fundingAmount, decimals);
+    const treasury = new PublicKey("CRNkS5tdh5w4DubU1jX7XDAMjLYnxYgw6Ey1Hfs35Sx5");
+
+    console.log('Creating vesting stream...');
+    const [createStreamTx, stream] = await msp.createStreamWithTemplate(
+      user1Wallet.publicKey,
+      user1Wallet.publicKey,
+      treasury,
+      user2Wallet.publicKey,
+      fundingAmountRaw.toString(),
+      `${decimals}D StreamWithTemplate at ${Date.now()}`.slice(0, 30)
+    );
+    createStreamTx.partialSign(user1Wallet);
+    const createStreamTxSerialized = createStreamTx.serialize({ verifySignatures: true });
+    console.log(createStreamTxSerialized.toString('base64'));
+    const createStreamTxId = await sendAndConfirmRawTransaction(connection, createStreamTxSerialized, { commitment: 'confirmed' });
+    console.log(`Stream created: ${stream.toBase58()} TX_ID: ${createStreamTxId}\n`);
+  })
 
   xit('Create VC for 9-decimals token', async () => {
     const decimals = 9;
