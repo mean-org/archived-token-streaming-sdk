@@ -1,7 +1,7 @@
 /**
  * Solana
  */
- import {
+import {
   AccountInfo,
   Commitment,
   Connection,
@@ -2037,7 +2037,7 @@ export class MSP {
   public async withdraw(
     payer: PublicKey,
     stream: PublicKey,
-    amount: number,
+    amount: number | string,
     autoWSol = false,
   ): Promise<Transaction> {
     if (!amount) {
@@ -2753,7 +2753,7 @@ export class MSP {
     payer: PublicKey,
     destination: PublicKey,
     treasury: PublicKey,
-    amount: number,
+    amount: number | string,
     autoWSol = false,
   ): Promise<Transaction> {
     const treasuryInfo = await getTreasury(this.program, treasury);
