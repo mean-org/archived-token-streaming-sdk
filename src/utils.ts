@@ -78,7 +78,7 @@ export const createProgram = (
 export const getStream = async (
   program: Program<Msp>,
   address: PublicKey,
-): Promise<any> => {
+): Promise<Stream | null> => {
   try {
     const streamEventResponse = await program.simulate.getStream(
       LATEST_IDL_FILE_VERSION,
@@ -144,8 +144,8 @@ export const getStreamRaw = async (
 export const getStreamCached = async (
   streamInfo: Stream,
 ): Promise<Stream> => {
-  //TODO: BN check
-  const timeDiff = new BN(streamInfo.lastRetrievedTimeInSeconds).toNumber() - new BN(streamInfo.lastRetrievedBlockTime).toNumber();
+  //TODO: BN check -> Checked by Yamel. Timestamps ar ok as number
+  const timeDiff = streamInfo.lastRetrievedTimeInSeconds - streamInfo.lastRetrievedBlockTime;
   const blocktime = parseInt((Date.now() / 1_000).toString()) - timeDiff;
 
   const parsedStream = parseStreamItemData(
@@ -204,7 +204,7 @@ export const listStreamsCached = async (
   const streamList: Stream[] = [];
   //TODO: BN check
   for (const streamInfo of streamInfoList) {
-    const timeDiff = new BN(streamInfo.lastRetrievedTimeInSeconds).toNumber() - new BN(streamInfo.lastRetrievedBlockTime).toNumber();
+    const timeDiff = streamInfo.lastRetrievedTimeInSeconds - streamInfo.lastRetrievedBlockTime;
     const blockTime = parseInt((Date.now() / 1_000).toString()) - timeDiff;
 
     const parsedStream = parseStreamItemData(
@@ -361,14 +361,12 @@ export const calculateActionFees = async (
   connection: Connection,
   action: MSP_ACTIONS,
 ): Promise<TransactionFees> => {
-  const recentBlockhash = await connection.getRecentBlockhash(
-    connection.commitment as Commitment,
-  ),
-    txFees: TransactionFees = {
-      blockchainFee: 0.0,
-      mspFlatFee: 0.0,
-      mspPercentFee: 0.0,
-    };
+  const txFees: TransactionFees = {
+    blockchainFee: 0.0,
+    mspFlatFee: 0.0,
+    mspPercentFee: 0.0,
+  };
+
   let blockchainFee = 0;
 
   switch (action) {
@@ -572,7 +570,7 @@ const parseGetStreamData = (
     cliffVestAmount: event.cliffVestAmountUnits,
     cliffVestPercent: event.cliffVestPercent.toNumber() / 10_000,
     allocationAssigned: event.allocationAssignedUnits,
-    secondsSinceStart: event.currentBlockTime.sub(new BN(event.startUtc)).toNumber(), //TODO: BN check
+    secondsSinceStart: event.currentBlockTime.sub(new BN(event.startUtc)).toNumber(), //TODO: BN check -> Checked by Yamel. Timestamps ar ok as number
     estimatedDepletionDate: depletionDate.toString(),
     rateAmount: event.rateAmountUnits,
     rateIntervalInSeconds: event.rateIntervalInSeconds.toNumber(),
@@ -619,12 +617,7 @@ export const parseStreamItemData = (
   const effectiveCreatedOnUtcInSeconds =
     createdOnUtcInSeconds > 0 ? createdOnUtcInSeconds : startUtcInSeconds;
 
-  // Since "now" in the blockchain (expressed by blocktime)
-  // is not equal to "now" in the client (expressed by
-  // the Date object returned by the browser)
-  // Store this client difference for further calculations
   const timeDiff = Math.round((Date.now() / 1_000) - blockTime);
-
   const startUtc = new Date(startUtcInSeconds * 1000);
   const depletionDate = getStreamEstDepletionDate(stream);
   const streamStatus = getStreamStatus(stream, timeDiff);
