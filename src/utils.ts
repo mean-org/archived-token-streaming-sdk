@@ -144,7 +144,7 @@ export const getStreamRaw = async (
 export const getStreamCached = async (
   streamInfo: Stream,
 ): Promise<Stream> => {
-
+  //TODO: BN check
   const timeDiff = new BN(streamInfo.lastRetrievedTimeInSeconds).toNumber() - new BN(streamInfo.lastRetrievedBlockTime).toNumber();
   const blocktime = parseInt((Date.now() / 1_000).toString()) - timeDiff;
 
@@ -202,7 +202,7 @@ export const listStreamsCached = async (
   streamInfoList: Stream[],
 ): Promise<Stream[]> => {
   const streamList: Stream[] = [];
-
+//TODO: BN check
   for (const streamInfo of streamInfoList) {
     const timeDiff = new BN(streamInfo.lastRetrievedTimeInSeconds).toNumber() - new BN(streamInfo.lastRetrievedBlockTime).toNumber();
     const blockTime = parseInt((Date.now() / 1_000).toString()) - timeDiff;
@@ -362,8 +362,8 @@ export const calculateActionFees = async (
   action: MSP_ACTIONS,
 ): Promise<TransactionFees> => {
   const recentBlockhash = await connection.getRecentBlockhash(
-      connection.commitment as Commitment,
-    ),
+    connection.commitment as Commitment,
+  ),
     txFees: TransactionFees = {
       blockchainFee: 0.0,
       mspFlatFee: 0.0,
@@ -435,6 +435,7 @@ export const getValidTreasuryAllocation = async (
   treasury: Treasury,
   allocation: string | number,
 ) => {
+  //TODO: BN check
   const fees = await calculateActionFees(connection, MSP_ACTIONS.withdraw);
   //
   const BASE_100_TO_BASE_1_MULTIPLIER = 10_000;
@@ -571,7 +572,7 @@ const parseGetStreamData = (
     cliffVestAmount: event.cliffVestAmountUnits,
     cliffVestPercent: event.cliffVestPercent.toNumber() / 10_000,
     allocationAssigned: event.allocationAssignedUnits,
-    secondsSinceStart: event.currentBlockTime.sub(new BN(event.startUtc)).toNumber(),
+    secondsSinceStart: event.currentBlockTime.sub(new BN(event.startUtc)).toNumber(), //TODO: BN check
     estimatedDepletionDate: depletionDate.toString(),
     rateAmount: event.rateAmountUnits,
     rateIntervalInSeconds: event.rateIntervalInSeconds.toNumber(),
@@ -615,7 +616,7 @@ export const parseStreamItemData = (
     : 0;
 
   const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
-  const effectiveCreatedOnUtcInSeconds = 
+  const effectiveCreatedOnUtcInSeconds =
     createdOnUtcInSeconds > 0 ? createdOnUtcInSeconds : startUtcInSeconds;
 
   // Since "now" in the blockchain (expressed by blocktime)
@@ -703,6 +704,7 @@ export const parseStreamItemData = (
         : streamStatus === STREAM_STATUS.Running
           ? 'Running'
           : 'Paused',
+          //TODO: BN check
       isManualPause: isStreamManuallyPaused(stream),
       cliffUnits: new BN(getStreamCliffAmount(stream)),
       currentBlockTime: new BN(blockTime),
@@ -730,8 +732,8 @@ export const parseStreamItemData = (
 
       // TODO: OJO with this one
       withdrawableUnitsWhileRunning: BN.max(
-          getStreamNonStopEarningUnits(stream, timeDiff).sub(streamMissedEarningUnitsWhilePaused),
-          stream.totalWithdrawalsUnits
+        getStreamNonStopEarningUnits(stream, timeDiff).sub(streamMissedEarningUnitsWhilePaused),
+        stream.totalWithdrawalsUnits
       ),
 
       beneficiaryRemainingAllocation: new BN(
@@ -806,6 +808,7 @@ async function parseStreamInstructionAfter1645224519(
     let mint: PublicKey | undefined;
     let amountBN: BN | undefined;
 
+    //TODO: BN check + better switch-case here?
     if (decodedIx.name === 'createStream') {
       initializer = formattedIx?.accounts.find(
         a => a.name === 'Treasurer',
@@ -1053,8 +1056,8 @@ async function parseVersionedStreamInstruction(
     const blockTime = (transactionBlockTimeInSeconds as number) * 1000; // mult by 1000 to add milliseconds
     const action =
       decodedIx.name === 'createStream' ||
-      decodedIx.name === 'createStreamWithTemplate' ||
-      decodedIx.name === 'allocate'
+        decodedIx.name === 'createStreamWithTemplate' ||
+        decodedIx.name === 'allocate'
         ? 'deposited'
         : 'withdrew';
 
@@ -1267,7 +1270,7 @@ export const getStreamEstDepletionDate = (stream: any) => {
 
 export const getStreamCliffAmount = (stream: any) => {
   let cliffAmount = new BN(stream.cliffVestAmountUnits);
-
+//TODO: BN check
   if (stream.cliffVestPercent.gtn(0)) {
     // cliffAmount = (stream.cliffVestPercent.toNumber() * stream.allocationAssignedUnits.toNumber()) / Constants.CLIFF_PERCENT_DENOMINATOR;
     const cliffVestPercent = new BigNumber(stream.cliffVestPercent.toString());
@@ -1339,8 +1342,8 @@ export const getStreamWithdrawableAmount = (stream: any, timeDiff = 0) => {
   const secondsSinceStart = blocktimeRelativeNow - startUtcInSeconds;
   const nonStopEarningUnits = cliffUnits.plus(streamedUnitsPerSecond * secondsSinceStart);
   const totalSecondsPaused = stream.lastKnownTotalSecondsInPausedStatus.toString().length >= 10
-      ? parseInt((stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1_000).toString())
-      : stream.lastKnownTotalSecondsInPausedStatus.toNumber();
+    ? parseInt((stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1_000).toString())
+    : stream.lastKnownTotalSecondsInPausedStatus.toNumber();
 
   const missedEarningUnitsWhilePaused = streamedUnitsPerSecond * totalSecondsPaused;
   let entitledEarnings = nonStopEarningUnits;
@@ -1852,7 +1855,7 @@ async function parseVestingTreasuryInstruction(
     let destination: PublicKey | undefined;
     let destinationTokenAccount: PublicKey | undefined;
     let stream: PublicKey | undefined;
-
+//TODO: BN check + switch-case better here?
     if (decodedIx.name === 'createTreasuryAndTemplate') {
       action = VestingTreasuryActivityAction.TreasuryCreate;
       initializer = formattedIx?.accounts.find(
