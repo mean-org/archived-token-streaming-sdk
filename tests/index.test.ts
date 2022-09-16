@@ -71,7 +71,24 @@ describe('MSP Tests\n', async () => {
     msp = new MSP(endpoint, programId, 'confirmed');
   });
 
-  it('Cliff calculation limit', () => {
+  it('Test stream running', async () => {
+    const strmId = new PublicKey('FEsT4HG1WG24sb785x9WvrnFPZuG4ic8fvg28aKKzFn1');
+    //const strmId = new PublicKey('4tA5bz8Ky3fAjyycvmNUFciUGgtS1qWZpnN8ii6MguRB');
+    const data = await msp.getStream(strmId);
+    console.log(data);
+    const data2 = await msp.getStreamRaw(strmId);
+    console.log(data2);
+    // const data4 = await msp.listStreams({ treasury: new PublicKey('468Z5p52439dAqjLzBm2FCNxvDSnpbMsNx85b7Kmz3TQ'), commitment: "confirmed" });
+    // console.log(data4);
+
+  });
+
+  xit('Cliff calculation limit', () => {
+
+    const enumName = STREAM_STATUS[2];
+    const enumName2 = STREAM_STATUS[5];
+    console.log(enumName, enumName2);
+
     const PERCENT_DENOMINATOR = 1_000_000;
     const rateAmount = "29207750000000";
     const allocationAssigned = "368940000000000";
@@ -567,7 +584,7 @@ describe('MSP Tests\n', async () => {
           // Continue evaluating if there is remaining allocation
           if (remainingAllocation.gtn(0)) {
             // Continue evaluating if the stream is not scheduled
-            if (status !== STREAM_STATUS.Schedule) {
+            if (status !== STREAM_STATUS.Scheduled) {
 
               if (status === STREAM_STATUS.Paused) {  // Check if PAUSED
                 const manuallyPaused = isStreamManuallyPaused(stream);

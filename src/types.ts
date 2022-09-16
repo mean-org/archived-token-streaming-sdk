@@ -204,7 +204,7 @@ export type StreamTemplate = {
  * Stream states
  */
 export enum STREAM_STATUS {
-  Schedule = 1,
+  Scheduled = 1,
   Running = 2,
   Paused = 3,
 }

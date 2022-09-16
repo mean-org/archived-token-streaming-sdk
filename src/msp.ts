@@ -1333,7 +1333,7 @@ export class MSP {
       totalAllocation = totalAllocation.add(stream.allocationAssigned)
       switch (stream.status) {
         case STREAM_STATUS.Paused:
-        case STREAM_STATUS.Schedule:
+        case STREAM_STATUS.Scheduled:
           continue;
       }
       if (stream.remainingAllocationAmount.lten(0)) {
@@ -2050,7 +2050,7 @@ export class MSP {
       throw Error("Stream doesn't exist");
     }
 
-    if (streamInfo.status === STREAM_STATUS.Schedule) {
+    if (streamInfo.status === STREAM_STATUS.Scheduled) {
       throw Error('Stream has not started');
     }
 

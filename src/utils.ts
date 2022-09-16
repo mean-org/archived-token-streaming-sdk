@@ -202,7 +202,7 @@ export const listStreamsCached = async (
   streamInfoList: Stream[],
 ): Promise<Stream[]> => {
   const streamList: Stream[] = [];
-//TODO: BN check
+  //TODO: BN check
   for (const streamInfo of streamInfoList) {
     const timeDiff = new BN(streamInfo.lastRetrievedTimeInSeconds).toNumber() - new BN(streamInfo.lastRetrievedBlockTime).toNumber();
     const blockTime = parseInt((Date.now() / 1_000).toString()) - timeDiff;
@@ -583,7 +583,7 @@ const parseGetStreamData = (
     withdrawableAmount: event.beneficiaryWithdrawableAmount,
     streamUnitsPerSecond: getStreamUnitsPerSecond(event),
     isManuallyPaused: event.isManualPause,
-    status: event.status === STREAM_STATUS.Schedule ? 1 : event.status === STREAM_STATUS.Running ? 2 : 3,
+    status: event.status,
     lastRetrievedBlockTime: event.currentBlockTime.toNumber(),
     lastRetrievedTimeInSeconds: parseInt((Date.now() / 1_000).toString()),
     feePayedByTreasurer: event.feePayedByTreasurer,
@@ -699,12 +699,8 @@ export const parseStreamItemData = (
       feePayedByTreasurer: stream.feePayedByTreasurer,
       // calculated data
       status: streamStatus,
-      statusText: streamStatus === STREAM_STATUS.Schedule
-        ? 'Scheduled'
-        : streamStatus === STREAM_STATUS.Running
-          ? 'Running'
-          : 'Paused',
-          //TODO: BN check
+      statusText: STREAM_STATUS[streamStatus],
+      //TODO: BN check
       isManualPause: isStreamManuallyPaused(stream),
       cliffUnits: new BN(getStreamCliffAmount(stream)),
       currentBlockTime: new BN(blockTime),
@@ -1270,7 +1266,7 @@ export const getStreamEstDepletionDate = (stream: any) => {
 
 export const getStreamCliffAmount = (stream: any) => {
   let cliffAmount = new BN(stream.cliffVestAmountUnits);
-//TODO: BN check
+  //TODO: BN check
   if (stream.cliffVestPercent.gtn(0)) {
     // cliffAmount = (stream.cliffVestPercent.toNumber() * stream.allocationAssignedUnits.toNumber()) / Constants.CLIFF_PERCENT_DENOMINATOR;
     const cliffVestPercent = new BigNumber(stream.cliffVestPercent.toString());
@@ -1315,7 +1311,7 @@ export const getStreamWithdrawableAmount = (stream: any, timeDiff = 0) => {
   const status = getStreamStatus(stream, timeDiff);
 
   // Check if SCHEDULED
-  if (status === STREAM_STATUS.Schedule) {
+  if (status === STREAM_STATUS.Scheduled) {
     return new BN(0);
   }
 
@@ -1370,12 +1366,11 @@ export const getStreamStatus = (stream: any, timeDiff: number) => {
 
   // Scheduled
   if (startUtcInSeconds > blocktimeRelativeNow) {
-    return STREAM_STATUS.Schedule;
+    return STREAM_STATUS.Scheduled;
   }
 
   // Manually paused
   const manuallyPaused = isStreamManuallyPaused(stream);
-
   if (manuallyPaused) {
     return STREAM_STATUS.Paused;
   }
@@ -1855,7 +1850,7 @@ async function parseVestingTreasuryInstruction(
     let destination: PublicKey | undefined;
     let destinationTokenAccount: PublicKey | undefined;
     let stream: PublicKey | undefined;
-//TODO: BN check + switch-case better here?
+    //TODO: BN check + switch-case better here?
     if (decodedIx.name === 'createTreasuryAndTemplate') {
       action = VestingTreasuryActivityAction.TreasuryCreate;
       initializer = formattedIx?.accounts.find(
