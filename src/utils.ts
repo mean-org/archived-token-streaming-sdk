@@ -1302,32 +1302,32 @@ export const getStreamWithdrawableAmount = (stream: any, timeDiff = 0) => {
   }
 
   const streamedUnitsPerSecond = getStreamUnitsPerSecond(stream);
-  const cliffUnits = new BigNumber(getStreamCliffAmount(stream).toString());
+  const cliffUnits = getStreamCliffAmount(stream);
   // Get the blockchain kind of "now" given the client timeDiff
   const blocktimeRelativeNow = Math.round((Date.now() / 1_000) - timeDiff);
   const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
   const secondsSinceStart = blocktimeRelativeNow - startUtcInSeconds;
-  const nonStopEarningUnits = cliffUnits.plus(streamedUnitsPerSecond * secondsSinceStart);
+  const nonStopEarningUnits = cliffUnits.add(new BN(streamedUnitsPerSecond * secondsSinceStart));
   const totalSecondsPaused = stream.lastKnownTotalSecondsInPausedStatus.toString().length >= 10
     ? parseInt((stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1_000).toString())
     : stream.lastKnownTotalSecondsInPausedStatus.toNumber();
 
-  const missedEarningUnitsWhilePaused = streamedUnitsPerSecond * totalSecondsPaused;
+  const missedEarningUnitsWhilePaused = new BN(streamedUnitsPerSecond * totalSecondsPaused);
   let entitledEarnings = nonStopEarningUnits;
 
   if (nonStopEarningUnits.gte(missedEarningUnitsWhilePaused)) {
-    entitledEarnings = nonStopEarningUnits.plus(missedEarningUnitsWhilePaused);
+    entitledEarnings = nonStopEarningUnits.add(missedEarningUnitsWhilePaused);
   }
 
   let withdrawableUnitsWhileRunning = entitledEarnings;
 
   if (entitledEarnings.gte(stream.totalWithdrawalsUnits)) {
-    withdrawableUnitsWhileRunning = entitledEarnings.minus(stream.totalWithdrawalsUnits);
+    withdrawableUnitsWhileRunning = entitledEarnings.sub(stream.totalWithdrawalsUnits);
   }
 
-  const withdrawableAmount = BigNumber.min(new BigNumber(remainingAllocation.toString()), new BigNumber(withdrawableUnitsWhileRunning.toString())).integerValue();
+  const withdrawableAmount = BN.min(remainingAllocation, withdrawableUnitsWhileRunning);
 
-  return BN.max(new BN(0), new BN(withdrawableAmount.toString()));
+  return BN.max(new BN(0), withdrawableAmount);
 };
 
 export const getStreamStatus = (stream: any, timeDiff: number) => {
@@ -1349,18 +1349,18 @@ export const getStreamStatus = (stream: any, timeDiff: number) => {
   const totalSecondsPaused = stream.lastKnownTotalSecondsInPausedStatus.toString().length >= 10
     ? parseInt((stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1_000).toString())
     : stream.lastKnownTotalSecondsInPausedStatus.toNumber();
-  const cliffUnits = new BigNumber(getStreamCliffAmount(stream).toString());
+  const cliffUnits = getStreamCliffAmount(stream);
   const secondsSinceStart = blocktimeRelativeNow - startUtcInSeconds;
   const streamedUnitsPerSecond = getStreamUnitsPerSecond(stream);
-  const nonStopEarningUnits = cliffUnits.plus(streamedUnitsPerSecond * secondsSinceStart);
-  const missedEarningUnitsWhilePaused = streamedUnitsPerSecond * totalSecondsPaused;
+  const nonStopEarningUnits = cliffUnits.add(new BN(streamedUnitsPerSecond * secondsSinceStart));
+  const missedEarningUnitsWhilePaused = new BN(streamedUnitsPerSecond * totalSecondsPaused);
   let entitledEarnings = nonStopEarningUnits;
 
   if (nonStopEarningUnits.gte(missedEarningUnitsWhilePaused)) {
-    entitledEarnings = nonStopEarningUnits.minus(missedEarningUnitsWhilePaused);
+    entitledEarnings = nonStopEarningUnits.sub(missedEarningUnitsWhilePaused);
   }
 
-  const allocation = new BigNumber(stream.allocationAssignedUnits.toString());
+  const allocation = new BN(stream.allocationAssignedUnits);
   // Running
   if (allocation.gt(entitledEarnings)) {
     return STREAM_STATUS.Running;
@@ -1380,13 +1380,13 @@ export const isStreamManuallyPaused = (stream: any) => {
 
 export const getStreamUnitsPerSecond = (stream: any) => {
 
-  const interval = stream.rateIntervalInSeconds.toNumber();
-  if (interval === 0) {
+  const interval = new BN(stream.rateIntervalInSeconds);
+  if (interval.isZero()) {
     return 0;
   }
 
-  const rateAmountUnits = new BigNumber(stream.rateAmountUnits.toString());
-  const streamUnitsPerSecond = rateAmountUnits.dividedBy(interval);
+  const rateAmountUnits = new BN(stream.rateAmountUnits);
+  const streamUnitsPerSecond = rateAmountUnits.div(interval);
 
   return streamUnitsPerSecond.toNumber();
 };

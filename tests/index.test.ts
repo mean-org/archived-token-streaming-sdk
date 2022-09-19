@@ -144,10 +144,10 @@ describe('MSP Tests\n', async () => {
     const PERCENT_DENOMINATOR = 1_000_000;
     const rateAmount = "29207750000000";
     const allocationAssigned = "368940000000000";
-    const cliffMul = new BigNumber(rateAmount).multipliedBy(new BigNumber(allocationAssigned));
-    console.log(`effective_cliff_units multiplied: ${cliffMul.toFixed(0)}, length: ${cliffMul.toFixed(0).length}`);
-    const cliff = cliffMul.dividedBy(new BigNumber(PERCENT_DENOMINATOR));
-    console.log(`effective_cliff_units final result: ${cliff.toFixed(0)}, length: ${cliff.toFixed(0).length}`);
+    const cliffMul = new BN(rateAmount).mul(new BN(allocationAssigned));
+    console.log(`effective_cliff_units multiplied: ${cliffMul.toString()}, length: ${cliffMul.toString().length}`);
+    const cliff = cliffMul.div(new BN(PERCENT_DENOMINATOR));
+    console.log(`effective_cliff_units final result: ${cliff.toString()}, length: ${cliff.toString().length}`);
 
     const cliffMulBn = new BN(rateAmount).mul(new BN(allocationAssigned));
     console.log(`multiplied: ${cliffMulBn.toString()}, length: ${cliffMulBn.toString().length}`);
@@ -657,9 +657,9 @@ describe('MSP Tests\n', async () => {
                 const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
                 const timeSinceStart = blocktimeRelativeNow - startUtcInSeconds;
 
-                const cliffAmount2 = new BigNumber(cliffAmount.toString());
-                const unitsSinceStart = new BigNumber(streamUnitsPerSecond * timeSinceStart);
-                const nonStopEarningUnits2 = cliffAmount2.plus(unitsSinceStart).toString();
+                const cliffAmount2 = new BN(cliffAmount);
+                const unitsSinceStart = new BN(streamUnitsPerSecond * timeSinceStart);
+                const nonStopEarningUnits2 = cliffAmount2.add(unitsSinceStart).toString();
 
                 const nonStopEarningUnits = new BN(nonStopEarningUnits2);
                 const totalSecondsPaused = stream.lastKnownTotalSecondsInPausedStatus.toString().length >= 10
