@@ -27,7 +27,6 @@ import {
 } from '../src';
 import { Category, STREAM_STATUS, SubCategory, TimeUnit, TreasuryType } from "../src/types";
 import { BN } from "bn.js";
-import BigNumber from "bignumber.js";
 import { toTokenAmountBn } from "./utils";
 
 interface LooseObject {
@@ -97,7 +96,7 @@ describe('MSP Tests\n', async () => {
     console.log(paused, pausedEnum);
   });
 
-  xit('BN & Bignumber', async () => {
+  xit('BN tests', async () => {
     const strmId = new PublicKey('7uGiMnnnJdr28DPsCioeKLSF5uJjWP3wxYFGVmK3SEJh');
     const stream = await msp.getStreamRaw(strmId);
 
