@@ -49,7 +49,6 @@ import {
 } from '@solana/spl-token';
 import * as anchor from '@project-serum/anchor';
 import { MemcmpFilter } from '@solana/web3.js';
-import BigNumber from 'bignumber.js';
 
 String.prototype.toPublicKey = function (): PublicKey {
   return new PublicKey(this.toString());

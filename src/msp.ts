@@ -60,7 +60,6 @@ import {
 import { Constants, WARNING_TYPES, LATEST_IDL_FILE_VERSION } from './constants';
 import { Beneficiary, listTreasuries, StreamBeneficiary } from '.';
 import { u64Number } from './u64n';
-import { BigNumber } from "bignumber.js";
 
 /**
  * API class with functions to interact with the Money Streaming Program using Solana Web3 JS API
@@ -1340,11 +1339,7 @@ export class MSP {
         // all streamed
         continue;
       }
-      const allocationAssignedBN = new BigNumber(stream.allocationAssigned.toString());
-      const percentReminderAfterCliff = 1 - templateInfo.cliffVestPercent / Constants.CLIFF_PERCENT_DENOMINATOR;
-      const durationNumberOfUnits = templateInfo.durationNumberOfUnits;
-      const rateAmount = allocationAssignedBN.multipliedBy(percentReminderAfterCliff).dividedToIntegerBy(durationNumberOfUnits).toString();
-      streamRate = streamRate.add(new BN(rateAmount));
+      streamRate = this.getRateAmount(stream.allocationAssigned, templateInfo.cliffVestPercent, templateInfo.durationNumberOfUnits);
     }
 
     return [
@@ -1394,15 +1389,7 @@ export class MSP {
       throw Error("Stream template doesn't exist");
     }
 
-    const allocationAssignedBN = new BigNumber(allocationAssigned);
-    const percentReminderAfterCliff = 1 - templateInfo.cliffVestPercent / Constants.CLIFF_PERCENT_DENOMINATOR;
-    const durationNumberOfUnits = templateInfo.durationNumberOfUnits;
-    const rateAmount = allocationAssignedBN.multipliedBy(percentReminderAfterCliff).dividedToIntegerBy(durationNumberOfUnits).toString();
-    console.log('allocationAssigned:', allocationAssignedBN.toString());
-    console.log('cliffVestPercent:', templateInfo.cliffVestPercent.toString());
-    console.log('percentReminderAfterCliff:', percentReminderAfterCliff);
-    console.log('durationNumberOfUnits:', durationNumberOfUnits);
-    console.log('rateAmount:', rateAmount);
+    const rateAmount = this.getRateAmount(allocationAssigned, templateInfo.cliffVestPercent, templateInfo.durationNumberOfUnits);
 
     // Get the treasury token account
     const treasuryToken = await Token.getAssociatedTokenAddress(
@@ -1460,6 +1447,18 @@ export class MSP {
     return [tx, streamAccount.publicKey];
   }
 
+  private getRateAmount(allocationAssigned: BN | number | string, cliffVestPercent: BN | number, durationNumberOfUnits: BN | number): BN {
+    const allocationAssignedBN = new BN(allocationAssigned);
+    const percentReminderAfterCliff = new BN(1).sub(new BN(cliffVestPercent)).divn(Constants.CLIFF_PERCENT_DENOMINATOR)
+    const rateAmount = allocationAssignedBN.mul(percentReminderAfterCliff).div(new BN(durationNumberOfUnits));
+    console.log('allocationAssigned:', allocationAssignedBN.toString());
+    console.log('cliffVestPercent:', cliffVestPercent.toString());
+    console.log('percentReminderAfterCliff:', percentReminderAfterCliff.toString());
+    console.log('durationNumberOfUnits:', durationNumberOfUnits.toString());
+    console.log('rateAmount:', rateAmount.toString());
+    return rateAmount;
+  }
+
   /**
    * This creates a stream with template with PDA
    */
@@ -1500,10 +1499,7 @@ export class MSP {
     //   (allocationAssigned * (1 - templateInfo.cliffVestPercent / Constants.CLIFF_PERCENT_DENOMINATOR)) /
     //   templateInfo.durationNumberOfUnits;
 
-    const allocationAssignedBN = new BigNumber(allocationAssigned);
-    const percentReminderAfterCliff = 1 - templateInfo.cliffVestPercent / Constants.CLIFF_PERCENT_DENOMINATOR;
-    const durationNumberOfUnits = templateInfo.durationNumberOfUnits;
-    const rateAmount = allocationAssignedBN.multipliedBy(percentReminderAfterCliff).dividedToIntegerBy(durationNumberOfUnits).toString();
+    const rateAmount = this.getRateAmount(allocationAssigned, templateInfo.cliffVestPercent, templateInfo.durationNumberOfUnits);
 
     // Get the treasury token account
     const treasuryToken = await Token.getAssociatedTokenAddress(

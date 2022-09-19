@@ -3,14 +3,11 @@ import { join } from "path";
 import { homedir } from "os";
 import { Keypair, Transaction } from '@solana/web3.js';
 import BN from "bn.js";
-import BigNumber from "bignumber.js";
 
 export const getDefaultKeyPair = async (): Promise<Keypair> => {
-    // const id = await fs.readJSON(join(homedir(), '.config/solana/id.json'));
-    // const bytes = Uint8Array.from(id);
-    // return Keypair.fromSecretKey(bytes);
-
-    return Keypair.generate();
+    const id = await fs.readJSON(join(homedir(), '.config/solana/id.json'));
+    const bytes = Uint8Array.from(id);
+    return Keypair.fromSecretKey(bytes);
 };
 
 export const _printSerializedTx = (tx: Transaction, requireAllSignatures = false, verifySignatures = false) => {
@@ -34,9 +31,8 @@ export const toTokenAmountBn = (amount: number | string, decimals: number) => {
       return new BN(0);
     }
   
-    const multiplier = new BigNumber(10 ** decimals);
-    const value = new BigNumber(amount);
-    const result = value.multipliedBy(multiplier).integerValue();
-    const toFixed = result.toFixed(0);
-    return new BN(toFixed);
+    const multiplier = new BN(10 ** decimals);
+    const value = new BN(amount);
+    const result = value.mul(multiplier);
+    return result;
   }
