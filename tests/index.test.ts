@@ -66,12 +66,12 @@ describe('MSP Tests\n', async () => {
 
     program = createProgram(connection, programId);
 
-    console.log("Balance user1: : ", await connection.getBalance(user1Wallet.publicKey, 'confirmed'));
+    //console.log("Balance user1: : ", await connection.getBalance(user1Wallet.publicKey, 'confirmed'));
     //console.log("Balance user2: : ", await connection.getBalance(user2Wallet.publicKey, 'confirmed'));
     msp = new MSP(endpoint, programId, 'confirmed');
   });
 
-  it('Test stream running', async () => {
+  xit('Test stream running', async () => {
     const strmId = new PublicKey('FEsT4HG1WG24sb785x9WvrnFPZuG4ic8fvg28aKKzFn1');
     const strmId2 = new PublicKey('4tA5bz8Ky3fAjyycvmNUFciUGgtS1qWZpnN8ii6MguRB');
     const data = await msp.getStream(strmId);
@@ -83,12 +83,50 @@ describe('MSP Tests\n', async () => {
 
   });
 
+  it('BN & Bignumber', async () => {
+    const strmId = new PublicKey('7uGiMnnnJdr28DPsCioeKLSF5uJjWP3wxYFGVmK3SEJh');
+    const stream = await msp.getStreamRaw(strmId);
+
+    const slot = await program.provider.connection.getSlot('finalized');
+    const blockTime = (await program.provider.connection.getBlockTime(slot)) as number;
+    const timeDiff = Math.round((Date.now() / 1_000) - blockTime);
+
+    let startUtcInSeconds = 0;
+    if (stream.startUtcInSeconds > 0) {
+      startUtcInSeconds = stream.startUtcInSeconds.toNumber();
+      console.log('startUtcInSeconds:1', startUtcInSeconds);
+    }
+    if (stream.startUtc.toString().length > 10) {
+      startUtcInSeconds = parseInt(stream.startUtc.toString().substr(0, 10));
+      console.log('startUtcInSeconds:2', startUtcInSeconds);
+    }
+    const result = stream.startUtc.toNumber();
+    console.log('startUtcInSeconds:3', result);
+
+
+    const totalSecondsPaused = stream.lastKnownTotalSecondsInPausedStatus.toString().length >= 10
+      ? parseInt((stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1_000).toString())
+      : stream.lastKnownTotalSecondsInPausedStatus.toNumber();
+
+    let cliffUnits = new BN(0);
+    if (stream.cliffVestPercent.gtn(0)) {
+      const cliffVestPercent = stream.cliffVestPercent;
+      const allocationAssignedUnits = stream.allocationAssignedUnits;
+      cliffUnits = new BN(cliffVestPercent).mul(allocationAssignedUnits).div(new BN(Constants.CLIFF_PERCENT_DENOMINATOR));
+      console.log('cliff:', cliffUnits.toString());
+    }
+
+    const secondsSinceStart = timeDiff - startUtcInSeconds;
+    const streamedUnitsPerSecond = getStreamUnitsPerSecond(stream);
+    const mult = streamedUnitsPerSecond * secondsSinceStart;
+    const nonStopEarningUnits = cliffUnits.add(new BN(mult));
+    const missedEarningUnitsWhilePaused = streamedUnitsPerSecond * totalSecondsPaused;
+
+    console.log('nonStopEarningUnits and more: ', nonStopEarningUnits.toString(), missedEarningUnitsWhilePaused.toString());
+
+  });
+
   xit('Cliff calculation limit', () => {
-
-    const enumName = STREAM_STATUS[2];
-    const enumName2 = STREAM_STATUS[5];
-    console.log(enumName, enumName2);
-
     const PERCENT_DENOMINATOR = 1_000_000;
     const rateAmount = "29207750000000";
     const allocationAssigned = "368940000000000";
@@ -96,6 +134,11 @@ describe('MSP Tests\n', async () => {
     console.log(`effective_cliff_units multiplied: ${cliffMul.toFixed(0)}, length: ${cliffMul.toFixed(0).length}`);
     const cliff = cliffMul.dividedBy(new BigNumber(PERCENT_DENOMINATOR));
     console.log(`effective_cliff_units final result: ${cliff.toFixed(0)}, length: ${cliff.toFixed(0).length}`);
+
+    const cliffMulBn = new BN(rateAmount).mul(new BN(allocationAssigned));
+    console.log(`multiplied: ${cliffMulBn.toString()}, length: ${cliffMulBn.toString().length}`);
+    const cliffBn = cliffMulBn.div(new BN(PERCENT_DENOMINATOR));
+    console.log(`final result: ${cliffBn.toString()}, length: ${cliffBn.toString().length}`);
   });
 
   xit('Withdraw VC funds from 12-decimals token', async () => {

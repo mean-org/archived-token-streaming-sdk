@@ -80,25 +80,7 @@ export const getStream = async (
   address: PublicKey,
 ): Promise<Stream | null> => {
   try {
-    const streamEventResponse = await program.simulate.getStream(
-      LATEST_IDL_FILE_VERSION,
-      {
-        accounts: {
-          stream: address,
-        },
-      },
-    );
-
-    if (
-      !streamEventResponse ||
-      !streamEventResponse.events ||
-      !streamEventResponse.events.length ||
-      !streamEventResponse.events[0].data
-    ) {
-      return null;
-    }
-
-    const event: any = streamEventResponse.events[0].data;
+    const event: any = await getStreamRaw(program, address);
     const streamInfo = parseGetStreamData(event, address);
     console.log('getStream result after parse:', streamInfo);
 
@@ -436,9 +418,9 @@ export const getValidTreasuryAllocation = async (
   //TODO: BN check
   const fees = await calculateActionFees(connection, MSP_ACTIONS.withdraw);
   //
-  const BASE_100_TO_BASE_1_MULTIPLIER = 10_000;
+  const BASE_100_TO_BASE_1_MULTIPLIER = Constants.CLIFF_PERCENT_NUMERATOR;
   const feeNumerator = fees.mspPercentFee * BASE_100_TO_BASE_1_MULTIPLIER;
-  const feeDenaminator = 1_000_000;
+  const feeDenaminator = Constants.CLIFF_PERCENT_DENOMINATOR;
   const unallocatedBalance = new BN(treasury.balance).sub(
     new BN(treasury.allocationAssigned),
   );
@@ -568,7 +550,7 @@ const parseGetStreamData = (
     beneficiary: event.beneficiaryAddress,
     associatedToken: event.beneficiaryAssociatedToken,
     cliffVestAmount: event.cliffVestAmountUnits,
-    cliffVestPercent: event.cliffVestPercent.toNumber() / 10_000,
+    cliffVestPercent: event.cliffVestPercent.toNumber() / Constants.CLIFF_PERCENT_NUMERATOR,
     allocationAssigned: event.allocationAssignedUnits,
     secondsSinceStart: event.currentBlockTime.sub(new BN(event.startUtc)).toNumber(), //TODO: BN check -> Checked by Yamel. Timestamps ar ok as number
     estimatedDepletionDate: depletionDate.toString(),
@@ -635,7 +617,7 @@ export const parseStreamItemData = (
     beneficiary: stream.beneficiaryAddress,
     associatedToken: stream.beneficiaryAssociatedToken,
     cliffVestAmount: stream.cliffVestAmountUnits,
-    cliffVestPercent: stream.cliffVestPercent.toNumber() / 10_000,
+    cliffVestPercent: stream.cliffVestPercent.toNumber() / Constants.CLIFF_PERCENT_NUMERATOR,
     allocationAssigned: stream.allocationAssignedUnits,
     secondsSinceStart: blockTime - startUtcInSeconds,
     estimatedDepletionDate: depletionDate.toString(),
@@ -1417,6 +1399,7 @@ export const getStreamStartUtcInSeconds = (stream: any): number => {
   if (stream.startUtcInSeconds > 0) {
     return stream.startUtcInSeconds.toNumber();
   }
+  // this check is for overcome the miliseconds values
   if (stream.startUtc.toString().length > 10) {
     return parseInt(stream.startUtc.toString().substr(0, 10));
   }
@@ -1447,7 +1430,7 @@ export const getStreamNonStopEarningUnits = (stream: any, timeDiff: number) => {
   );
 
   if (stream.rateAmountUnits.gtn(0)) {
-    const streamUnitsSinceStarted = (stream.rateIntervalInSeconds as BN).muln(secondsSinceStart).div(stream.rateAmountUnits);
+    const streamUnitsSinceStarted = (stream.rateIntervalInSeconds as BN).mul(new BN(secondsSinceStart)).div(stream.rateAmountUnits);
     const nonStopEarningUnits = cliffUnits.add(streamUnitsSinceStarted);
     return nonStopEarningUnits;
   }

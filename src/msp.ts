@@ -1341,7 +1341,7 @@ export class MSP {
         continue;
       }
       const allocationAssignedBN = new BigNumber(stream.allocationAssigned.toString());
-      const percentReminderAfterCliff = 1 - templateInfo.cliffVestPercent / 1_000_000;
+      const percentReminderAfterCliff = 1 - templateInfo.cliffVestPercent / Constants.CLIFF_PERCENT_DENOMINATOR;
       const durationNumberOfUnits = templateInfo.durationNumberOfUnits;
       const rateAmount = allocationAssignedBN.multipliedBy(percentReminderAfterCliff).dividedToIntegerBy(durationNumberOfUnits).toString();
       streamRate = streamRate.add(new BN(rateAmount));
@@ -1395,7 +1395,7 @@ export class MSP {
     }
 
     const allocationAssignedBN = new BigNumber(allocationAssigned);
-    const percentReminderAfterCliff = 1 - templateInfo.cliffVestPercent / 1_000_000;
+    const percentReminderAfterCliff = 1 - templateInfo.cliffVestPercent / Constants.CLIFF_PERCENT_DENOMINATOR;
     const durationNumberOfUnits = templateInfo.durationNumberOfUnits;
     const rateAmount = allocationAssignedBN.multipliedBy(percentReminderAfterCliff).dividedToIntegerBy(durationNumberOfUnits).toString();
     console.log('allocationAssigned:', allocationAssignedBN.toString());
@@ -1497,11 +1497,11 @@ export class MSP {
 
     // Calculate rate amount
     // const rateAmount =
-    //   (allocationAssigned * (1 - templateInfo.cliffVestPercent / 1_000_000)) /
+    //   (allocationAssigned * (1 - templateInfo.cliffVestPercent / Constants.CLIFF_PERCENT_DENOMINATOR)) /
     //   templateInfo.durationNumberOfUnits;
 
     const allocationAssignedBN = new BigNumber(allocationAssigned);
-    const percentReminderAfterCliff = 1 - templateInfo.cliffVestPercent / 1_000_000;
+    const percentReminderAfterCliff = 1 - templateInfo.cliffVestPercent / Constants.CLIFF_PERCENT_DENOMINATOR;
     const durationNumberOfUnits = templateInfo.durationNumberOfUnits;
     const rateAmount = allocationAssignedBN.multipliedBy(percentReminderAfterCliff).dividedToIntegerBy(durationNumberOfUnits).toString();
 
