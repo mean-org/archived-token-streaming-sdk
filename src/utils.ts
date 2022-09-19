@@ -563,7 +563,7 @@ const parseGetStreamData = (
     withdrawableAmount: event.beneficiaryWithdrawableAmount,
     streamUnitsPerSecond: getStreamUnitsPerSecond(event),
     isManuallyPaused: event.isManualPause,
-    status: event.status,
+    status: STREAM_STATUS[event.status],
     lastRetrievedBlockTime: event.currentBlockTime.toNumber(),
     lastRetrievedTimeInSeconds: parseInt((Date.now() / 1_000).toString()),
     feePayedByTreasurer: event.feePayedByTreasurer,
