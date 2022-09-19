@@ -83,7 +83,21 @@ describe('MSP Tests\n', async () => {
 
   });
 
-  it('BN & Bignumber', async () => {
+  it('Enum casting', () => {
+    const scheduled = 'Scheduled';
+    const scheduledEnum = STREAM_STATUS[scheduled];
+    console.log(scheduled, scheduledEnum);
+
+    const running = 'Running';
+    const runningEnum = STREAM_STATUS[running];
+    console.log(running, runningEnum);
+
+    const paused = 'Paused';
+    const pausedEnum = STREAM_STATUS[paused];
+    console.log(paused, pausedEnum);
+  });
+
+  xit('BN & Bignumber', async () => {
     const strmId = new PublicKey('7uGiMnnnJdr28DPsCioeKLSF5uJjWP3wxYFGVmK3SEJh');
     const stream = await msp.getStreamRaw(strmId);
 
