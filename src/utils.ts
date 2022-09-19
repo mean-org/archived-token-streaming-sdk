@@ -1218,18 +1218,19 @@ export const getStreamEstDepletionDate = (stream: any) => {
   }
 
   const cliffAmount = getStreamCliffAmount(stream);
-  const allocationAssignedUnits = new BigNumber(stream.allocationAssignedUnits.toString());
-  const allocationMinusCliff = allocationAssignedUnits.minus(new BigNumber(cliffAmount.toString()))
-  const streamableAmount = BigNumber.max(0, allocationMinusCliff);
+  const allocationAssignedUnits = new BN(stream.allocationAssignedUnits);
+  const allocationMinusCliff = allocationAssignedUnits.sub(cliffAmount)
+  const streamableAmount = BN.max(new BN(0), allocationMinusCliff);
 
-  const rateInterval = new BigNumber(interval.toString());
-  const rateAmountUnits = new BigNumber(stream.rateAmountUnits.toString());
-  const rateAmount = rateAmountUnits.dividedBy(rateInterval);
+  const rateInterval = new BN(interval);
+  const rateAmountUnits = new BN(stream.rateAmountUnits);
+  const rateAmount = rateAmountUnits.div(rateInterval);
 
-  const streamableSeconds = streamableAmount.dividedToIntegerBy(rateAmount);
-  const duration = streamableSeconds.plus(stream.lastKnownTotalSecondsInPausedStatus);
+  const streamableSeconds = streamableAmount.div(rateAmount);
+  const duration = streamableSeconds.add(new BN(stream.lastKnownTotalSecondsInPausedStatus));
   const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
 
+  //TODO: shoud we be worry duration.toNumber()?
   const depletionTimestamp = (startUtcInSeconds + duration.toNumber()) * 1_000;
   const depletionDate = new Date(depletionTimestamp);
   if (depletionDate.toString() !== 'Invalid Date') {
@@ -1240,13 +1241,9 @@ export const getStreamEstDepletionDate = (stream: any) => {
 
 export const getStreamCliffAmount = (stream: any) => {
   let cliffAmount = new BN(stream.cliffVestAmountUnits);
-  //TODO: BN check
   if (stream.cliffVestPercent.gtn(0)) {
     // cliffAmount = (stream.cliffVestPercent.toNumber() * stream.allocationAssignedUnits.toNumber()) / Constants.CLIFF_PERCENT_DENOMINATOR;
-    const cliffVestPercent = new BigNumber(stream.cliffVestPercent.toString());
-    const allocationAssignedUnits = new BigNumber(stream.allocationAssignedUnits.toString());
-    const result = cliffVestPercent.multipliedBy(allocationAssignedUnits).dividedBy(Constants.CLIFF_PERCENT_DENOMINATOR);
-    cliffAmount = new BN(result.toString());
+    cliffAmount = new BN(stream.cliffVestPercent).mul(new BN(stream.allocationAssignedUnits)).divn(Constants.CLIFF_PERCENT_DENOMINATOR);
   }
 
   return cliffAmount;
