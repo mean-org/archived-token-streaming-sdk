@@ -73,13 +73,13 @@ describe('MSP Tests\n', async () => {
 
   it('Test stream running', async () => {
     const strmId = new PublicKey('FEsT4HG1WG24sb785x9WvrnFPZuG4ic8fvg28aKKzFn1');
-    //const strmId = new PublicKey('4tA5bz8Ky3fAjyycvmNUFciUGgtS1qWZpnN8ii6MguRB');
+    const strmId2 = new PublicKey('4tA5bz8Ky3fAjyycvmNUFciUGgtS1qWZpnN8ii6MguRB');
     const data = await msp.getStream(strmId);
     console.log(data);
-    const data2 = await msp.getStreamRaw(strmId);
+    const data2 = await msp.getStreamRaw(strmId2);
     console.log(data2);
-    // const data4 = await msp.listStreams({ treasury: new PublicKey('468Z5p52439dAqjLzBm2FCNxvDSnpbMsNx85b7Kmz3TQ'), commitment: "confirmed" });
-    // console.log(data4);
+    const data4 = await msp.listStreams({ treasurer: new PublicKey('468Z5p52439dAqjLzBm2FCNxvDSnpbMsNx85b7Kmz3TQ'), commitment: "confirmed" });
+    console.log(data4);
 
   });
 
