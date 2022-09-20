@@ -70,19 +70,19 @@ describe('MSP Tests\n', async () => {
     msp = new MSP(endpoint, programId, 'confirmed');
   });
 
-  xit('Test stream running', async () => {
-    const strmId = new PublicKey('FEsT4HG1WG24sb785x9WvrnFPZuG4ic8fvg28aKKzFn1');
-    const strmId2 = new PublicKey('4tA5bz8Ky3fAjyycvmNUFciUGgtS1qWZpnN8ii6MguRB');
+  it('Test stream running', async () => {
+    const strmId = new PublicKey('H2jAZk3DeS8G9wHkv35H2G4UDna3axfkEn4Dbhw2ti41');
+    const strmId2 = new PublicKey('H2jAZk3DeS8G9wHkv35H2G4UDna3axfkEn4Dbhw2ti41');
     const data = await msp.getStream(strmId);
     console.log(data);
-    const data2 = await msp.getStreamRaw(strmId2);
-    console.log(data2);
-    const data4 = await msp.listStreams({ treasurer: new PublicKey('468Z5p52439dAqjLzBm2FCNxvDSnpbMsNx85b7Kmz3TQ'), commitment: "confirmed" });
-    console.log(data4);
+    // const data2 = await msp.getStreamRaw(strmId2);
+    // console.log(data2);
+    // const data4 = await msp.listStreams({ treasurer: new PublicKey('HGb43H86jJNLN4MW1sDWKruUZYrs3rkNQkf3acF8uXiv'), commitment: "confirmed" });
+    // console.log(data4);
 
   });
 
-  it('Enum casting', () => {
+  xit('Enum casting', () => {
     const scheduled = 'Scheduled';
     const scheduledEnum = STREAM_STATUS[scheduled];
     console.log(scheduled, scheduledEnum);

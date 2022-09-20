@@ -1,6 +1,5 @@
 import {
   AccountInfo,
-  Commitment,
   ConfirmedSignaturesForAddress2Options,
   ConfirmOptions,
   Connection,
@@ -12,6 +11,7 @@ import {
   PublicKey,
   SystemProgram,
   TransactionInstruction,
+  MemcmpFilter,
 } from '@solana/web3.js';
 import { BN, BorshInstructionCoder, Idl, Program } from '@project-serum/anchor';
 /**
@@ -48,7 +48,6 @@ import {
   TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 import * as anchor from '@project-serum/anchor';
-import { MemcmpFilter } from '@solana/web3.js';
 
 String.prototype.toPublicKey = function (): PublicKey {
   return new PublicKey(this.toString());
@@ -80,8 +79,9 @@ export const getStream = async (
 ): Promise<Stream | null> => {
   try {
     const event: any = await getStreamRaw(program, address);
+
     const streamInfo = parseGetStreamData(event, address);
-    console.log('getStream result after parse:', streamInfo);
+    //console.log('getStream result after parse:', streamInfo);
 
     return streamInfo;
   } catch (error: any) {
@@ -600,6 +600,7 @@ export const parseStreamItemData = (
 
   const timeDiff = Math.round((Date.now() / 1_000) - blockTime);
   const startUtc = new Date(startUtcInSeconds * 1000);
+  console.log(`************* stream: ${address.toString()} *******************`);
   const depletionDate = getStreamEstDepletionDate(stream);
   const streamStatus = getStreamStatus(stream, timeDiff);
   const streamMissedEarningUnitsWhilePaused = getStreamMissedEarningUnitsWhilePaused(stream);
@@ -719,6 +720,7 @@ export const parseStreamItemData = (
     },
   } as Stream;
 
+  console.log(`************* eof stream: ${address.toString()} *******************`);
   return streamInfo;
 };
 
@@ -1212,31 +1214,30 @@ export const parseStreamTemplateData = (
 };
 
 export const getStreamEstDepletionDate = (stream: any) => {
-  const interval = stream.rateIntervalInSeconds as BN;
+  const interval = new BN(stream.rateIntervalInSeconds);
   if (interval.isZero()) {
-    return new Date();
+    const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
+    const startUtc = new Date(startUtcInSeconds * 1_000);
+    return startUtc;
   }
 
   const cliffAmount = getStreamCliffAmount(stream);
-  const allocationAssignedUnits = new BN(stream.allocationAssignedUnits);
-  const allocationMinusCliff = allocationAssignedUnits.sub(cliffAmount)
+  const allocationMinusCliff = new BN(stream.allocationAssignedUnits).sub(cliffAmount)
   const streamableAmount = BN.max(new BN(0), allocationMinusCliff);
 
-  const rateInterval = new BN(interval);
-  const rateAmountUnits = new BN(stream.rateAmountUnits);
-  const rateAmount = rateAmountUnits.div(rateInterval);
-
-  const streamableSeconds = streamableAmount.div(rateAmount);
-  const duration = streamableSeconds.add(new BN(stream.lastKnownTotalSecondsInPausedStatus));
+  // 10000 / 2629750 = 0.003...
+  const rateAmount = Number(stream.rateAmountUnits.toString()) / Number(interval.toString());
+  const duration = (Number(streamableAmount.toString()) / rateAmount) + (Number(stream.lastKnownTotalSecondsInPausedStatus.toString()));
   const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
 
   //TODO: shoud we be worry duration.toNumber()?
-  const depletionTimestamp = (startUtcInSeconds + duration.toNumber()) * 1_000;
-  const depletionDate = new Date(depletionTimestamp);
+  const depletionDate = new Date((startUtcInSeconds + duration) * 1_000);
+
   if (depletionDate.toString() !== 'Invalid Date') {
     return depletionDate;
+  } else {
+    return new Date();
   }
-  return new Date();
 };
 
 export const getStreamCliffAmount = (stream: any) => {
