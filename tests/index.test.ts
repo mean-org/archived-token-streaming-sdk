@@ -1,5 +1,17 @@
+// How to use
+// 1. Start local validator
+//    solana-test-validator [-r]
+// 2. Deploy msp locally:
+//    cd mean-msp
+//    anchor build --provider.cluster localnet -- --features test
+//    anchor deploy --provider.cluster localnet
+// 3. Deploy IDL for better debugging experience
+//    anchor idl init --provider.cluster localnet --filepath target/idl/msp.json MSPdQo5ZdrPh6rU1LsvUv5nRhAnj1mj6YQEqBUq8YwZ
+// 4. Run tests
+//    yarn test
+
 import { expect } from "chai";
-import { Program } from '@project-serum/anchor';
+import { AnchorError, Program, ProgramError } from '@project-serum/anchor';
 import {
   Keypair,
   Connection,
@@ -7,7 +19,9 @@ import {
   clusterApiUrl,
   LAMPORTS_PER_SOL,
   sendAndConfirmRawTransaction,
-  sendAndConfirmTransaction
+  sendAndConfirmTransaction,
+  Transaction,
+  Signer
 } from '@solana/web3.js';
 
 import {
@@ -34,11 +48,62 @@ interface LooseObject {
   [key: string]: any
 }
 
-const endpoint = clusterApiUrl('devnet'); //'http://localhost:8899'; //
-// deploy msp locally
-// todo: find a better approach
+const endpoint = 'http://127.0.0.1:8899';
+// const endpoint = clusterApiUrl('devnet');
 
 let msp: MSP;
+
+async function sendRawTestTransaction(connection: Connection, tx: Buffer): Promise<string> {
+  try {
+    return await sendAndConfirmRawTransaction(connection, tx, { commitment: 'confirmed' });
+  } catch (error) {
+    // console.log('error');
+    // console.log(error);
+    // console.log();
+
+    const e = error as ProgramError;
+
+    if (e.logs) {
+      const anchorError = AnchorError.parse(e.logs);
+      // console.log('anchorError');
+      // console.log(anchorError);
+      // console.log();
+
+      if (anchorError) {
+        // console.log(anchorError.error);
+        throw anchorError;
+      }
+
+    }
+    throw error;
+  }
+}
+
+async function sendTestTransaction(connection: Connection, tx: Transaction, signers: Signer[]): Promise<string> {
+  try {
+    return await sendAndConfirmTransaction(connection, tx, signers, { commitment: 'confirmed' });
+  } catch (error) {
+    // console.log('error');
+    // console.log(error);
+    // console.log();
+
+    const e = error as ProgramError;
+
+    if (e.logs) {
+      const anchorError = AnchorError.parse(e.logs);
+      // console.log('anchorError');
+      // console.log(anchorError);
+      // console.log();
+
+      if (anchorError) {
+        // console.log(anchorError.error);
+        throw anchorError;
+      }
+
+    }
+    throw error;
+  }
+}
 
 describe('MSP Tests\n', async () => {
   let connection: Connection;
@@ -51,23 +116,34 @@ describe('MSP Tests\n', async () => {
 
   before(async () => {
     console.log('Entering before..');
-    user1Wallet = Keypair.fromSecretKey(new Uint8Array([210, 103, 40, 90, 158, 199, 10, 53, 231, 74, 93, 185, 148, 58, 178, 55, 158, 171, 85, 242, 166, 119, 164, 157, 51, 195, 85, 9, 53, 42, 123, 23, 148, 56, 37, 133, 246, 147, 245, 213, 218, 126, 164, 13, 4, 245, 89, 252, 45, 99, 164, 13, 8, 0, 217, 210, 189, 252, 23, 232, 151, 191, 182, 174]));
+    // user1Wallet = Keypair.fromSecretKey(new Uint8Array([210, 103, 40, 90, 158, 199, 10, 53, 231, 74, 93, 185, 148, 58, 178, 55, 158, 171, 85, 242, 166, 119, 164, 157, 51, 195, 85, 9, 53, 42, 123, 23, 148, 56, 37, 133, 246, 147, 245, 213, 218, 126, 164, 13, 4, 245, 89, 252, 45, 99, 164, 13, 8, 0, 217, 210, 189, 252, 23, 232, 151, 191, 182, 174]));
+    user1Wallet = Keypair.generate();
 
-    user2Wallet = Keypair.fromSecretKey(new Uint8Array([218, 176, 113, 75, 92, 204, 57, 153, 203, 29, 94, 149, 98, 192, 199, 119, 105, 243, 26, 254, 222, 55, 56, 80, 132, 138, 51, 123, 51, 156, 196, 142, 148, 56, 35, 252, 132, 152, 21, 40, 202, 42, 230, 76, 4, 141, 180, 83, 48, 48, 207, 146, 105, 57, 199, 187, 73, 210, 155, 207, 150, 120, 29, 85]));
+    // user2Wallet = Keypair.fromSecretKey(new Uint8Array([218, 176, 113, 75, 92, 204, 57, 153, 203, 29, 94, 149, 98, 192, 199, 119, 105, 243, 26, 254, 222, 55, 56, 80, 132, 138, 51, 123, 51, 156, 196, 142, 148, 56, 35, 252, 132, 152, 21, 40, 202, 42, 230, 76, 4, 141, 180, 83, 48, 48, 207, 146, 105, 57, 199, 187, 73, 210, 155, 207, 150, 120, 29, 85]));
+    user2Wallet = Keypair.generate();
 
     debugObject = {};
     connection = new Connection(endpoint, 'confirmed');
 
-    //await connection.requestAirdrop(user1Wallet.publicKey, 2 * LAMPORTS_PER_SOL);
-    //console.log('before airdrop #1..');
+    // airdrop some rent sol to the fee account
+    console.log('before airdrop to fee account to pay rent');
+    await connection.confirmTransaction(await connection.requestAirdrop(Constants.FEE_TREASURY, LAMPORTS_PER_SOL), 'confirmed');
+
+    //3KmMEv7A8R3MMhScQceXBQe69qLmnFfxSM3q8HyzkrSx
+    // airdrop some rent sol to the read on-chain data account
+    console.log('before airdrop to fee account to pay rent');
+    await connection.confirmTransaction(await connection.requestAirdrop(Constants.READONLY_PUBKEY, LAMPORTS_PER_SOL), 'confirmed');
+
+    console.log('before airdrop to wallet #1');
+    await connection.confirmTransaction(await connection.requestAirdrop(user1Wallet.publicKey, 20 * LAMPORTS_PER_SOL), 'confirmed');
     // await sleep(2000);
-    // await connection.requestAirdrop(user2Wallet.publicKey, 2 * LAMPORTS_PER_SOL);
-    // console.log('before airdrop #2..');
+    console.log('before airdrop wallet 2');
+    await connection.confirmTransaction(await connection.requestAirdrop(user2Wallet.publicKey, 20 * LAMPORTS_PER_SOL), 'confirmed');
 
     program = createProgram(connection, programId);
 
-    //console.log("Balance user1: : ", await connection.getBalance(user1Wallet.publicKey, 'confirmed'));
-    //console.log("Balance user2: : ", await connection.getBalance(user2Wallet.publicKey, 'confirmed'));
+    console.log("Balance wallet1: : ", await connection.getBalance(user1Wallet.publicKey, 'confirmed'));
+    console.log("Balance wallet2: : ", await connection.getBalance(user2Wallet.publicKey, 'confirmed'));
     msp = new MSP(endpoint, programId, 'confirmed');
   });
 
@@ -301,7 +377,7 @@ describe('MSP Tests\n', async () => {
 
   });
 
-  xit('Creates a vesting treasury and vesting stream', async () => {
+  it('Creates a vesting treasury and vesting stream', async () => {
     console.log('Creating a vesting treasury');
     const [createVestingTreasuryTx, treasury] = await msp.createVestingTreasury(
       user1Wallet.publicKey,
@@ -312,7 +388,7 @@ describe('MSP Tests\n', async () => {
       Constants.SOL_MINT,
       12,
       TimeUnit.Minute,
-      1 * LAMPORTS_PER_SOL,
+      10 * LAMPORTS_PER_SOL,
       SubCategory.seed,
       new Date(),
     );
@@ -328,7 +404,7 @@ describe('MSP Tests\n', async () => {
       user1Wallet.publicKey,
       treasury,
       Constants.SOL_MINT,
-      LAMPORTS_PER_SOL * 1,
+      LAMPORTS_PER_SOL * 2,
     );
     addFundsTx.partialSign(user1Wallet);
     const addFundsTxSerialized = addFundsTx.serialize({ verifySignatures: true });
@@ -353,7 +429,7 @@ describe('MSP Tests\n', async () => {
     );
     modifyTx.partialSign(user1Wallet);
     const modifyTxSerialized = modifyTx.serialize({ verifySignatures: true });
-    const modifyTxId = await sendAndConfirmRawTransaction(connection, modifyTxSerialized, { commitment: 'confirmed' });
+    const modifyTxId = await sendRawTestTransaction(connection, modifyTxSerialized);
     console.log(`Template modified ${modifyTxId} \n`);
 
     console.log('Fetching template data after modification');
@@ -371,7 +447,7 @@ describe('MSP Tests\n', async () => {
     );
     createStreamTx.partialSign(user1Wallet);
     const createStreamTxSerialized = createStreamTx.serialize({ verifySignatures: true });
-    const createStreamTxId = await sendAndConfirmRawTransaction(connection, createStreamTxSerialized, { commitment: 'confirmed' });
+    const createStreamTxId = await sendRawTestTransaction(connection, createStreamTxSerialized);
     console.log(`Stream1 created: ${stream.toBase58()} TX_ID: ${createStreamTxId}\n`);
 
     console.log('Creating vesting stream: 2');
@@ -385,7 +461,7 @@ describe('MSP Tests\n', async () => {
     );
     createStreamTx2.partialSign(user1Wallet);
     const createStreamTx2Serialized = createStreamTx2.serialize({ verifySignatures: true });
-    const createStreamTx2Id = await sendAndConfirmRawTransaction(connection, createStreamTx2Serialized, { commitment: 'confirmed' });
+    const createStreamTx2Id = await sendRawTestTransaction(connection, createStreamTx2Serialized);
     console.log(`Stream2 created: ${stream2.toBase58()} TX_ID: ${createStreamTx2Id}\n`);
 
     console.log('Withdraw from treasury');
@@ -394,7 +470,8 @@ describe('MSP Tests\n', async () => {
       treasury, LAMPORTS_PER_SOL);
     withdrawTx.partialSign(user1Wallet);
     const withdrawTxSerialized = withdrawTx.serialize({ verifySignatures: true });
-    await sendAndConfirmRawTransaction(connection, withdrawTxSerialized, { commitment: 'confirmed' });
+
+    await sendRawTestTransaction(connection, withdrawTxSerialized);
     console.log('Withdrew from treasury success\n');
 
     await sleep(5000);
@@ -405,24 +482,24 @@ describe('MSP Tests\n', async () => {
 
     console.log("Allocate funds to stream1");
     const allocateStreamTx = await msp.allocate(user1Wallet.publicKey, user1Wallet.publicKey, treasury, stream, 3 * LAMPORTS_PER_SOL);
-    await sendAndConfirmTransaction(connection, allocateStreamTx, [user1Wallet], { commitment: 'confirmed' });
-    console.log("Allocate to stream1 success.\n");
+    await sendTestTransaction(connection, allocateStreamTx, [user1Wallet]);
+    console.log("Allocate to stream1 success\n");
 
     console.log("Pausing stream1");
     const PauseStreamTx = await msp.pauseStream(user1Wallet.publicKey, user1Wallet.publicKey, stream);
-    await sendAndConfirmTransaction(connection, PauseStreamTx, [user1Wallet], { commitment: 'confirmed' });
+    await sendTestTransaction(connection, PauseStreamTx, [user1Wallet]);
     console.log("Pause stream1 success.\n");
 
     await sleep(5000);
     console.log("Resume stream1");
     const ResumeStreamTx = await msp.resumeStream(user1Wallet.publicKey, user1Wallet.publicKey, stream);
-    await sendAndConfirmTransaction(connection, ResumeStreamTx, [user1Wallet], { commitment: 'confirmed' });
+    await sendTestTransaction(connection, ResumeStreamTx, [user1Wallet]);
     console.log("Resume stream1 success.\n");
 
 
     console.log("Refresh treasury balance");
     const RefreshStreamTx = await msp.refreshTreasuryData(user1Wallet.publicKey, treasury);
-    await sendAndConfirmTransaction(connection, RefreshStreamTx, [user1Wallet], { commitment: 'confirmed' });
+    await sendTestTransaction(connection, RefreshStreamTx, [user1Wallet]);
     console.log("Treasury refresh success.\n");
 
     console.log("Creating a non-vesting treasury");
@@ -433,7 +510,7 @@ describe('MSP Tests\n', async () => {
       "",
       TreasuryType.Open
     );
-    const createNonVestingTreasuryTx = await sendAndConfirmTransaction(connection, createTreasuryTx, [user1Wallet], { commitment: 'confirmed' });
+    const createNonVestingTreasuryTx = await sendTestTransaction(connection, createTreasuryTx, [user1Wallet]);
     console.log("Non vesting treasury created\n");
 
     console.log('Adding funds to the treasury');
@@ -446,7 +523,7 @@ describe('MSP Tests\n', async () => {
     );
     addFundsNonVestingTx.partialSign(user1Wallet);
     const addFundsNonVestingTxSerialized = addFundsNonVestingTx.serialize({ verifySignatures: true });
-    const addFundsNonVestingTxId = await sendAndConfirmRawTransaction(connection, addFundsNonVestingTxSerialized, { commitment: 'confirmed' });
+    const addFundsNonVestingTxId = await sendRawTestTransaction(connection, addFundsNonVestingTxSerialized);
     console.log(`Funds added TX_ID: ${addFundsNonVestingTxId}\n`);
 
     console.log("Creating a non-vesting stream");
@@ -490,17 +567,19 @@ describe('MSP Tests\n', async () => {
     const filtered_cat_stream = await msp.listStreams({
       treasury,
       category: Category.vesting,
-    });
+    });;
+    const streamIds = filtered_cat_stream.map(s => s.id.toBase58());
+    console.log(streamIds);
     expect(filtered_cat_stream.length).eq(2);
     const filtered_cat_stream_sorted = filtered_cat_stream.sort((a, b) => a.name.localeCompare(b.name));
-    expect(filtered_cat_stream_sorted.at(0)!.id).eq(stream.toBase58());
-    expect(filtered_cat_stream_sorted.at(1)!.id).eq(stream2.toBase58());
+    expect(filtered_cat_stream_sorted.at(0)!.id.toBase58()).eq(stream.toBase58());
+    expect(filtered_cat_stream_sorted.at(1)!.id.toBase58()).eq(stream2.toBase58());
     const filtered_cat_stream_non_vesting = await msp.listStreams({
       treasury: treasuryNonVesting,
       category: Category.default,
     });
     expect(filtered_cat_stream_non_vesting.length).eq(1);
-    expect(filtered_cat_stream_non_vesting.at(0)!.id).eq(nonVestingStream.toBase58());
+    expect(filtered_cat_stream_non_vesting.at(0)!.id.toBase58()).eq(nonVestingStream.toBase58());
     console.log("Filter stream by category success.");
 
     console.log("Filtering stream by sub category");
@@ -509,16 +588,17 @@ describe('MSP Tests\n', async () => {
       subCategory: SubCategory.seed,
     });
     expect(filtered_sub_stream.length).eq(2);
-    const filtered_sub_stream_sorted = filtered_cat_stream.sort((a, b) => a.name.localeCompare(b.name));
-    expect(filtered_sub_stream_sorted.at(0)!.id).eq(stream.toBase58());
-    expect(filtered_sub_stream_sorted.at(1)!.id).eq(stream2.toBase58());
+    const filtered_sub_stream_sorted = filtered_cat_stream.sort((a, b) => a.name.localeCompare(b.name))
+    
+    expect(filtered_sub_stream_sorted.at(0)!.id.toBase58()).eq(stream.toBase58());
+    expect(filtered_sub_stream_sorted.at(1)!.id.toBase58()).eq(stream2.toBase58());
 
     const filtered_sub_stream_non_vesting = await msp.listStreams({
       treasury: treasuryNonVesting,
       subCategory: SubCategory.default,
     })
     expect(filtered_sub_stream_non_vesting.length).eq(1);
-    expect(filtered_sub_stream_non_vesting.at(0)!.id).eq(nonVestingStream.toBase58());
+    expect(filtered_sub_stream_non_vesting.at(0)!.id.toBase58()).eq(nonVestingStream.toBase58());
     console.log("Filter stream by sub category success.");
 
     console.log("Getting vesting treasury activities");
