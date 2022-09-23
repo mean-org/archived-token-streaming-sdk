@@ -20,6 +20,7 @@ import {
   NATIVE_MINT as NATIVE_WSOL_MINT,
   Token,
   TOKEN_PROGRAM_ID,
+  u64,
 } from '@solana/spl-token';
 import { BN, Program } from '@project-serum/anchor';
 
@@ -29,23 +30,27 @@ import { Msp } from './msp_idl_004';
  * MSP
  */
 import {
+  Category,
   ListStreamParams,
   Stream,
+  StreamEventData,
+  StreamTemplate,
   STREAM_STATUS,
   SubCategory,
+  TimeUnit,
   Treasury,
   TreasuryType,
   VestingTreasuryActivity,
   VestingTreasuryActivityRaw,
 } from './types';
-import { Category } from './types';
-import { StreamTemplate } from './types';
-import { TimeUnit } from './types';
 import {
   createProgram,
   createWrapSolInstructions,
+  findStreamTemplateAddress,
   getStream,
   getStreamCached,
+  getStreamEventData,
+  getStreamTemplate,
   getTreasury,
   getValidTreasuryAllocation,
   listStreamActivity,
@@ -53,10 +58,7 @@ import {
   listStreamsCached,
   listVestingTreasuryActivity,
 } from './utils';
-import { getStreamTemplate } from './utils';
-import { findStreamTemplateAddress } from './utils';
-import { Constants, WARNING_TYPES } from './constants';
-import { LATEST_IDL_FILE_VERSION } from './constants';
+import { Constants, WARNING_TYPES, LATEST_IDL_FILE_VERSION } from './constants';
 import { Beneficiary, listTreasuries, StreamBeneficiary } from '.';
 import { u64Number } from './u64n';
 
@@ -86,14 +88,17 @@ export class MSP {
     this.program = createProgram(this.connection, programId);
   }
 
-  public async getStream(id: PublicKey, friendly = true): Promise<any> {
-    return getStream(this.program, id, friendly);
+  public async getStream(id: PublicKey): Promise<Stream | null> {
+    return getStream(this.program, id);
+  }
+
+  public async getStreamRaw(id: PublicKey): Promise<StreamEventData | null> {
+    return getStreamEventData(this.program, id);
   }
 
   public async refreshStream(
     streamInfo: any,
     hardUpdate = false,
-    friendly = true,
   ): Promise<any> {
     const copyStreamInfo = Object.assign({}, streamInfo);
 
@@ -106,14 +111,13 @@ export class MSP {
       return await getStream(this.program, streamId);
     }
 
-    return getStreamCached(copyStreamInfo, friendly);
+    return getStreamCached(copyStreamInfo);
   }
 
   public async listStreams({
     treasurer,
     treasury,
     beneficiary,
-    friendly = true,
     category = undefined,
     subCategory = undefined,
   }: ListStreamParams): Promise<Stream[]> {
@@ -122,7 +126,6 @@ export class MSP {
       treasurer,
       treasury,
       beneficiary,
-      friendly,
       category,
       subCategory,
     );
@@ -134,7 +137,6 @@ export class MSP {
     treasury?: PublicKey | undefined,
     beneficiary?: PublicKey | undefined,
     hardUpdate = false,
-    friendly = true,
   ): Promise<Stream[]> {
     if (hardUpdate) {
       return await listStreams(
@@ -142,11 +144,10 @@ export class MSP {
         treasurer,
         treasury,
         beneficiary,
-        friendly,
       );
     }
 
-    return listStreamsCached(streamInfoList, friendly);
+    return listStreamsCached(streamInfoList);
   }
 
   /**
@@ -155,7 +156,6 @@ export class MSP {
    * @param before The signature to start searching backwards from.
    * @param limit The max amount of elements to retrieve
    * @param commitment Commitment to query the stream activity
-   * @param friendly The data will be displayed in a user readable format
    * @returns
    */
   public async listStreamActivity(
@@ -163,7 +163,6 @@ export class MSP {
     before: string,
     limit = 10,
     commitment?: Finality | undefined,
-    friendly = true,
   ): Promise<any[]> {
     const accountInfo = await this.connection.getAccountInfo(id, commitment);
 
@@ -177,14 +176,12 @@ export class MSP {
       before,
       limit,
       commitment,
-      friendly,
     );
   }
 
   public async getTreasury(
     id: PublicKey,
     commitment?: Commitment | undefined,
-    friendly = true,
   ): Promise<Treasury> {
     const accountInfo = await this.program.account.treasury.getAccountInfo(
       id,
@@ -195,12 +192,11 @@ export class MSP {
       throw Error("Treasury doesn't exists");
     }
 
-    return getTreasury(this.program, id, friendly);
+    return getTreasury(this.program, id);
   }
 
   public async listTreasuries(
     treasurer: PublicKey | undefined,
-    friendly = true,
     excludeAutoClose?: boolean,
     category?: Category,
     subCategory?: SubCategory,
@@ -208,7 +204,6 @@ export class MSP {
     return listTreasuries(
       this.program,
       treasurer,
-      friendly,
       excludeAutoClose,
       category,
       subCategory,
@@ -217,32 +212,40 @@ export class MSP {
 
   public async getStreamTemplate(
     treasury: PublicKey,
-    friendly = true,
   ): Promise<StreamTemplate> {
     const [template] = await findStreamTemplateAddress(
       treasury,
       this.program.programId,
     );
-    return getStreamTemplate(this.program, template, friendly);
+    return getStreamTemplate(this.program, template);
   }
 
+  /**
+   * Performs simple transfer of tokens to a beneficiary
+   * @param sender {PublicKey} - The public key of the wallet approving the transaction
+   * @param beneficiary {PublicKey} - The public key of the beneficiary
+   * @param mint {PublicKey} - The public key of the token to be sent
+   * @param amount {string | number} - The token amount to be allocated to the stream. Use BN.toString() or BigNumber.toString() for best compatibility
+   */
   public async transfer(
     sender: PublicKey,
     beneficiary: PublicKey,
     mint: PublicKey,
-    amount: number,
+    amount: string | number,  // Allow both types for compatibility
   ): Promise<Transaction> {
     const ixs: TransactionInstruction[] = [];
+    const amountBN = new u64(amount);
 
     if (mint.equals(Constants.SOL_MINT)) {
       ixs.push(
         SystemProgram.transfer({
           fromPubkey: sender,
           toPubkey: beneficiary,
-          lamports: amount,
+          lamports: amountBN.toNumber(),
         }),
       );
     } else {
+
       const senderToken = await Token.getAssociatedTokenAddress(
         ASSOCIATED_TOKEN_PROGRAM_ID,
         TOKEN_PROGRAM_ID,
@@ -315,14 +318,14 @@ export class MSP {
           beneficiaryToken,
           sender,
           [],
-          amount,
+          amountBN,
         ),
       );
     }
 
     const tx = new Transaction().add(...ixs);
     tx.feePayer = sender;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -330,11 +333,23 @@ export class MSP {
     return tx;
   }
 
+  /**
+   * Schedules a transfer as a stream without rate.
+   * @param treasurer {PublicKey} - The public key of the wallet approving the transaction.
+   * @param beneficiary {PublicKey} - The public key of the beneficiary.
+   * @param mint {PublicKey} - The public key of the token to be sent.
+   * @param amount {string | number} - The token amount to be allocated to the stream. Use BN.toString() or BigNumber.toString() for best compatibility and to overcome javascript number size limitation when using large amounts.
+   * @param startUtc {Date} - The date on which the transfer will be executed.
+   * @param streamName {string} - The name of the transfer.
+   * @param feePayedByTreasurer {boolean} - Decides if protocol fees will be paid by the treasurer or by the beneficiary at withdraw time.
+   * @param category {Category} - Optional. The category of the transfer. It should be Category.default for all transfers.
+   * @param subCategory {SubCategory} - Optional. The subcategory. It should be SubCategory.default for all transfers.
+   */
   public async scheduledTransfer(
     treasurer: PublicKey,
     beneficiary: PublicKey,
     mint: PublicKey,
-    amount: number,
+    amount: string | number,
     startUtc?: Date,
     streamName?: string,
     feePayedByTreasurer = false,
@@ -366,7 +381,7 @@ export class MSP {
     );
     await this.ensureAutoWrapSolInstructions(
       autoWSol,
-      amount,
+      amount, // new BN(amount).toNumber(),
       treasurer,
       treasurerToken,
       treasurerTokenInfo,
@@ -382,15 +397,6 @@ export class MSP {
       treasurySeeds,
       this.program.programId,
     );
-    const treasuryMintSeeds = [
-      treasurer.toBuffer(),
-      treasury.toBuffer(),
-      slotBuffer,
-    ];
-    const [treasuryMint] = await PublicKey.findProgramAddress(
-      treasuryMintSeeds,
-      this.program.programId,
-    );
 
     // Get the treasury token account
     const treasuryToken = await Token.getAssociatedTokenAddress(
@@ -398,15 +404,6 @@ export class MSP {
       TOKEN_PROGRAM_ID,
       mint,
       treasury,
-      true,
-    );
-
-    // Get the treasury pool treasurer token
-    const treasurerTreasuryToken = await Token.getAssociatedTokenAddress(
-      ASSOCIATED_TOKEN_PROGRAM_ID,
-      TOKEN_PROGRAM_ID,
-      treasuryMint,
-      treasurer,
       true,
     );
 
@@ -535,7 +532,7 @@ export class MSP {
 
     const tx = new Transaction().add(...ixs);
     tx.feePayer = treasurer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -547,16 +544,32 @@ export class MSP {
     return tx;
   }
 
+  /**
+   * Creates a recurring payment at a given rate to start immediately or scheduled
+   * @param treasurer {PublicKey} - The public key of the wallet approving the transaction.
+   * @param beneficiary {PublicKey} - The public key of the beneficiary.
+   * @param mint {PublicKey} - The public key of the token to be sent.
+   * @param streamName {string} - The name of the transfer.
+   * @param allocationAssigned {string | number} - The token amount to be allocated to the stream. Use BN.toString() or BigNumber.toString() for best compatibility and to overcome javascript number size limitation when using large amounts.
+   * @param rateAmount {string | number} - The rate at which the token will be sent. Use BN.toString() or BigNumber.toString() for best compatibility and to overcome javascript number size limitation when using large amounts.
+   * @param rateIntervalInSeconds {number} - The number of seconds for the send rate (minute=60, hour=3600, day=86400 and so on)
+   * @param startUtc {Date} - The date on which the transfer will be executed.
+   * @param cliffVestAmount {string | number} - The cliff amount to be released at start date. Should be 0 for streamPayment.
+   * @param cliffVestPercent {number} - The cliff percent of the total amount to be released at start date. Should be 0 for streamPayment.
+   * @param feePayedByTreasurer {boolean} - Decides if protocol fees will be paid by the treasurer or by the beneficiary at withdraw time.
+   * @param category {Category} - Optional. The category of the transfer. It should be Category.default for all transfers.
+   * @param subCategory {SubCategory} - Optional. The subcategory. It should be SubCategory.default for all transfers.
+   */
   public async streamPayment(
     treasurer: PublicKey,
     beneficiary: PublicKey,
     mint: PublicKey,
     streamName: string,
-    allocationAssigned: number,
-    rateAmount?: number,
+    allocationAssigned: string | number,
+    rateAmount?: string | number,
     rateIntervalInSeconds?: number,
     startUtc?: Date,
-    cliffVestAmount?: number,
+    cliffVestAmount?: string | number,
     cliffVestPercent?: number,
     feePayedByTreasurer = false,
     category: Category = Category.default,
@@ -585,10 +598,6 @@ export class MSP {
       true,
     );
 
-    const cliffVestPercentValue = cliffVestPercent
-      ? cliffVestPercent * Constants.CLIFF_PERCENT_NUMERATOR
-      : 0;
-
     const slot = await this.connection.getSlot(
       (this.commitment as Commitment) || 'finalized',
     );
@@ -598,15 +607,6 @@ export class MSP {
       treasurySeeds,
       this.program.programId,
     );
-    const treasuryMintSeeds = [
-      treasurer.toBuffer(),
-      treasury.toBuffer(),
-      slotBuffer,
-    ];
-    const [treasuryMint] = await PublicKey.findProgramAddress(
-      treasuryMintSeeds,
-      this.program.programId,
-    );
 
     // Get the treasury token account
     const treasuryToken = await Token.getAssociatedTokenAddress(
@@ -614,15 +614,6 @@ export class MSP {
       TOKEN_PROGRAM_ID,
       mint,
       treasury,
-      true,
-    );
-
-    // Get the treasury pool treasurer token
-    const treasurerTreasuryToken = await Token.getAssociatedTokenAddress(
-      ASSOCIATED_TOKEN_PROGRAM_ID,
-      TOKEN_PROGRAM_ID,
-      treasuryMint,
-      treasurer,
       true,
     );
 
@@ -666,9 +657,10 @@ export class MSP {
     const treasurerTokenInfo = await this.connection.getAccountInfo(
       treasurerToken,
     );
+
     await this.ensureAutoWrapSolInstructions(
       autoWSol,
-      allocationAssigned,
+      new BN(allocationAssigned),
       treasurer,
       treasurerToken,
       treasurerTokenInfo,
@@ -704,17 +696,21 @@ export class MSP {
     txSigners.push(streamAccount);
     const startUtcInSeconds = parseInt((start.getTime() / 1000).toString());
 
+    const cliffVestPercentValue = cliffVestPercent
+      ? cliffVestPercent * Constants.CLIFF_PERCENT_NUMERATOR
+      : 0;
+
     // Create Stream
     ixs.push(
       this.program.instruction.createStream(
         LATEST_IDL_FILE_VERSION,
         streamName,
         new BN(startUtcInSeconds),
-        new BN(rateAmount ?? 0), // rate amount units
-        new BN(rateIntervalInSeconds ?? 0), // rate interval in seconds
+        new BN(rateAmount || 0), // rate amount units
+        new BN(rateIntervalInSeconds || 0), // rate interval in seconds
         new BN(allocationAssigned), // allocation assigned
-        new BN(cliffVestAmount ?? 0), // cliff vest amount
-        new BN((cliffVestPercent ?? 0) * 10_000), // cliff vest percent
+        new BN(cliffVestAmount || 0), // cliff vest amount
+        new BN(cliffVestPercentValue), // cliff vest percent
         feePayedByTreasurer,
         {
           accounts: {
@@ -739,7 +735,7 @@ export class MSP {
 
     const tx = new Transaction().add(...ixs);
     tx.feePayer = treasurer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -799,16 +795,6 @@ export class MSP {
       treasurySeeds,
       this.program.programId,
     );
-    const treasuryPoolMintSeeds = [
-      treasurer.toBuffer(),
-      treasury.toBuffer(),
-      slotBuffer,
-    ];
-    // Treasury Pool Mint PDA
-    const [treasuryMint] = await PublicKey.findProgramAddress(
-      treasuryPoolMintSeeds,
-      this.program.programId,
-    );
 
     if (associatedTokenMint.equals(Constants.SOL_MINT)) {
       associatedTokenMint = NATIVE_WSOL_MINT;
@@ -848,7 +834,7 @@ export class MSP {
     );
 
     tx.feePayer = treasurer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -862,11 +848,11 @@ export class MSP {
     treasury: PublicKey,
     beneficiary: PublicKey,
     streamName: string,
-    allocationAssigned: number,
-    rateAmount?: number,
+    allocationAssigned: number | string,
+    rateAmount?: number | string,
     rateIntervalInSeconds?: number,
     startUtc?: Date,
-    cliffVestAmount?: number,
+    cliffVestAmount?: number | string,
     cliffVestPercent?: number,
     feePayedByTreasurer?: boolean,
   ): Promise<Transaction> {
@@ -897,11 +883,11 @@ export class MSP {
     treasury: PublicKey,
     beneficiary: PublicKey,
     streamName: string,
-    allocationAssigned: number,
-    rateAmount?: number,
+    allocationAssigned: number | string,
+    rateAmount?: number | string,
     rateIntervalInSeconds?: number,
     startUtc?: Date,
-    cliffVestAmount?: number,
+    cliffVestAmount?: number | string,
     cliffVestPercent?: number,
     feePayedByTreasurer?: boolean,
   ): Promise<[Transaction, PublicKey]> {
@@ -950,10 +936,10 @@ export class MSP {
       LATEST_IDL_FILE_VERSION,
       streamName,
       new BN(startUtcInSeconds),
-      new BN(rateAmount as number),
-      new BN(rateIntervalInSeconds as number),
+      new BN(rateAmount || 0),
+      new BN(rateIntervalInSeconds || 0),
       new BN(allocationAssigned),
-      new BN(cliffVestAmount as number),
+      new BN(cliffVestAmount || 0),
       new BN(cliffVestPercentValue),
       feePayedByTreasurer ?? false,
       {
@@ -977,7 +963,7 @@ export class MSP {
     );
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -987,7 +973,20 @@ export class MSP {
   }
 
   /**
-   * This creates a vesting stream treasury with template.
+   * Creates a vesting contract and the stream template
+   * @param payer {PublicKey} - The public key of the wallet approving the transaction
+   * @param treasurer {PublicKey} - The public key of the contract treasurer
+   * @param label {string} - The name of the vesting contract (up to 32 characters)
+   * @param type {TreasuryType} - Locked or Open type of contract. Defaults to Locked
+   * @param solFeePayedByTreasury {boolean} - Determines if the gas fees for contract operations will be paid from the contract account
+   * @param treasuryAssociatedTokenMint {PublicKey} - The public key of the token to be vested.
+   * @param duration {number} - The amount of durationUnit that comprises the vesting period (3 months or 180 days)
+   * @param durationUnit {TimeUnit} - The lapse in seconds for the send rate (minute=60, hour=3600, day=86400 and so on). @see TimeUnit TimeUnit enum for details.
+   * @param fundingAmount {string | number} - The token amount to fund the account. Use BN.toString() or BigNumber.toString() for best compatibility and to overcome javascript number size limitation when using large amounts.
+   * @param vestingCategory {SubCategory} - The category of the vesting contract for filtering purposes.
+   * @param startUtc {Date} - The vesting contract start date.
+   * @param cliffVestPercent {number} - The cliff percent of the total amount to be released at start date. Use 0 to disable cliff.
+   * @param feePayedByTreasurer {boolean} - Decides if protocol fees will be paid by the treasurer or by the beneficiary at withdraw time.
    */
   public async createVestingTreasury(
     payer: PublicKey,
@@ -998,7 +997,7 @@ export class MSP {
     treasuryAssociatedTokenMint: PublicKey,
     duration: number,
     durationUnit: TimeUnit,
-    fundingAmount: number,
+    fundingAmount: string | number,
     vestingCategory: SubCategory,
     startUtc?: Date,
     cliffVestPercent = 0,
@@ -1077,7 +1076,8 @@ export class MSP {
       },
     );
     const addFundsSigners: Signer[] = [];
-    if (fundingAmount > 0) {
+    const faBN = new BN(fundingAmount);
+    if (faBN.gtn(0)) {
       const contributorToken = await Token.getAssociatedTokenAddress(
         ASSOCIATED_TOKEN_PROGRAM_ID,
         TOKEN_PROGRAM_ID,
@@ -1144,7 +1144,7 @@ export class MSP {
     }
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -1249,7 +1249,7 @@ export class MSP {
       .transaction();
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -1263,7 +1263,6 @@ export class MSP {
    * @param before The signature to start searching backwards from.
    * @param limit The max amount of elements to retrieve
    * @param commitment Commitment to query the treasury activity
-   * @param friendly The data will be displayed in a user readable format
    * @returns
    */
   public async listVestingTreasuryActivity(
@@ -1271,7 +1270,6 @@ export class MSP {
     before: string,
     limit = 10,
     commitment?: Finality | undefined,
-    friendly = true,
   ): Promise<VestingTreasuryActivity[] | VestingTreasuryActivityRaw[]> {
     const accountInfo = await this.connection.getAccountInfo(id, commitment);
 
@@ -1285,7 +1283,6 @@ export class MSP {
       before,
       limit,
       commitment,
-      friendly,
     );
   }
 
@@ -1297,7 +1294,7 @@ export class MSP {
    */
   public async getVestingFlowRate(
     vestingTreasury: PublicKey,
-  ): Promise<[number, TimeUnit, number]> {
+  ): Promise<[BN, TimeUnit, BN]> {
     const treasuryInfo = await getTreasury(this.program, vestingTreasury);
 
     if (!treasuryInfo) {
@@ -1314,33 +1311,46 @@ export class MSP {
       throw Error("Stream template doesn't exist");
     }
 
-    if (treasuryInfo.totalStreams === 0)
-      return [0, templateInfo.rateIntervalInSeconds as TimeUnit, 0];
+    if (treasuryInfo.totalStreams === 0) {
+      return [
+        new BN(0),
+        templateInfo.rateIntervalInSeconds as TimeUnit,
+        new BN(0)
+      ];
+    }
 
     const streams = await listStreams(
       this.program,
       undefined,
       vestingTreasury,
       undefined,
+      Category.vesting
     );
-    let streamRate = 0;
-    let totalAllocation = 0;
+
+    let totalAllocation = new BN(0);
+    let streamRate = new BN(0);
     for (const stream of streams) {
-      totalAllocation = totalAllocation + stream.allocationAssigned;
+      totalAllocation = totalAllocation.add(stream.allocationAssigned)
       switch (stream.status) {
         case STREAM_STATUS.Paused:
-        case STREAM_STATUS.Schedule:
+        case STREAM_STATUS.Scheduled:
           continue;
       }
-      if (stream.remainingAllocationAmount <= 0) {
+      if (stream.remainingAllocationAmount.lten(0)) {
         // all streamed
         continue;
       }
-      const rateAmount =
-        (stream.allocationAssigned *
-          (1 - templateInfo.cliffVestPercent / 1_000_000)) /
-        templateInfo.durationNumberOfUnits;
-      streamRate = streamRate + rateAmount;
+
+      const percentDenominator = new BN(Constants.CLIFF_PERCENT_DENOMINATOR);
+      const allocationTotal = new BN(stream.allocationAssigned);
+      const cliffAmount = allocationTotal
+        .mul(new BN(templateInfo.cliffVestPercent))
+        .div(percentDenominator);
+      const allocationAfterCliff = allocationTotal.sub(cliffAmount);
+      const rateAmount = allocationAfterCliff // TODO: Remove
+        .div(new BN(templateInfo.durationNumberOfUnits));
+      
+      streamRate = streamRate.add(rateAmount);
     }
 
     return [
@@ -1351,16 +1361,23 @@ export class MSP {
   }
 
   /**
-   * This creates a stream with template
+   * Creates a vesting stream based on the vesting contract template
+   * @param payer {PublicKey} - The public key of the wallet approving the transaction
+   * @param treasurer {PublicKey} - The public key of the contract treasurer
+   * @param treasury {PublicKey} - The public key of the vesting contract
+   * @param beneficiary {PublicKey} - The public key of the beneficiary
+   * @param allocationAssigned {string | number} - The token amount to be allocated to the stream. Use BN.toString() or BigNumber.toString() for best compatibility
+   * @param streamName {string} - The name of the string (up to 32 characters)
    */
   public async createStreamWithTemplate(
     payer: PublicKey,
     treasurer: PublicKey,
     treasury: PublicKey,
     beneficiary: PublicKey,
-    allocationAssigned: number,
+    allocationAssigned: string | number,
     streamName = '',
   ): Promise<[Transaction, PublicKey]> {
+
     if (treasurer.equals(beneficiary)) {
       throw Error('Beneficiary can not be the same Treasurer');
     }
@@ -1383,10 +1400,14 @@ export class MSP {
       throw Error("Stream template doesn't exist");
     }
 
-    // Calculate rate amount
-    const rateAmount =
-      (allocationAssigned * (1 - templateInfo.cliffVestPercent / 1_000_000)) /
-      templateInfo.durationNumberOfUnits;
+    const percentDenominator = new BN(Constants.CLIFF_PERCENT_DENOMINATOR);
+    const allocationTotal = new BN(allocationAssigned);
+    const cliffAmount = allocationTotal
+      .mul(new BN(templateInfo.cliffVestPercent))
+      .div(percentDenominator);
+    const allocationAfterCliff = allocationTotal.sub(cliffAmount);
+    const rateAmount = allocationAfterCliff // TODO: Remove
+      .div(new BN(templateInfo.durationNumberOfUnits));
 
     // Get the treasury token account
     const treasuryToken = await Token.getAssociatedTokenAddress(
@@ -1435,7 +1456,7 @@ export class MSP {
     );
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -1453,7 +1474,7 @@ export class MSP {
     treasury: PublicKey,
     stream: PublicKey,
     beneficiary: PublicKey,
-    allocationAssigned: number,
+    allocationAssigned: number | string,
     streamName = '',
   ): Promise<Transaction> {
     if (treasurer.equals(beneficiary)) {
@@ -1480,9 +1501,14 @@ export class MSP {
     }
 
     // Calculate rate amount
-    const rateAmount =
-      (allocationAssigned * (1 - templateInfo.cliffVestPercent / 1_000_000)) /
-      templateInfo.durationNumberOfUnits;
+    const percentDenominator = new BN(Constants.CLIFF_PERCENT_DENOMINATOR);
+    const allocationTotal = new BN(allocationAssigned);
+    const cliffAmount = allocationTotal
+      .mul(new BN(templateInfo.cliffVestPercent))
+      .div(percentDenominator);
+    const allocationAfterCliff = allocationTotal.sub(cliffAmount);
+    const rateAmount = allocationAfterCliff // TODO: Remove
+      .div(new BN(templateInfo.durationNumberOfUnits));
 
     // Get the treasury token account
     const treasuryToken = await Token.getAssociatedTokenAddress(
@@ -1542,11 +1568,11 @@ export class MSP {
     treasury: PublicKey,
     beneficiaries: Beneficiary[],
     associatedToken: PublicKey,
-    allocationAssigned: number,
-    rateAmount?: number,
+    allocationAssigned: number | string,
+    rateAmount?: number | string,
     rateIntervalInSeconds?: number,
     startUtc?: Date,
-    cliffVestAmount?: number,
+    cliffVestAmount?: number | string,
     cliffVestPercent?: number,
     feePayedByTreasurer?: boolean,
   ): Promise<Transaction[]> {
@@ -1609,10 +1635,10 @@ export class MSP {
           LATEST_IDL_FILE_VERSION,
           beneficiary.streamName,
           new BN(startUtcInSeconds),
-          new BN(rateAmount as number),
-          new BN(rateIntervalInSeconds as number),
+          new BN(rateAmount || 0),
+          new BN(rateIntervalInSeconds || 0),
           new BN(allocationAssigned),
-          new BN(cliffVestAmount as number),
+          new BN(cliffVestAmount || 0),
           new BN(cliffVestPercentValue),
           feePayedByTreasurer ?? false,
           {
@@ -1640,7 +1666,7 @@ export class MSP {
 
       const tx = new Transaction().add(...ixs);
       tx.feePayer = payer;
-      const { blockhash } = await this.connection.getRecentBlockhash(
+      const { blockhash } = await this.connection.getLatestBlockhash(
         (this.commitment as Commitment) || 'finalized',
       );
       tx.recentBlockhash = blockhash;
@@ -1657,13 +1683,14 @@ export class MSP {
     contributor: PublicKey,
     treasury: PublicKey,
     stream: PublicKey,
-    amount: number,
+    amount: string | number,
     autoWSol = false,
   ): Promise<Transaction> {
     const ixs: TransactionInstruction[] = [];
     const txSigners: Signer[] = [];
+    const amountBN = new BN(amount || 0);
 
-    if (!amount) {
+    if (!amount || amountBN.isZero()) {
       throw Error('Amount should be greater than 0');
     }
 
@@ -1679,7 +1706,7 @@ export class MSP {
       throw Error('Stream account not found');
     }
 
-    if (treasuryInfo.associatedToken !== streamInfo.associatedToken) {
+    if (treasuryInfo.associatedToken as string !== streamInfo.associatedToken.toBase58()) {
       throw Error('Invalid stream beneficiary associated token');
     }
 
@@ -1792,7 +1819,7 @@ export class MSP {
 
     const tx = new Transaction().add(...ixs);
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -1804,12 +1831,20 @@ export class MSP {
     return tx;
   }
 
+  /**
+   * Add funds to a streaming account or a vesting contract
+   * @param payer {PublicKey} - The public key of the wallet approving the transaction
+   * @param contributor {PublicKey} - The public key of the contributor
+   * @param treasury {PublicKey} - The public key of the vesting contract
+   * @param mint {PublicKey} - The public key of the token to be sent.
+   * @param amount {string | number} - The token amount to fund the account. Use BN.toString() or BigNumber.toString() for best compatibility and to overcome javascript number size limitation when using large amounts.
+   */
   public async addFunds(
     payer: PublicKey,
     contributor: PublicKey,
     treasury: PublicKey,
     mint: PublicKey, // it can be the special value: Constants.SOL_MINT
-    amount: number,
+    amount: string | number,
   ): Promise<Transaction> {
     if (!amount) {
       throw Error('Amount should be greater than 0');
@@ -1846,7 +1881,7 @@ export class MSP {
 
     await this.ensureAutoWrapSolInstructions(
       autoWSol,
-      amount,
+      amount, // new BN(amount).toNumber(),
       contributor,
       contributorToken,
       contributorTokenInfo,
@@ -1904,7 +1939,7 @@ export class MSP {
     const tx = new Transaction().add(...ixs);
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -1916,12 +1951,20 @@ export class MSP {
     return tx;
   }
 
+  /**
+   * Creates a stream by allocating funds from the streaming account or vesting contract
+   * @param payer {PublicKey} - The public key of the wallet approving the transaction
+   * @param treasurer {PublicKey} - The public key of the contract treasurer
+   * @param treasury {PublicKey} - The public key of the vesting contract
+   * @param stream {PublicKey} - The public key of the stream to be created
+   * @param amount {string} - The token amount to be allocated to the stream. Use BN.toString() or BigNumber.toString() for best compatibility
+   */
   public async allocate(
     payer: PublicKey,
     treasurer: PublicKey,
     treasury: PublicKey,
     stream: PublicKey,
-    amount: number,
+    amount: string | number,
   ): Promise<Transaction> {
     if (!amount) {
       throw Error('Amount should be greater than 0');
@@ -1943,17 +1986,17 @@ export class MSP {
       throw Error('Stream account not found');
     }
 
-    if (treasuryInfo.associatedToken !== streamInfo.associatedToken) {
+    if (treasuryInfo.associatedToken as string !== streamInfo.associatedToken.toBase58()) {
       throw Error('Invalid stream beneficiary associated token');
     }
 
-    const associatedToken = new PublicKey(
+    const treasuryAssociatedTokenMint = new PublicKey(
       treasuryInfo.associatedToken as string,
     );
     const treasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
-      associatedToken,
+      treasuryAssociatedTokenMint,
       treasury,
       true,
     );
@@ -1961,7 +2004,7 @@ export class MSP {
     const feeTreasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
-      associatedToken,
+      treasuryAssociatedTokenMint,
       Constants.FEE_TREASURY,
       true,
     );
@@ -1975,7 +2018,7 @@ export class MSP {
           treasurer: treasurer,
           treasury: treasury,
           treasuryToken: treasuryToken,
-          associatedToken: associatedToken,
+          associatedToken: treasuryAssociatedTokenMint,
           stream: stream,
           feeTreasury: Constants.FEE_TREASURY,
           feeTreasuryToken: feeTreasuryToken,
@@ -1988,7 +2031,7 @@ export class MSP {
     );
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -1999,7 +2042,7 @@ export class MSP {
   public async withdraw(
     payer: PublicKey,
     stream: PublicKey,
-    amount: number,
+    amount: number | string,
     autoWSol = false,
   ): Promise<Transaction> {
     if (!amount) {
@@ -2012,19 +2055,17 @@ export class MSP {
       throw Error("Stream doesn't exist");
     }
 
-    if (streamInfo.status === STREAM_STATUS.Schedule) {
+    if (streamInfo.status === STREAM_STATUS.Scheduled) {
       throw Error('Stream has not started');
     }
 
-    if (streamInfo.withdrawableAmount === 0) {
+    if (streamInfo.withdrawableAmount.isZero()) {
       throw Error('Stream withdrawable amount is zero');
     }
 
-    const beneficiary = new PublicKey(streamInfo.beneficiary as string);
+    const beneficiary = streamInfo.beneficiary;
     // Check for the beneficiary associated token account
-    const treasuryAssociatedTokenMint = new PublicKey(
-      streamInfo.associatedToken as string,
-    );
+    const treasuryAssociatedTokenMint = streamInfo.associatedToken;
     const beneficiaryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
@@ -2033,7 +2074,7 @@ export class MSP {
       true,
     );
 
-    const treasury = new PublicKey(streamInfo.treasury as PublicKey);
+    const treasury = streamInfo.treasury;
     const treasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
@@ -2091,7 +2132,7 @@ export class MSP {
     const tx = new Transaction().add(...ixs);
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -2114,14 +2155,12 @@ export class MSP {
       throw Error("Stream doesn't exist");
     }
 
-    const treasury = new PublicKey(streamInfo.treasury as string);
+    const treasury = streamInfo.treasury;
     const treasuryInfo = await this.getTreasury(treasury);
 
     if (!treasuryInfo) {
       throw Error("Treasury doesn't exist");
     }
-
-    const associatedToken = new PublicKey(streamInfo.associatedToken as string);
 
     const tx = this.program.transaction.pauseStream(LATEST_IDL_FILE_VERSION, {
       accounts: {
@@ -2132,7 +2171,7 @@ export class MSP {
     });
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -2151,14 +2190,12 @@ export class MSP {
       throw Error("Stream doesn't exist");
     }
 
-    const treasury = new PublicKey(streamInfo.treasury as string);
+    const treasury = streamInfo.treasury;
     const treasuryInfo = await this.getTreasury(treasury);
 
     if (!treasuryInfo) {
       throw Error("Treasury doesn't exist");
     }
-
-    const associatedToken = new PublicKey(streamInfo.associatedToken as string);
 
     const tx = this.program.transaction.resumeStream(LATEST_IDL_FILE_VERSION, {
       accounts: {
@@ -2169,7 +2206,7 @@ export class MSP {
     });
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -2190,22 +2227,20 @@ export class MSP {
       throw Error("Stream doesn't exist");
     }
 
-    const treasury = new PublicKey(streamInfo.treasury as string);
+    const treasury = streamInfo.treasury;
     const treasuryInfo = await getTreasury(this.program, treasury);
 
     if (!treasuryInfo) {
       throw Error("Treasury doesn't exist");
     }
 
-    if (streamInfo.associatedToken !== treasuryInfo.associatedToken) {
+    if (streamInfo.associatedToken.toBase58() !== treasuryInfo.associatedToken) {
       throw Error('Invalid stream beneficiary associated token');
     }
 
-    const treasurer = new PublicKey(streamInfo.treasurer as string);
-    const beneficiary = new PublicKey(streamInfo.beneficiary as string);
-    const treasuryAssociatedTokenMint = new PublicKey(
-      streamInfo.associatedToken as string,
-    );
+    const treasurer = streamInfo.treasurer;
+    const beneficiary = streamInfo.beneficiary;
+    const treasuryAssociatedTokenMint = streamInfo.associatedToken;
     const beneficiaryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
@@ -2309,7 +2344,7 @@ export class MSP {
 
     const tx = new Transaction().add(...ixs);
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -2414,7 +2449,7 @@ export class MSP {
     const tx = new Transaction().add(...ixs);
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -2448,11 +2483,11 @@ export class MSP {
     );
 
     // get treasury streams amount
-    const memcmpFilters = [
-      { memcmp: { offset: 8 + 170, bytes: treasury.toBase58() } },
-    ];
-    const totalStreams = (await this.program.account.stream.all(memcmpFilters))
-      .length;
+    // const memcmpFilters = [
+    //   { memcmp: { offset: 8 + 170, bytes: treasury.toBase58() } },
+    // ];
+    // const totalStreams = (await this.program.account.stream.all(memcmpFilters))
+    //   .length;
 
     const tx = this.program.transaction.refreshTreasuryData(
       LATEST_IDL_FILE_VERSION,
@@ -2466,7 +2501,7 @@ export class MSP {
     );
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -2485,7 +2520,7 @@ export class MSP {
       throw Error("Stream doesn't exist");
     }
 
-    const beneficiaryAddress = new PublicKey(streamInfo.beneficiary as string);
+    const beneficiaryAddress = streamInfo.beneficiary;
 
     if (!beneficiary.equals(beneficiaryAddress)) {
       throw Error('Not authorized');
@@ -2505,7 +2540,7 @@ export class MSP {
     );
 
     tx.feePayer = beneficiary;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -2521,11 +2556,11 @@ export class MSP {
     associatedToken: PublicKey,
     stream: PublicKey,
     streamName: string,
-    allocationAssigned: number,
-    rateAmount?: number,
+    allocationAssigned: number | string,
+    rateAmount?: number | string,
     rateIntervalInSeconds?: number,
     startUtc?: Date,
-    cliffVestAmount?: number,
+    cliffVestAmount?: number | string,
     cliffVestPercent?: number,
     feePayedByTreasurer?: boolean,
   ): Promise<any> {
@@ -2573,10 +2608,10 @@ export class MSP {
       LATEST_IDL_FILE_VERSION,
       streamName,
       new BN(startUtcInSeconds),
-      new BN(rateAmount as number),
-      new BN(rateIntervalInSeconds as number),
+      new BN(rateAmount || 0),
+      new BN(rateIntervalInSeconds || 0),
       new BN(allocationAssigned),
-      new BN(cliffVestAmount as number),
+      new BN(cliffVestAmount || 0),
       new BN(cliffVestPercentValue),
       feePayedByTreasurer ?? false,
       {
@@ -2599,7 +2634,7 @@ export class MSP {
     );
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -2613,11 +2648,11 @@ export class MSP {
     treasury: PublicKey,
     associatedToken: PublicKey,
     streams: StreamBeneficiary[],
-    allocationAssigned: number,
-    rateAmount?: number,
+    allocationAssigned: number | string,
+    rateAmount?: number | string,
     rateIntervalInSeconds?: number,
     startUtc?: Date,
-    cliffVestAmount?: number,
+    cliffVestAmount?: number | string,
     cliffVestPercent?: number,
     feePayedByTreasurer?: boolean,
   ): Promise<Transaction[]> {
@@ -2678,10 +2713,10 @@ export class MSP {
           LATEST_IDL_FILE_VERSION,
           streamBeneficiary.streamName,
           new BN(startUtcInSeconds),
-          new BN(rateAmount as number),
-          new BN(rateIntervalInSeconds as number),
+          new BN(rateAmount || 0),
+          new BN(rateIntervalInSeconds || 0),
           new BN(allocationAssigned),
-          new BN(cliffVestAmount as number),
+          new BN(cliffVestAmount || 0),
           new BN(cliffVestPercentValue),
           feePayedByTreasurer ?? false,
           {
@@ -2708,7 +2743,7 @@ export class MSP {
 
       const tx = new Transaction().add(...ixs);
       tx.feePayer = payer;
-      const { blockhash } = await this.connection.getRecentBlockhash(
+      const { blockhash } = await this.connection.getLatestBlockhash(
         (this.commitment as Commitment) || 'finalized',
       );
       tx.recentBlockhash = blockhash;
@@ -2723,7 +2758,7 @@ export class MSP {
     payer: PublicKey,
     destination: PublicKey,
     treasury: PublicKey,
-    amount: number,
+    amount: number | string,
     autoWSol = false,
   ): Promise<Transaction> {
     const treasuryInfo = await getTreasury(this.program, treasury);
@@ -2805,7 +2840,7 @@ export class MSP {
     const tx = new Transaction().add(...ixs);
 
     tx.feePayer = payer;
-    const { blockhash } = await this.connection.getRecentBlockhash(
+    const { blockhash } = await this.connection.getLatestBlockhash(
       (this.commitment as Commitment) || 'finalized',
     );
     tx.recentBlockhash = blockhash;
@@ -2819,7 +2854,7 @@ export class MSP {
 
   private async ensureAutoWrapSolInstructions(
     autoWSol: boolean,
-    amountInLamports: number,
+    amountInLamports: number | string | BN,
     owner: PublicKey,
     ownerWSolTokenAccount: PublicKey,
     ownerWSolTokenAccountInfo: AccountInfo<Buffer> | null,

@@ -1,8 +1,14 @@
 /**
  * Solana
  */
+import { IdlAccounts } from '@project-serum/anchor';
 import { Commitment, PublicKey } from '@solana/web3.js';
-import { BN } from '@project-serum/anchor';
+import BN from 'bn.js';
+import { IDL, Msp } from './msp_idl_004'; // point to the latest IDL
+// Given an IDL type IDL we can derive Typescript types for its accounts 
+// using eg. IdlAccounts<IDL>['ACCOUNT_NAME']
+type RawStream = IdlAccounts<Msp>["stream"];
+type RawTreasury = IdlAccounts<Msp>["treasury"];
 
 declare global {
   export interface String {
@@ -61,23 +67,22 @@ export type TransactionMessage = {
 };
 
 export interface ListStreamParams {
-  treasurer?: PublicKey | undefined;
-  treasury?: PublicKey | undefined;
-  beneficiary?: PublicKey | undefined;
+  treasurer?: PublicKey;
+  treasury?: PublicKey;
+  beneficiary?: PublicKey;
   commitment?: Commitment;
-  friendly?: boolean;
   category?: Category;
   subCategory?: SubCategory;
 }
 
 /**
- * Stream activity (Friendly version with PublicKeys converted to string)
+ * Stream activity
  */
 export type StreamActivity = {
   signature: string;
   initializer: string;
   action: string;
-  amount: number;
+  amount: string;
   mint: string;
   blockTime: number;
   utcDate: string;
@@ -97,7 +102,7 @@ export type StreamActivityRaw = {
 };
 
 /**
- *  Vesting treasury activity (Friendly version with PublicKeys converted to string)
+ *  Vesting treasury activity
  */
 export type VestingTreasuryActivity = {
   signature: string;
@@ -109,7 +114,7 @@ export type VestingTreasuryActivity = {
   // createStream - allocation amount
   // addFunds - deposited amount
   // withdraw - withdrawn amount
-  amount?: number;
+  amount?: string;
   beneficiary?: string; // create stream
   destination?: string; // withdraw
   destinationTokenAccount?: string; // withdrawn associated token account
@@ -130,7 +135,7 @@ export type VestingTreasuryActivityRaw = {
   // createStream - allocation amount
   // addFunds - deposited amount
   // withdraw - withdrawn amount
-  amount?: BN;
+  amount: BN | undefined;
   beneficiary?: PublicKey; // create stream
   destination?: PublicKey; // withdraw
   destinationTokenAccount?: PublicKey; // withdrawn associated token account
@@ -174,17 +179,17 @@ export type Treasury = {
   associatedToken: PublicKey | string;
   mint: PublicKey | string;
   labels: string[]; //max 5 labels per treasury
-  balance: number;
-  allocationReserved: number;
-  allocationAssigned: number;
-  totalWithdrawals: number;
+  balance: string; // TODO: change to BN?
+  allocationReserved: string; // TODO: change to BN?
+  allocationAssigned: string; // TODO: change to BN?
+  totalWithdrawals: string; // TODO: change to BN?
   totalStreams: number;
   createdOnUtc: Date | string;
   treasuryType: TreasuryType;
   autoClose: boolean;
   category: Category;
   subCategory: SubCategory;
-  data: any;
+  data: RawTreasury;
 };
 
 /**
@@ -205,7 +210,7 @@ export type StreamTemplate = {
  * Stream states
  */
 export enum STREAM_STATUS {
-  Schedule = 1,
+  Scheduled = 1,
   Running = 2,
   Paused = 3,
 }
@@ -223,39 +228,44 @@ export enum AllocationType {
  * Stream info
  */
 export type Stream = {
-  id: PublicKey | string | undefined;
+  // Public keys
+  id: PublicKey;
+  treasurer: PublicKey;
+  treasury: PublicKey;
+  beneficiary: PublicKey;
+  associatedToken: PublicKey;
+  // Amounts
+  cliffVestAmount: BN;
+  rateAmount: BN;
+  allocationAssigned: BN;
+  totalWithdrawalsAmount: BN;
+  withdrawableAmount: BN;
+  fundsLeftInStream: BN;
+  fundsSentToBeneficiary: BN;
+  remainingAllocationAmount: BN;
+  // Dates
+  startUtc: string;
+  createdOnUtc: string;
+  estimatedDepletionDate: string;
+  // Time(s)
+  secondsSinceStart: number;
+  rateIntervalInSeconds: number;
+  createdBlockTime: number;
+  lastRetrievedBlockTime: number;
+  lastRetrievedTimeInSeconds: number;
+  // General
   initialized: boolean;
   version: number;
   name: string;
-  treasurer: PublicKey | string;
-  rateAmount: number;
-  rateIntervalInSeconds: number;
-  startUtc: Date | string;
-  cliffVestAmount: number;
+  streamUnitsPerSecond: number;
   cliffVestPercent: number;
-  beneficiary: PublicKey | string;
-  associatedToken: PublicKey | string;
-  treasury: PublicKey | string;
-  allocationAssigned: number;
-  // allocationReserved: number,
-  totalWithdrawalsAmount: number;
-  createdBlockTime: number;
-  createdOnUtc: Date | string;
-  lastRetrievedBlockTime: number;
-  lastRetrievedTimeInSeconds: number;
   upgradeRequired: boolean;
   status: STREAM_STATUS | string;
-  withdrawableAmount: number;
-  fundsLeftInStream: number;
-  fundsSentToBeneficiary: number;
-  remainingAllocationAmount: number;
-  estimatedDepletionDate: Date | string;
-  streamUnitsPerSecond: number;
   isManuallyPaused: boolean;
   feePayedByTreasurer: boolean;
   category: Category;
   subCategory: SubCategory;
-  data: any;
+  data: RawStream;
 };
 
 /**
@@ -304,4 +314,63 @@ export enum TimeUnit {
   Week = 604800,
   Month = 2629750,
   Year = 31557000,
+}
+
+// Given an IDL type IDL we can derive Typescript types for its accounts 
+// using eg. IdlAccounts<IDL>['ACCOUNT_NAME']
+// Events are not possible yet.
+// See https://github.com/coral-xyz/anchor/issues/2050
+// See https://github.com/coral-xyz/anchor/pull/2185
+// So we need to manually keep this type synchronized with 
+// MSP IDL -> events -> StreamEvent
+export type StreamEventData = {
+  version: number;
+  initialized: boolean;
+  name: string;
+  treasurerAddress: PublicKey;
+  rateAmountUnits: BN;
+  rateIntervalInSeconds: BN;
+  /**
+   * For stream events, this field is guaranteed to be in seconds
+   */
+  startUtc: BN;
+  cliffVestAmountUnits: BN;
+  cliffVestPercent: BN;
+  beneficiaryAddress: PublicKey;
+  beneficiaryAssociatedToken: PublicKey;
+  treasuryAddress: PublicKey;
+  allocationAssignedUnits: BN;
+  allocationReservedUnits: BN;
+  totalWithdrawalsUnits: BN;
+  lastWithdrawalUnits: BN;
+  lastWithdrawalSlot: BN;
+  lastWithdrawalBlockTime: BN;
+  lastManualStopWithdrawableUnitsSnap: BN;
+  lastManualStopSlot: BN;
+  lastManualStopBlockTime: BN;
+  lastManualResumeRemainingAllocationUnitsSnap: BN;
+  lastManualResumeSlot: BN;
+  lastManualResumeBlockTime: BN;
+  lastKnownTotalSecondsInPausedStatus: BN;
+  lastAutoStopBlockTime: BN;
+  feePayedByTreasurer: boolean;
+  status: string;
+  isManualPause: boolean;
+  cliffUnits: BN;
+  currentBlockTime: BN;
+  secondsSinceStart: BN;
+  estDepletionTime: BN;
+  fundsLeftInStream: BN;
+  fundsSentToBeneficiary: BN;
+  withdrawableUnitsWhilePaused: BN;
+  nonStopEarningUnits: BN;
+  missedUnitsWhilePaused: BN;
+  entitledEarningsUnits: BN;
+  withdrawableUnitsWhileRunning: BN;
+  beneficiaryRemainingAllocation: BN;
+  beneficiaryWithdrawableAmount: BN;
+  lastKnownStopBlockTime: BN;
+  createdOnUtc: BN;
+  category: number;
+  subCategory: number;
 }

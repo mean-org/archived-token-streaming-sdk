@@ -1,5 +1,4 @@
 {
-    "extends": "@tsconfig/recommended/tsconfig.json",
     "compilerOptions": {
         "outDir": "./lib",
         "declaration": true,
@@ -21,5 +20,5 @@
     },
     "$schema": "https://json.schemastore.org/tsconfig",
     "display": "Recommended",
-    "exclude": ["tests/*", "test_scripts/*"]
-  }
+    "exclude": ["tests/*", "test_scripts/*", "lib/*"]
+}
