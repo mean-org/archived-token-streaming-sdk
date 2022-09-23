@@ -1,8 +1,14 @@
 /**
  * Solana
  */
+import { IdlAccounts } from '@project-serum/anchor';
 import { Commitment, PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
+import { IDL, Msp } from './msp_idl_004'; // point to the latest IDL
+// Given an IDL type IDL we can derive Typescript types for its accounts 
+// using eg. IdlAccounts<IDL>['ACCOUNT_NAME']
+type RawStream = IdlAccounts<Msp>["stream"];
+type RawTreasury = IdlAccounts<Msp>["treasury"];
 
 declare global {
   export interface String {
@@ -173,17 +179,17 @@ export type Treasury = {
   associatedToken: PublicKey | string;
   mint: PublicKey | string;
   labels: string[]; //max 5 labels per treasury
-  balance: string;
-  allocationReserved: string;
-  allocationAssigned: string;
-  totalWithdrawals: string;
+  balance: string; // TODO: change to BN?
+  allocationReserved: string; // TODO: change to BN?
+  allocationAssigned: string; // TODO: change to BN?
+  totalWithdrawals: string; // TODO: change to BN?
   totalStreams: number;
   createdOnUtc: Date | string;
   treasuryType: TreasuryType;
   autoClose: boolean;
   category: Category;
   subCategory: SubCategory;
-  data: any;
+  data: RawTreasury;
 };
 
 /**
@@ -259,7 +265,7 @@ export type Stream = {
   feePayedByTreasurer: boolean;
   category: Category;
   subCategory: SubCategory;
-  data?: any;
+  data: RawStream;
 };
 
 /**
@@ -308,4 +314,63 @@ export enum TimeUnit {
   Week = 604800,
   Month = 2629750,
   Year = 31557000,
+}
+
+// Given an IDL type IDL we can derive Typescript types for its accounts 
+// using eg. IdlAccounts<IDL>['ACCOUNT_NAME']
+// Events are not possible yet.
+// See https://github.com/coral-xyz/anchor/issues/2050
+// See https://github.com/coral-xyz/anchor/pull/2185
+// So we need to manually keep this type synchronized with 
+// MSP IDL -> events -> StreamEvent
+export type StreamEventData = {
+  version: number;
+  initialized: boolean;
+  name: string;
+  treasurerAddress: PublicKey;
+  rateAmountUnits: BN;
+  rateIntervalInSeconds: BN;
+  /**
+   * For stream events, this field is guaranteed to be in seconds
+   */
+  startUtc: BN;
+  cliffVestAmountUnits: BN;
+  cliffVestPercent: BN;
+  beneficiaryAddress: PublicKey;
+  beneficiaryAssociatedToken: PublicKey;
+  treasuryAddress: PublicKey;
+  allocationAssignedUnits: BN;
+  allocationReservedUnits: BN;
+  totalWithdrawalsUnits: BN;
+  lastWithdrawalUnits: BN;
+  lastWithdrawalSlot: BN;
+  lastWithdrawalBlockTime: BN;
+  lastManualStopWithdrawableUnitsSnap: BN;
+  lastManualStopSlot: BN;
+  lastManualStopBlockTime: BN;
+  lastManualResumeRemainingAllocationUnitsSnap: BN;
+  lastManualResumeSlot: BN;
+  lastManualResumeBlockTime: BN;
+  lastKnownTotalSecondsInPausedStatus: BN;
+  lastAutoStopBlockTime: BN;
+  feePayedByTreasurer: boolean;
+  status: string;
+  isManualPause: boolean;
+  cliffUnits: BN;
+  currentBlockTime: BN;
+  secondsSinceStart: BN;
+  estDepletionTime: BN;
+  fundsLeftInStream: BN;
+  fundsSentToBeneficiary: BN;
+  withdrawableUnitsWhilePaused: BN;
+  nonStopEarningUnits: BN;
+  missedUnitsWhilePaused: BN;
+  entitledEarningsUnits: BN;
+  withdrawableUnitsWhileRunning: BN;
+  beneficiaryRemainingAllocation: BN;
+  beneficiaryWithdrawableAmount: BN;
+  lastKnownStopBlockTime: BN;
+  createdOnUtc: BN;
+  category: number;
+  subCategory: number;
 }

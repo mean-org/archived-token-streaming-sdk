@@ -33,6 +33,7 @@ import {
   Category,
   ListStreamParams,
   Stream,
+  StreamEventData,
   StreamTemplate,
   STREAM_STATUS,
   SubCategory,
@@ -48,7 +49,7 @@ import {
   findStreamTemplateAddress,
   getStream,
   getStreamCached,
-  getStreamRaw,
+  getStreamEventData,
   getStreamTemplate,
   getTreasury,
   getValidTreasuryAllocation,
@@ -60,7 +61,6 @@ import {
 import { Constants, WARNING_TYPES, LATEST_IDL_FILE_VERSION } from './constants';
 import { Beneficiary, listTreasuries, StreamBeneficiary } from '.';
 import { u64Number } from './u64n';
-import { BigNumber } from "bignumber.js";
 
 /**
  * API class with functions to interact with the Money Streaming Program using Solana Web3 JS API
@@ -92,8 +92,8 @@ export class MSP {
     return getStream(this.program, id);
   }
 
-  public async getStreamRaw(id: PublicKey): Promise<any> {
-    return getStreamRaw(this.program, id);
+  public async getStreamRaw(id: PublicKey): Promise<StreamEventData | null> {
+    return getStreamEventData(this.program, id);
   }
 
   public async refreshStream(
@@ -1340,11 +1340,17 @@ export class MSP {
         // all streamed
         continue;
       }
-      const allocationAssignedBN = new BigNumber(stream.allocationAssigned.toString());
-      const percentReminderAfterCliff = 1 - templateInfo.cliffVestPercent / Constants.CLIFF_PERCENT_DENOMINATOR;
-      const durationNumberOfUnits = templateInfo.durationNumberOfUnits;
-      const rateAmount = allocationAssignedBN.multipliedBy(percentReminderAfterCliff).dividedToIntegerBy(durationNumberOfUnits).toString();
-      streamRate = streamRate.add(new BN(rateAmount));
+
+      const percentDenominator = new BN(Constants.CLIFF_PERCENT_DENOMINATOR);
+      const allocationTotal = new BN(stream.allocationAssigned);
+      const cliffAmount = allocationTotal
+        .mul(new BN(templateInfo.cliffVestPercent))
+        .div(percentDenominator);
+      const allocationAfterCliff = allocationTotal.sub(cliffAmount);
+      const rateAmount = allocationAfterCliff // TODO: Remove
+        .div(new BN(templateInfo.durationNumberOfUnits));
+      
+      streamRate = streamRate.add(rateAmount);
     }
 
     return [
@@ -1394,15 +1400,14 @@ export class MSP {
       throw Error("Stream template doesn't exist");
     }
 
-    const allocationAssignedBN = new BigNumber(allocationAssigned);
-    const percentReminderAfterCliff = 1 - templateInfo.cliffVestPercent / Constants.CLIFF_PERCENT_DENOMINATOR;
-    const durationNumberOfUnits = templateInfo.durationNumberOfUnits;
-    const rateAmount = allocationAssignedBN.multipliedBy(percentReminderAfterCliff).dividedToIntegerBy(durationNumberOfUnits).toString();
-    console.log('allocationAssigned:', allocationAssignedBN.toString());
-    console.log('cliffVestPercent:', templateInfo.cliffVestPercent.toString());
-    console.log('percentReminderAfterCliff:', percentReminderAfterCliff);
-    console.log('durationNumberOfUnits:', durationNumberOfUnits);
-    console.log('rateAmount:', rateAmount);
+    const percentDenominator = new BN(Constants.CLIFF_PERCENT_DENOMINATOR);
+    const allocationTotal = new BN(allocationAssigned);
+    const cliffAmount = allocationTotal
+      .mul(new BN(templateInfo.cliffVestPercent))
+      .div(percentDenominator);
+    const allocationAfterCliff = allocationTotal.sub(cliffAmount);
+    const rateAmount = allocationAfterCliff // TODO: Remove
+      .div(new BN(templateInfo.durationNumberOfUnits));
 
     // Get the treasury token account
     const treasuryToken = await Token.getAssociatedTokenAddress(
@@ -1496,14 +1501,14 @@ export class MSP {
     }
 
     // Calculate rate amount
-    // const rateAmount =
-    //   (allocationAssigned * (1 - templateInfo.cliffVestPercent / Constants.CLIFF_PERCENT_DENOMINATOR)) /
-    //   templateInfo.durationNumberOfUnits;
-
-    const allocationAssignedBN = new BigNumber(allocationAssigned);
-    const percentReminderAfterCliff = 1 - templateInfo.cliffVestPercent / Constants.CLIFF_PERCENT_DENOMINATOR;
-    const durationNumberOfUnits = templateInfo.durationNumberOfUnits;
-    const rateAmount = allocationAssignedBN.multipliedBy(percentReminderAfterCliff).dividedToIntegerBy(durationNumberOfUnits).toString();
+    const percentDenominator = new BN(Constants.CLIFF_PERCENT_DENOMINATOR);
+    const allocationTotal = new BN(allocationAssigned);
+    const cliffAmount = allocationTotal
+      .mul(new BN(templateInfo.cliffVestPercent))
+      .div(percentDenominator);
+    const allocationAfterCliff = allocationTotal.sub(cliffAmount);
+    const rateAmount = allocationAfterCliff // TODO: Remove
+      .div(new BN(templateInfo.durationNumberOfUnits));
 
     // Get the treasury token account
     const treasuryToken = await Token.getAssociatedTokenAddress(

@@ -8,6 +8,8 @@
 // 3. Deploy IDL for better debugging experience
 //    anchor idl init --provider.cluster localnet --filepath target/idl/msp.json MSPdQo5ZdrPh6rU1LsvUv5nRhAnj1mj6YQEqBUq8YwZ
 // 4. Run tests
+//    cd mean-msp-sdk
+//    yarn build
 //    yarn test
 
 import { expect } from "chai";
@@ -41,7 +43,6 @@ import {
 } from '../src';
 import { Category, STREAM_STATUS, SubCategory, TimeUnit, TreasuryType } from "../src/types";
 import { BN } from "bn.js";
-import BigNumber from "bignumber.js";
 import { toTokenAmountBn } from "./utils";
 
 interface LooseObject {
@@ -116,10 +117,8 @@ describe('MSP Tests\n', async () => {
 
   before(async () => {
     console.log('Entering before..');
-    // user1Wallet = Keypair.fromSecretKey(new Uint8Array([210, 103, 40, 90, 158, 199, 10, 53, 231, 74, 93, 185, 148, 58, 178, 55, 158, 171, 85, 242, 166, 119, 164, 157, 51, 195, 85, 9, 53, 42, 123, 23, 148, 56, 37, 133, 246, 147, 245, 213, 218, 126, 164, 13, 4, 245, 89, 252, 45, 99, 164, 13, 8, 0, 217, 210, 189, 252, 23, 232, 151, 191, 182, 174]));
     user1Wallet = Keypair.generate();
 
-    // user2Wallet = Keypair.fromSecretKey(new Uint8Array([218, 176, 113, 75, 92, 204, 57, 153, 203, 29, 94, 149, 98, 192, 199, 119, 105, 243, 26, 254, 222, 55, 56, 80, 132, 138, 51, 123, 51, 156, 196, 142, 148, 56, 35, 252, 132, 152, 21, 40, 202, 42, 230, 76, 4, 141, 180, 83, 48, 48, 207, 146, 105, 57, 199, 187, 73, 210, 155, 207, 150, 120, 29, 85]));
     user2Wallet = Keypair.generate();
 
     debugObject = {};
@@ -129,7 +128,6 @@ describe('MSP Tests\n', async () => {
     console.log('before airdrop to fee account to pay rent');
     await connection.confirmTransaction(await connection.requestAirdrop(Constants.FEE_TREASURY, LAMPORTS_PER_SOL), 'confirmed');
 
-    //3KmMEv7A8R3MMhScQceXBQe69qLmnFfxSM3q8HyzkrSx
     // airdrop some rent sol to the read on-chain data account
     console.log('before airdrop to fee account to pay rent');
     await connection.confirmTransaction(await connection.requestAirdrop(Constants.READONLY_PUBKEY, LAMPORTS_PER_SOL), 'confirmed');
@@ -176,14 +174,15 @@ describe('MSP Tests\n', async () => {
   xit('BN & Bignumber', async () => {
     const strmId = new PublicKey('7uGiMnnnJdr28DPsCioeKLSF5uJjWP3wxYFGVmK3SEJh');
     const stream = await msp.getStreamRaw(strmId);
+    if(!stream) throw new Error(`Stream ${strmId} was not found`);
 
     const slot = await program.provider.connection.getSlot('finalized');
     const blockTime = (await program.provider.connection.getBlockTime(slot)) as number;
     const timeDiff = Math.round((Date.now() / 1_000) - blockTime);
 
     let startUtcInSeconds = 0;
-    if (stream.startUtcInSeconds > 0) {
-      startUtcInSeconds = stream.startUtcInSeconds.toNumber();
+    if (stream.startUtc.gt(new BN(0))) {
+      startUtcInSeconds = stream.startUtc.toNumber();
       console.log('startUtcInSeconds:1', startUtcInSeconds);
     }
     if (stream.startUtc.toString().length > 10) {
@@ -207,7 +206,7 @@ describe('MSP Tests\n', async () => {
     }
 
     const secondsSinceStart = timeDiff - startUtcInSeconds;
-    const streamedUnitsPerSecond = getStreamUnitsPerSecond(stream);
+    const streamedUnitsPerSecond = getStreamUnitsPerSecond(stream.rateAmountUnits, stream.rateIntervalInSeconds);
     const mult = streamedUnitsPerSecond * secondsSinceStart;
     const nonStopEarningUnits = cliffUnits.add(new BN(mult));
     const missedEarningUnitsWhilePaused = streamedUnitsPerSecond * totalSecondsPaused;
@@ -216,20 +215,20 @@ describe('MSP Tests\n', async () => {
 
   });
 
-  xit('Cliff calculation limit', () => {
-    const PERCENT_DENOMINATOR = 1_000_000;
-    const rateAmount = "29207750000000";
-    const allocationAssigned = "368940000000000";
-    const cliffMul = new BigNumber(rateAmount).multipliedBy(new BigNumber(allocationAssigned));
-    console.log(`effective_cliff_units multiplied: ${cliffMul.toFixed(0)}, length: ${cliffMul.toFixed(0).length}`);
-    const cliff = cliffMul.dividedBy(new BigNumber(PERCENT_DENOMINATOR));
-    console.log(`effective_cliff_units final result: ${cliff.toFixed(0)}, length: ${cliff.toFixed(0).length}`);
+  // xit('Cliff calculation limit', () => {
+  //   const PERCENT_DENOMINATOR = 1_000_000;
+  //   const rateAmount = "29207750000000";
+  //   const allocationAssigned = "368940000000000";
+  //   const cliffMul = new BigNumber(rateAmount).multipliedBy(new BigNumber(allocationAssigned));
+  //   console.log(`effective_cliff_units multiplied: ${cliffMul.toFixed(0)}, length: ${cliffMul.toFixed(0).length}`);
+  //   const cliff = cliffMul.dividedBy(new BigNumber(PERCENT_DENOMINATOR));
+  //   console.log(`effective_cliff_units final result: ${cliff.toFixed(0)}, length: ${cliff.toFixed(0).length}`);
 
-    const cliffMulBn = new BN(rateAmount).mul(new BN(allocationAssigned));
-    console.log(`multiplied: ${cliffMulBn.toString()}, length: ${cliffMulBn.toString().length}`);
-    const cliffBn = cliffMulBn.div(new BN(PERCENT_DENOMINATOR));
-    console.log(`final result: ${cliffBn.toString()}, length: ${cliffBn.toString().length}`);
-  });
+  //   const cliffMulBn = new BN(rateAmount).mul(new BN(allocationAssigned));
+  //   console.log(`multiplied: ${cliffMulBn.toString()}, length: ${cliffMulBn.toString().length}`);
+  //   const cliffBn = cliffMulBn.div(new BN(PERCENT_DENOMINATOR));
+  //   console.log(`final result: ${cliffBn.toString()}, length: ${cliffBn.toString().length}`);
+  // });
 
   xit('Withdraw VC funds from 12-decimals token', async () => {
     const decimals = 12;
@@ -653,137 +652,137 @@ describe('MSP Tests\n', async () => {
     }
   })
 
-  xit('MSP > listStreams > select stream using filter and get info', async () => {
-    const targetStreamAddress = 'Cx14kzEJJqUsXYdKS6BcXGGM4Mtn6m3VbRpr3o1FifdK';
-    try {
-      console.log("Get list of streams...");
-      const accounts = await getFilteredStreamAccounts(
-        program,
-        userWalletAddress,
-        undefined,
-        userWalletAddress,
-        Category.default,
-      );
-      console.log("Selecting stream:", targetStreamAddress);
-      expect(accounts.length).not.eq(0);
+  // xit('MSP > listStreams > select stream using filter and get info', async () => {
+  //   const targetStreamAddress = 'Cx14kzEJJqUsXYdKS6BcXGGM4Mtn6m3VbRpr3o1FifdK';
+  //   try {
+  //     console.log("Get list of streams...");
+  //     const accounts = await getFilteredStreamAccounts(
+  //       program,
+  //       userWalletAddress,
+  //       undefined,
+  //       userWalletAddress,
+  //       Category.default,
+  //     );
+  //     console.log("Selecting stream:", targetStreamAddress);
+  //     expect(accounts.length).not.eq(0);
 
-      const item = accounts.find(a => a.publicKey.toString() === targetStreamAddress);
-      expect(item).not.be.undefined;
-      expect(item.publicKey.toBase58()).equal(targetStreamAddress);
-      expect(item.account).not.be.undefined;
+  //     const item = accounts.find(a => a.publicKey.toString() === targetStreamAddress);
+  //     expect(item).not.be.undefined;
+  //     expect(item.publicKey.toBase58()).equal(targetStreamAddress);
+  //     expect(item.account).not.be.undefined;
 
-      // To hold the value of the withdrawable amount
-      let streamWithdrawableAmount = new BN(0);
+  //     // To hold the value of the withdrawable amount
+  //     let streamWithdrawableAmount = new BN(0);
 
-      if (item) {
-        if (item.account !== undefined) {
-          const slot = await program.provider.connection.getSlot('finalized');
-          const blockTime = (await program.provider.connection.getBlockTime(slot)) as number;
-          const stream = item.account;
-          const address = item.publicKey;
-          const nameBuffer = Buffer.from(stream.name);
-          const createdOnUtcInSeconds = stream.createdOnUtc
-            ? stream.createdOnUtc.toNumber()
-            : 0;
-          const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
-          const effectiveCreatedOnUtcInSeconds = createdOnUtcInSeconds > 0
-            ? createdOnUtcInSeconds
-            : startUtcInSeconds;
-          const timeDiff = Math.round((Date.now() / 1_000) - blockTime);
-          const startUtc = new Date(startUtcInSeconds * 1000);
-          const depletionDate = getStreamEstDepletionDate(stream);
-          const status = getStreamStatus(stream, timeDiff);
-          // const streamMissedEarningUnitsWhilePaused = getStreamMissedEarningUnitsWhilePaused(stream);
-          const remainingAllocation = getStreamRemainingAllocation(stream);
-          const manuallyPaused = isStreamManuallyPaused(stream);
-          const cliffAmount = getStreamCliffAmount(stream);
-          const streamUnitsPerSecond = getStreamUnitsPerSecond(stream);
+  //     if (item) {
+  //       if (item.account !== undefined) {
+  //         const slot = await program.provider.connection.getSlot('finalized');
+  //         const blockTime = (await program.provider.connection.getBlockTime(slot)) as number;
+  //         const stream = item.account;
+  //         const address = item.publicKey;
+  //         const nameBuffer = Buffer.from(stream.name);
+  //         const createdOnUtcInSeconds = stream.createdOnUtc
+  //           ? stream.createdOnUtc.toNumber()
+  //           : 0;
+  //         const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
+  //         const effectiveCreatedOnUtcInSeconds = createdOnUtcInSeconds > 0
+  //           ? createdOnUtcInSeconds
+  //           : startUtcInSeconds;
+  //         const timeDiff = Math.round((Date.now() / 1_000) - blockTime);
+  //         const startUtc = new Date(startUtcInSeconds * 1000);
+  //         const depletionDate = getStreamEstDepletionDate(stream);
+  //         const status = getStreamStatus(stream, timeDiff);
+  //         // const streamMissedEarningUnitsWhilePaused = getStreamMissedEarningUnitsWhilePaused(stream);
+  //         const remainingAllocation = getStreamRemainingAllocation(stream);
+  //         const manuallyPaused = isStreamManuallyPaused(stream);
+  //         const cliffAmount = getStreamCliffAmount(stream);
+  //         const streamUnitsPerSecond = getStreamUnitsPerSecond(stream);
 
-          debugObject = {
-            id: address.toBase58(),
-            version: stream.version,
-            name: new TextDecoder().decode(nameBuffer),
-            startUtc: startUtc.toString(),
-            secondsSinceStart: blockTime - startUtcInSeconds,
-            cliffVestPercent: stream.cliffVestPercent.toNumber() / 10_000,
-            cliffVestAmount: cliffAmount.toString(),
-            allocationAssigned: stream.allocationAssignedUnits.toString(),
-            estimatedDepletionDate: depletionDate.toString(),
-            rateAmount: stream.rateAmountUnits.toString(),
-            rateIntervalInSeconds: stream.rateIntervalInSeconds.toNumber(),
-            totalWithdrawalsAmount: stream.totalWithdrawalsUnits.toString(),
-            remainingAllocation: remainingAllocation.toString(),
-            status: `${STREAM_STATUS[status]} = ${status}`,
-            manuallyPaused: manuallyPaused,
-            streamUnitsPerSecond: streamUnitsPerSecond,
-          };
+  //         debugObject = {
+  //           id: address.toBase58(),
+  //           version: stream.version,
+  //           name: new TextDecoder().decode(nameBuffer),
+  //           startUtc: startUtc.toString(),
+  //           secondsSinceStart: blockTime - startUtcInSeconds,
+  //           cliffVestPercent: stream.cliffVestPercent.toNumber() / 10_000,
+  //           cliffVestAmount: cliffAmount.toString(),
+  //           allocationAssigned: stream.allocationAssignedUnits.toString(),
+  //           estimatedDepletionDate: depletionDate.toString(),
+  //           rateAmount: stream.rateAmountUnits.toString(),
+  //           rateIntervalInSeconds: stream.rateIntervalInSeconds.toNumber(),
+  //           totalWithdrawalsAmount: stream.totalWithdrawalsUnits.toString(),
+  //           remainingAllocation: remainingAllocation.toString(),
+  //           status: `${STREAM_STATUS[status]} = ${status}`,
+  //           manuallyPaused: manuallyPaused,
+  //           streamUnitsPerSecond: streamUnitsPerSecond,
+  //         };
 
-          // Continue evaluating if there is remaining allocation
-          if (remainingAllocation.gtn(0)) {
-            // Continue evaluating if the stream is not scheduled
-            if (status !== STREAM_STATUS.Scheduled) {
+  //         // Continue evaluating if there is remaining allocation
+  //         if (remainingAllocation.gtn(0)) {
+  //           // Continue evaluating if the stream is not scheduled
+  //           if (status !== STREAM_STATUS.Scheduled) {
 
-              if (status === STREAM_STATUS.Paused) {  // Check if PAUSED
-                const manuallyPaused = isStreamManuallyPaused(stream);
-                const withdrawableWhilePausedAmount = manuallyPaused
-                  ? stream.lastManualStopWithdrawableUnitsSnap
-                  : remainingAllocation;
-                streamWithdrawableAmount = BN.max(new BN(0), withdrawableWhilePausedAmount);
-              } else if (stream.rateAmountUnits.isZero() ||
-                stream.rateIntervalInSeconds.isZero()) {  // Check if NOT RUNNING
-                streamWithdrawableAmount = new BN(0);
-              } else {
-                const blocktimeRelativeNow = Math.round((Date.now() / 1_000) - timeDiff);
-                const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
-                const timeSinceStart = blocktimeRelativeNow - startUtcInSeconds;
+  //             if (status === STREAM_STATUS.Paused) {  // Check if PAUSED
+  //               const manuallyPaused = isStreamManuallyPaused(stream);
+  //               const withdrawableWhilePausedAmount = manuallyPaused
+  //                 ? stream.lastManualStopWithdrawableUnitsSnap
+  //                 : remainingAllocation;
+  //               streamWithdrawableAmount = BN.max(new BN(0), withdrawableWhilePausedAmount);
+  //             } else if (stream.rateAmountUnits.isZero() ||
+  //               stream.rateIntervalInSeconds.isZero()) {  // Check if NOT RUNNING
+  //               streamWithdrawableAmount = new BN(0);
+  //             } else {
+  //               const blocktimeRelativeNow = Math.round((Date.now() / 1_000) - timeDiff);
+  //               const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
+  //               const timeSinceStart = blocktimeRelativeNow - startUtcInSeconds;
 
-                const cliffAmount2 = new BigNumber(cliffAmount.toString());
-                const unitsSinceStart = new BigNumber(streamUnitsPerSecond * timeSinceStart);
-                const nonStopEarningUnits2 = cliffAmount2.plus(unitsSinceStart).toString();
+  //               const cliffAmount2 = new BigNumber(cliffAmount.toString());
+  //               const unitsSinceStart = new BigNumber(streamUnitsPerSecond * timeSinceStart);
+  //               const nonStopEarningUnits2 = cliffAmount2.plus(unitsSinceStart).toString();
 
-                const nonStopEarningUnits = new BN(nonStopEarningUnits2);
-                const totalSecondsPaused = stream.lastKnownTotalSecondsInPausedStatus.toString().length >= 10
-                  ? parseInt((stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1_000).toString())
-                  : stream.lastKnownTotalSecondsInPausedStatus.toNumber();
-                const missedEarningUnitsWhilePaused = streamUnitsPerSecond * totalSecondsPaused;
-                let entitledEarnings = nonStopEarningUnits;
+  //               const nonStopEarningUnits = new BN(nonStopEarningUnits2);
+  //               const totalSecondsPaused = stream.lastKnownTotalSecondsInPausedStatus.toString().length >= 10
+  //                 ? parseInt((stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1_000).toString())
+  //                 : stream.lastKnownTotalSecondsInPausedStatus.toNumber();
+  //               const missedEarningUnitsWhilePaused = streamUnitsPerSecond * totalSecondsPaused;
+  //               let entitledEarnings = nonStopEarningUnits;
 
-                if (nonStopEarningUnits.gten(missedEarningUnitsWhilePaused)) {
-                  entitledEarnings = nonStopEarningUnits.subn(missedEarningUnitsWhilePaused);
-                }
+  //               if (nonStopEarningUnits.gten(missedEarningUnitsWhilePaused)) {
+  //                 entitledEarnings = nonStopEarningUnits.subn(missedEarningUnitsWhilePaused);
+  //               }
 
-                let withdrawableUnitsWhileRunning = entitledEarnings;
+  //               let withdrawableUnitsWhileRunning = entitledEarnings;
 
-                if (entitledEarnings.gte(stream.totalWithdrawalsUnits)) {
-                  withdrawableUnitsWhileRunning = entitledEarnings.sub(stream.totalWithdrawalsUnits);
-                }
+  //               if (entitledEarnings.gte(stream.totalWithdrawalsUnits)) {
+  //                 withdrawableUnitsWhileRunning = entitledEarnings.sub(stream.totalWithdrawalsUnits);
+  //               }
 
-                const withdrawableAmount = BN.min(remainingAllocation, withdrawableUnitsWhileRunning);
+  //               const withdrawableAmount = BN.min(remainingAllocation, withdrawableUnitsWhileRunning);
 
-                streamWithdrawableAmount = BN.max(new BN(0), withdrawableAmount);
+  //               streamWithdrawableAmount = BN.max(new BN(0), withdrawableAmount);
 
-                debugObject.startUtcInSeconds = startUtcInSeconds;
-                debugObject.timeSinceStart = timeSinceStart;
-                debugObject.nonStopEarningUnits = nonStopEarningUnits.toString();
-                debugObject.missedEarningUnitsWhilePaused = missedEarningUnitsWhilePaused.toString();
-                debugObject.withdrawableUnitsWhileRunning = withdrawableUnitsWhileRunning.toString();
-              }
+  //               debugObject.startUtcInSeconds = startUtcInSeconds;
+  //               debugObject.timeSinceStart = timeSinceStart;
+  //               debugObject.nonStopEarningUnits = nonStopEarningUnits.toString();
+  //               debugObject.missedEarningUnitsWhilePaused = missedEarningUnitsWhilePaused.toString();
+  //               debugObject.withdrawableUnitsWhileRunning = withdrawableUnitsWhileRunning.toString();
+  //             }
 
-            }
-          }
+  //           }
+  //         }
 
-          debugObject.withdrawableAmount = streamWithdrawableAmount.toString();  // last
-          console.table(debugObject);
+  //         debugObject.withdrawableAmount = streamWithdrawableAmount.toString();  // last
+  //         console.table(debugObject);
 
-        }
-      }
+  //       }
+  //     }
 
-      console.log("Selecting stream and get info success.");
+  //     console.log("Selecting stream and get info success.");
 
-    } catch (error) {
-      console.error(error);
-      expect(true).eq(false);
-    }
-  });
+  //   } catch (error) {
+  //     console.error(error);
+  //     expect(true).eq(false);
+  //   }
+  // });
 
 });

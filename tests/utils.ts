@@ -30,9 +30,9 @@ export const makeDecimal = (bn: BN, decimals: number): number => {
 }
 
 export const toTokenAmountBn = (amount: number | string, decimals: number) => {
-    if (!amount || !decimals) {
-      return new BN(0);
-    }
+    // if (!amount || !decimals) {
+    //   return new BN(0);
+    // }
   
     const multiplier = new BigNumber(10 ** decimals);
     const value = new BigNumber(amount);
