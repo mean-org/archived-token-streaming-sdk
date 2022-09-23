@@ -1,5 +1,5 @@
 export type Msp = {
-  "version": "2.8.0",
+  "version": "2.8.1",
   "name": "msp",
   "instructions": [
     {
@@ -2578,7 +2578,7 @@ export type Msp = {
 };
 
 export const IDL: Msp = {
-  "version": "2.8.0",
+  "version": "2.8.1",
   "name": "msp",
   "instructions": [
     {
