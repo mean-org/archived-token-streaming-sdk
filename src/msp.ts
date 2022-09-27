@@ -163,7 +163,7 @@ export class MSP {
     before: string,
     limit = 10,
     commitment?: Finality | undefined,
-  ): Promise<any[]> {
+  ): Promise<any[]> { // TODO: Remove any
     const accountInfo = await this.connection.getAccountInfo(id, commitment);
 
     if (!accountInfo) {

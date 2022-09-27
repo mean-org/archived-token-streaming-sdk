@@ -3,14 +3,14 @@
 //    solana-test-validator [-r]
 // 2. Deploy msp locally:
 //    cd mean-msp
-//    anchor build --provider.cluster localnet -- --features test
+//    anchor build -- --features test
 //    anchor deploy --provider.cluster localnet
 // 3. Deploy IDL for better debugging experience
 //    anchor idl init --provider.cluster localnet --filepath target/idl/msp.json MSPdQo5ZdrPh6rU1LsvUv5nRhAnj1mj6YQEqBUq8YwZ
 // 4. Run tests
 //    cd mean-msp-sdk
 //    yarn build
-//    yarn test
+//    yarn test or yarn test-coverage
 
 import { expect } from "chai";
 import { AnchorError, Program, ProgramError } from '@project-serum/anchor';
@@ -376,9 +376,38 @@ describe('MSP Tests\n', async () => {
 
   });
 
-  it('Creates a vesting treasury and vesting stream', async () => {
+  it('Creates different category treasuries and streams (vesting and non-vesting)', async () => {
+    /**
+     * 1. Create a vesting treasury and fund with 10 SOL
+     * 2. Add funds (2 SOL) to the vesting treasury
+     * 3. Fetch the vesting treasury template
+     * 4. Modify the vesting treasury template
+     * 5. Fetch the vesting treasury template after modification
+     * 6. Create vesting stream: vesting_stream_1 (allocate 1 SOL)
+     * 7. Create vesting stream: vesting_stream_2 (allocate 1 SOL)
+     * 8. Withdraw 1 SOL from vesting treasury
+     * 9. Sleep 5 seconds
+     * 10. Allocate funds to vesting_stream_1 (0.00000025 * LAMPORTS_PER_SOL = 250 lamports)
+     * 11. Pause vesting_stream_1
+     * 12. Sleep 5 seconds and resume vesting_stream_1
+     * 13. Refresh vesting treasury balance
+     * 14. Create non-vesting treasury
+     * 15. Add funds to non-vesting treasury (1 SOL)
+     * 16. Create non-vesting stream (allocate 1 SOL)
+     * 17. Filter treasuries by category
+     * 18. Filter treasuries by sub-category
+     * 19. Filter streams by category
+     * 20. Filter streams by sub-category
+     * 21. Get vesting treasury activities
+     * 22. Get vesting stream activities
+     * 23. Sleep 10
+     * 24. Get vesting treasury flow rate
+     * 25. Close vesting_test_1
+     */
+
+    // 1.
     console.log('Creating a vesting treasury');
-    const [createVestingTreasuryTx, treasury] = await msp.createVestingTreasury(
+    const [createVestingTreasuryTx, vestingTreasury] = await msp.createVestingTreasury(
       user1Wallet.publicKey,
       user1Wallet.publicKey,
       `MSP Testing #${Date.now()}`,
@@ -395,13 +424,14 @@ describe('MSP Tests\n', async () => {
     const createVestingTreasuryTxSerialized = createVestingTreasuryTx.serialize({ verifySignatures: true });
     console.log(createVestingTreasuryTxSerialized.toString('base64'));
     const createVestingTreasuryTxId = await sendAndConfirmRawTransaction(connection, createVestingTreasuryTxSerialized, { commitment: 'confirmed' });
-    console.log(`Created a vesting treasury: ${treasury.toBase58()} TX_ID: ${createVestingTreasuryTxId}\n`);
+    console.log(`Created a vesting treasury: ${vestingTreasury.toBase58()} TX_ID: ${createVestingTreasuryTxId}\n`);
 
+    // 2.
     console.log('Adding funds to the treasury');
     const addFundsTx = await msp.addFunds(
       user1Wallet.publicKey,
       user1Wallet.publicKey,
-      treasury,
+      vestingTreasury,
       Constants.SOL_MINT,
       LAMPORTS_PER_SOL * 2,
     );
@@ -411,15 +441,17 @@ describe('MSP Tests\n', async () => {
     const addFundsTxId = await sendAndConfirmRawTransaction(connection, addFundsTxSerialized, { commitment: 'confirmed' });
     console.log(`Funds added TX_ID: ${addFundsTxId}\n`);
 
+    // 3.
     console.log('Fetching template data');
-    let template = await msp.getStreamTemplate(treasury);
+    let template = await msp.getStreamTemplate(vestingTreasury);
     console.log(`Template: ${JSON.stringify(template, null, 2)}\n`);
 
+    // 4.
     console.log('Mofify template data');
     const modifyTx = await msp.modifyVestingTreasuryTemplate(
       user1Wallet.publicKey,
       user1Wallet.publicKey,
-      treasury,
+      vestingTreasury,
       10,
       TimeUnit.Minute,
       undefined,
@@ -431,76 +463,84 @@ describe('MSP Tests\n', async () => {
     const modifyTxId = await sendRawTestTransaction(connection, modifyTxSerialized);
     console.log(`Template modified ${modifyTxId} \n`);
 
+    // 5.
     console.log('Fetching template data after modification');
-    template = await msp.getStreamTemplate(treasury);
+    template = await msp.getStreamTemplate(vestingTreasury);
     console.log(`Template: ${JSON.stringify(template, null, 2)}\n`);
 
+    // 6.
     console.log('Creating vesting stream: 1');
-    const [createStreamTx, stream] = await msp.createStreamWithTemplate(
+    const [createStreamTx, vestingStream1] = await msp.createStreamWithTemplate(
       user1Wallet.publicKey,
       user1Wallet.publicKey,
-      treasury,
+      vestingTreasury,
       user2Wallet.publicKey,
       1 * LAMPORTS_PER_SOL,
-      'test_stream',
+      'vesting_stream_1',
     );
     createStreamTx.partialSign(user1Wallet);
     const createStreamTxSerialized = createStreamTx.serialize({ verifySignatures: true });
     const createStreamTxId = await sendRawTestTransaction(connection, createStreamTxSerialized);
-    console.log(`Stream1 created: ${stream.toBase58()} TX_ID: ${createStreamTxId}\n`);
+    console.log(`Stream1 created: ${vestingStream1.toBase58()} TX_ID: ${createStreamTxId}\n`);
 
+    // 7.
     console.log('Creating vesting stream: 2');
     const [createStreamTx2, stream2] = await msp.createStreamWithTemplate(
       user1Wallet.publicKey,
       user1Wallet.publicKey,
-      treasury,
+      vestingTreasury,
       user2Wallet.publicKey,
       1 * LAMPORTS_PER_SOL,
-      'test_stream_2',
+      'vesting_stream_2',
     );
     createStreamTx2.partialSign(user1Wallet);
     const createStreamTx2Serialized = createStreamTx2.serialize({ verifySignatures: true });
     const createStreamTx2Id = await sendRawTestTransaction(connection, createStreamTx2Serialized);
     console.log(`Stream2 created: ${stream2.toBase58()} TX_ID: ${createStreamTx2Id}\n`);
 
+    // 8.
     console.log('Withdraw from treasury');
     const withdrawTx = await msp.treasuryWithdraw(user1Wallet.publicKey,
       user1Wallet.publicKey,
-      treasury, LAMPORTS_PER_SOL);
+      vestingTreasury, LAMPORTS_PER_SOL);
     withdrawTx.partialSign(user1Wallet);
     const withdrawTxSerialized = withdrawTx.serialize({ verifySignatures: true });
-
     await sendRawTestTransaction(connection, withdrawTxSerialized);
     console.log('Withdrew from treasury success\n');
 
+    // 9.
     await sleep(5000);
     console.log("Withdrawing from stream1");
-    const withdrawStreamTx = await msp.withdraw(user2Wallet.publicKey, stream, 0.00000025 * LAMPORTS_PER_SOL);
+    const withdrawStreamTx = await msp.withdraw(user2Wallet.publicKey, vestingStream1, 0.00000025 * LAMPORTS_PER_SOL);
     await sendAndConfirmTransaction(connection, withdrawStreamTx, [user2Wallet], { commitment: 'confirmed' });
     console.log("Withdraw from stream1 success.\n");
 
-    console.log("Allocate funds to stream1");
-    const allocateStreamTx = await msp.allocate(user1Wallet.publicKey, user1Wallet.publicKey, treasury, stream, 3 * LAMPORTS_PER_SOL);
+    // 10.
+    console.log("Allocate funds to test_stream_1");
+    const allocateStreamTx = await msp.allocate(user1Wallet.publicKey, user1Wallet.publicKey, vestingTreasury, vestingStream1, 3 * LAMPORTS_PER_SOL);
     await sendTestTransaction(connection, allocateStreamTx, [user1Wallet]);
     console.log("Allocate to stream1 success\n");
 
-    console.log("Pausing stream1");
-    const PauseStreamTx = await msp.pauseStream(user1Wallet.publicKey, user1Wallet.publicKey, stream);
+    // 11.
+    console.log("Pausing test_stream_1");
+    const PauseStreamTx = await msp.pauseStream(user1Wallet.publicKey, user1Wallet.publicKey, vestingStream1);
     await sendTestTransaction(connection, PauseStreamTx, [user1Wallet]);
     console.log("Pause stream1 success.\n");
 
+    // 12.
     await sleep(5000);
-    console.log("Resume stream1");
-    const ResumeStreamTx = await msp.resumeStream(user1Wallet.publicKey, user1Wallet.publicKey, stream);
+    console.log("Resume test_stream_1");
+    const ResumeStreamTx = await msp.resumeStream(user1Wallet.publicKey, user1Wallet.publicKey, vestingStream1);
     await sendTestTransaction(connection, ResumeStreamTx, [user1Wallet]);
     console.log("Resume stream1 success.\n");
 
-
-    console.log("Refresh treasury balance");
-    const RefreshStreamTx = await msp.refreshTreasuryData(user1Wallet.publicKey, treasury);
+    // 13.
+    console.log("Refresh vesting treasury balance");
+    const RefreshStreamTx = await msp.refreshTreasuryData(user1Wallet.publicKey, vestingTreasury);
     await sendTestTransaction(connection, RefreshStreamTx, [user1Wallet]);
     console.log("Treasury refresh success.\n");
 
+    // 14.
     console.log("Creating a non-vesting treasury");
     const [createTreasuryTx, treasuryNonVesting] = await msp.createTreasury2(
       user1Wallet.publicKey,
@@ -512,19 +552,21 @@ describe('MSP Tests\n', async () => {
     const createNonVestingTreasuryTx = await sendTestTransaction(connection, createTreasuryTx, [user1Wallet]);
     console.log("Non vesting treasury created\n");
 
-    console.log('Adding funds to the treasury');
+    // 15.
+    console.log('Adding funds to non-vesting treasury');
     const addFundsNonVestingTx = await msp.addFunds(
       user1Wallet.publicKey,
       user1Wallet.publicKey,
       treasuryNonVesting,
       Constants.SOL_MINT,
-      LAMPORTS_PER_SOL * 1,
+      LAMPORTS_PER_SOL,
     );
     addFundsNonVestingTx.partialSign(user1Wallet);
     const addFundsNonVestingTxSerialized = addFundsNonVestingTx.serialize({ verifySignatures: true });
     const addFundsNonVestingTxId = await sendRawTestTransaction(connection, addFundsNonVestingTxSerialized);
     console.log(`Funds added TX_ID: ${addFundsNonVestingTxId}\n`);
 
+    // 16.
     console.log("Creating a non-vesting stream");
     const [createStreamTx3, nonVestingStream] = await msp.createStream2(
       user1Wallet.publicKey,
@@ -542,83 +584,92 @@ describe('MSP Tests\n', async () => {
     const createStreamTx3Id = await sendAndConfirmRawTransaction(connection, createStreamTx3Serialized, { commitment: 'confirmed' });
     console.log(`Non vesting stream created TX_ID: ${createStreamTx3Id}\n`);
 
-    console.log("Filtering treasury by category");
-    const filtered_cat = await msp.listTreasuries(user1Wallet.publicKey, false, Category.vesting);
-    expect(filtered_cat.length).eq(1);
-    expect(filtered_cat.at(0)!.id).eq(treasury.toBase58());
+    // 17.
+    console.log("Filtering treasuries by category");
+    const filteredVestingCategoryTreasuries = await msp.listTreasuries(user1Wallet.publicKey, false, Category.vesting);
+    expect(filteredVestingCategoryTreasuries.length).eq(1);
+    expect(filteredVestingCategoryTreasuries.at(0)!.id).eq(vestingTreasury.toBase58());
 
-    const filtered_cat_non_vesting = await msp.listTreasuries(user1Wallet.publicKey, false, Category.default);
-    expect(filtered_cat_non_vesting.length).eq(1);
-    expect(filtered_cat_non_vesting.at(0)!.id).eq(treasuryNonVesting.toBase58());
+    const filteredDefaultCategoryTreasuries = await msp.listTreasuries(user1Wallet.publicKey, false, Category.default);
+    expect(filteredDefaultCategoryTreasuries.length).eq(1);
+    expect(filteredDefaultCategoryTreasuries.at(0)!.id).eq(treasuryNonVesting.toBase58());
     console.log("Filter by category success.");
 
-    console.log("Filtering treasury by sub category");
-    const filtered_sub = await msp.listTreasuries(user1Wallet.publicKey, false, undefined, SubCategory.seed);
-    expect(filtered_sub.length).eq(1);
-    expect(filtered_sub.at(0)!.id).eq(treasury.toBase58());
+    // 18.
+    console.log("Filtering treasuries by sub-category");
+    const filteredSeedSubCategoryTreasuries = await msp.listTreasuries(user1Wallet.publicKey, false, undefined, SubCategory.seed);
+    expect(filteredSeedSubCategoryTreasuries.length).eq(1);
+    expect(filteredSeedSubCategoryTreasuries.at(0)!.id).eq(vestingTreasury.toBase58());
 
-    const filtered_sub_non_vesting = await msp.listTreasuries(user1Wallet.publicKey, false, undefined, SubCategory.default);
-    expect(filtered_sub_non_vesting.length).eq(1);
-    expect(filtered_sub_non_vesting.at(0)!.id).eq(treasuryNonVesting.toBase58());
-    console.log("Filter by sub category success.");
+    const filteredDefaultSubCategoryTreasuries = await msp.listTreasuries(user1Wallet.publicKey, false, undefined, SubCategory.default);
+    expect(filteredDefaultSubCategoryTreasuries.length).eq(1);
+    expect(filteredDefaultSubCategoryTreasuries.at(0)!.id).eq(treasuryNonVesting.toBase58());
+    console.log("Filter by sub-category success.");
 
+    // 19.
     console.log("Filtering stream by category");
-    const filtered_cat_stream = await msp.listStreams({
-      treasury,
+    const filteredVestingCategoryStreams = await msp.listStreams({
+      treasury: vestingTreasury,
       category: Category.vesting,
     });;
-    const streamIds = filtered_cat_stream.map(s => s.id.toBase58());
+    const streamIds = filteredVestingCategoryStreams.map(s => s.id.toBase58());
     console.log(streamIds);
-    expect(filtered_cat_stream.length).eq(2);
-    const filtered_cat_stream_sorted = filtered_cat_stream.sort((a, b) => a.name.localeCompare(b.name));
-    expect(filtered_cat_stream_sorted.at(0)!.id.toBase58()).eq(stream.toBase58());
-    expect(filtered_cat_stream_sorted.at(1)!.id.toBase58()).eq(stream2.toBase58());
-    const filtered_cat_stream_non_vesting = await msp.listStreams({
+    expect(filteredVestingCategoryStreams.length).eq(2);
+    const filteredVestingCategoryStreamsSorted = filteredVestingCategoryStreams.sort((a, b) => a.name.localeCompare(b.name));
+    expect(filteredVestingCategoryStreamsSorted.at(0)!.id.toBase58()).eq(vestingStream1.toBase58());
+    expect(filteredVestingCategoryStreamsSorted.at(1)!.id.toBase58()).eq(stream2.toBase58());
+
+    const filteredDefaultCategoryStreams = await msp.listStreams({
       treasury: treasuryNonVesting,
       category: Category.default,
     });
-    expect(filtered_cat_stream_non_vesting.length).eq(1);
-    expect(filtered_cat_stream_non_vesting.at(0)!.id.toBase58()).eq(nonVestingStream.toBase58());
+    expect(filteredDefaultCategoryStreams.length).eq(1);
+    expect(filteredDefaultCategoryStreams.at(0)!.id.toBase58()).eq(nonVestingStream.toBase58());
     console.log("Filter stream by category success.");
 
-    console.log("Filtering stream by sub category");
-    const filtered_sub_stream = await msp.listStreams({
-      treasury,
+    // 20.
+    console.log("Filtering stream by sub-category");
+    const filteredVestingSubCategoryStreams = await msp.listStreams({
+      treasury: vestingTreasury,
       subCategory: SubCategory.seed,
     });
-    expect(filtered_sub_stream.length).eq(2);
-    const filtered_sub_stream_sorted = filtered_cat_stream.sort((a, b) => a.name.localeCompare(b.name))
-    
-    expect(filtered_sub_stream_sorted.at(0)!.id.toBase58()).eq(stream.toBase58());
-    expect(filtered_sub_stream_sorted.at(1)!.id.toBase58()).eq(stream2.toBase58());
+    expect(filteredVestingSubCategoryStreams.length).eq(2);
+    const filteredVestingSubCategoryStreamsSorted = filteredVestingCategoryStreams.sort((a, b) => a.name.localeCompare(b.name))
+    expect(filteredVestingSubCategoryStreamsSorted.at(0)!.id.toBase58()).eq(vestingStream1.toBase58());
+    expect(filteredVestingSubCategoryStreamsSorted.at(1)!.id.toBase58()).eq(stream2.toBase58());
 
-    const filtered_sub_stream_non_vesting = await msp.listStreams({
+    const filteredDefaultSubCategoryStreams = await msp.listStreams({
       treasury: treasuryNonVesting,
       subCategory: SubCategory.default,
     })
-    expect(filtered_sub_stream_non_vesting.length).eq(1);
-    expect(filtered_sub_stream_non_vesting.at(0)!.id.toBase58()).eq(nonVestingStream.toBase58());
+    expect(filteredDefaultSubCategoryStreams.length).eq(1);
+    expect(filteredDefaultSubCategoryStreams.at(0)!.id.toBase58()).eq(nonVestingStream.toBase58());
     console.log("Filter stream by sub category success.");
 
+    // 21.
     console.log("Getting vesting treasury activities");
-    const res = await msp.listVestingTreasuryActivity(treasury, createNonVestingTreasuryTx, 20, 'confirmed');
-    console.log(JSON.stringify(res, null, 2) + '\n');
+    const vestingTreasuryActivities = await msp.listVestingTreasuryActivity(vestingTreasury, createNonVestingTreasuryTx, 20, 'confirmed');
+    console.log(JSON.stringify(vestingTreasuryActivities, null, 2) + '\n');
 
+    // 22.
     console.log("Getting vesting stream activities");
-    const res2 = await msp.listStreamActivity(stream, createNonVestingTreasuryTx, 10, 'confirmed');
-    console.log(JSON.stringify(res2, null, 2) + '\n');
+    const vestingStreawActivities = await msp.listStreamActivity(vestingStream1, createNonVestingTreasuryTx, 10, 'confirmed');
+    console.log(JSON.stringify(vestingStreawActivities, null, 2) + '\n');
 
+    // 23.
     await sleep(10_000);
 
-    console.log("Getting vesting flow rate");
-    const [rate, unit, totalAllocation] = await msp.getVestingFlowRate(treasury);
+    // 24.
+    console.log("Getting vesting treasury flow rate");
+    const [rate, unit, totalAllocation] = await msp.getVestingFlowRate(vestingTreasury);
     console.log(`Streaming ${rate.toNumber() / LAMPORTS_PER_SOL} SOL per ${TimeUnit[unit]}`);
     console.log(`Total Allocation: ${Number(totalAllocation.toString()) / LAMPORTS_PER_SOL}`);
 
-    console.log("Close stream1");
-    const CloseStreamTx = await msp.closeStream(user1Wallet.publicKey, user1Wallet.publicKey, stream, false, true);
-    await sendAndConfirmTransaction(connection, CloseStreamTx, [user1Wallet], { commitment: 'confirmed' });
-    console.log("Close stream1 success.\n");
+    // 25.
+    console.log("Close vesting_stream_1");
+    const closeStreamTx = await msp.closeStream(user1Wallet.publicKey, user1Wallet.publicKey, vestingStream1, false, true);
+    await sendAndConfirmTransaction(connection, closeStreamTx, [user1Wallet], { commitment: 'confirmed' });
+    console.log("Close vesting_stream_1 success.\n");
   });
 
   xit('utils > listTreasuries', async () => {
