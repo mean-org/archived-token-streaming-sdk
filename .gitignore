@@ -4,3 +4,4 @@ test_scripts/
 .DS_Store
 .idea
 .vscode
+.nyc_output/

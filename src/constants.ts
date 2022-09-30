@@ -11,6 +11,10 @@ export class Constants {
   );
   static TREASURY_SIZE = 300;
   static STREAM_SIZE = 500;
+  /**
+   * 0-100 percentage values should be multiplied by this value before being
+   * passed as argument to program instructions.
+   */
   static CLIFF_PERCENT_NUMERATOR = 10_000;
   static CLIFF_PERCENT_DENOMINATOR = 1_000_000;
   static MAX_TX_SIZE = 1200;
