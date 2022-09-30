@@ -980,12 +980,12 @@ export class MSP {
    * @param type {TreasuryType} - Locked or Open type of contract. Defaults to Locked
    * @param solFeePayedByTreasury {boolean} - Determines if the gas fees for contract operations will be paid from the contract account
    * @param treasuryAssociatedTokenMint {PublicKey} - The public key of the token to be vested.
-   * @param duration {number} - The amount of durationUnit that comprises the vesting period (3 months or 180 days)
+   * @param numberOfDurationUnits {number} - The amount of durationUnit that comprises the vesting period (e.g. 3 months or 180 days)
    * @param durationUnit {TimeUnit} - The lapse in seconds for the send rate (minute=60, hour=3600, day=86400 and so on). @see TimeUnit TimeUnit enum for details.
    * @param fundingAmount {string | number} - The token amount to fund the account. Use BN.toString() or BigNumber.toString() for best compatibility and to overcome javascript number size limitation when using large amounts.
    * @param vestingCategory {SubCategory} - The category of the vesting contract for filtering purposes.
    * @param startUtc {Date} - The vesting contract start date.
-   * @param cliffVestPercent {number} - The cliff percent of the total amount to be released at start date. Use 0 to disable cliff.
+   * @param cliffVestPercent {number} - The 0-100 cliff percent of the total amount to be released at start date. Use 0 to disable cliff.
    * @param feePayedByTreasurer {boolean} - Decides if protocol fees will be paid by the treasurer or by the beneficiary at withdraw time.
    */
   public async createVestingTreasury(
@@ -995,7 +995,7 @@ export class MSP {
     type: TreasuryType,
     solFeePayedByTreasury: boolean,
     treasuryAssociatedTokenMint: PublicKey,
-    duration: number,
+    numberOfDurationUnits: number,
     durationUnit: TimeUnit,
     fundingAmount: string | number,
     vestingCategory: SubCategory,
@@ -1055,7 +1055,7 @@ export class MSP {
       { [SubCategory[vestingCategory]]: {} },
       new BN(startUtcInSeconds),
       new BN(rateIntervalInSeconds),
-      new BN(duration),
+      new BN(numberOfDurationUnits),
       new BN(cliffVestPercentValue),
       feePayedByTreasurer ?? false,
       new BN(slot),
@@ -1329,6 +1329,7 @@ export class MSP {
 
     let totalAllocation = new BN(0);
     let streamRate = new BN(0);
+    
     for (const stream of streams) {
       totalAllocation = totalAllocation.add(stream.allocationAssigned)
       switch (stream.status) {

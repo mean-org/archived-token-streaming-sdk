@@ -209,6 +209,7 @@ export type StreamTemplate = {
 /**
  * Stream states
  */
+// TODO: why this enum is different than the program's enum ?
 export enum STREAM_STATUS {
   Scheduled = 1,
   Running = 2,

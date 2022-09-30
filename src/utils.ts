@@ -645,7 +645,8 @@ export const parseRawStreamAccount = (
   const effectiveCreatedOnUtcInSeconds =
     createdOnUtcInSeconds > 0 ? createdOnUtcInSeconds : startUtcInSeconds;
 
-  const timeDiff = Math.round((Date.now() / 1_000) - blockTime);
+  const timeDiff = Math.round((Date.now() / 1000) - blockTime);
+  
   const startUtc = new Date(startUtcInSeconds * 1000);
   const depletionDate = getStreamEstDepletionDate(rawStream);
   const streamStatus = getStreamStatus(rawStream, timeDiff);
