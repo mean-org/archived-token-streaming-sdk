@@ -25,7 +25,7 @@ export class Constants {
   );
 }
 
-export const LATEST_IDL_FILE_VERSION = 4;
+export const LATEST_IDL_FILE_VERSION = 5;
 
 export enum WARNING_TYPES {
   NO_WARNING = 0,

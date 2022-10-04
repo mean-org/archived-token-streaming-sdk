@@ -24,7 +24,7 @@ import {
 } from '@solana/spl-token';
 import { BN, Program } from '@project-serum/anchor';
 
-import { Msp } from './msp_idl_004';
+import { Msp } from './msp_idl_005';
 
 /**
  * MSP
@@ -1407,8 +1407,6 @@ export class MSP {
       .mul(new BN(templateInfo.cliffVestPercent))
       .div(percentDenominator);
     const allocationAfterCliff = allocationTotal.sub(cliffAmount);
-    const rateAmount = allocationAfterCliff // TODO: Remove
-      .div(new BN(templateInfo.durationNumberOfUnits));
 
     // Get the treasury token account
     const treasuryToken = await Token.getAssociatedTokenAddress(
@@ -1433,7 +1431,6 @@ export class MSP {
     const tx = this.program.transaction.createStreamWithTemplate(
       LATEST_IDL_FILE_VERSION,
       streamName,
-      new BN(rateAmount),
       new BN(allocationAssigned),
       {
         accounts: {

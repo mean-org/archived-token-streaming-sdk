@@ -4,7 +4,7 @@
 import { IdlAccounts } from '@project-serum/anchor';
 import { Commitment, PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
-import { IDL, Msp } from './msp_idl_004'; // point to the latest IDL
+import { IDL, Msp } from './msp_idl_005'; // point to the latest IDL
 // Given an IDL type IDL we can derive Typescript types for its accounts 
 // using eg. IdlAccounts<IDL>['ACCOUNT_NAME']
 type RawStream = IdlAccounts<Msp>["stream"];
