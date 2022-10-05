@@ -5,3 +5,4 @@ test_scripts/
 .idea
 .vscode
 .nyc_output/
+coverage/

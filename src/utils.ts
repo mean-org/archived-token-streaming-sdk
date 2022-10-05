@@ -36,7 +36,7 @@ import {
   VestingTreasuryActivityAction,
   VestingTreasuryActivityRaw,
 } from './types';
-import { IDL, Msp } from './msp_idl_004'; // point to the latest IDL
+import { IDL, Msp } from './msp_idl_005'; // point to the latest IDL
 // Given an IDL type IDL we can derive Typescript types for its accounts 
 // using eg. IdlAccounts<IDL>['ACCOUNT_NAME']
 type RawStream = IdlAccounts<Msp>["stream"];
@@ -959,6 +959,9 @@ async function parseVersionedStreamInstruction(
       } else if (idlFileVersion === 4) {
         const importedIdl = await import('./msp_idl_004');
         idls[idlFileVersion] = importedIdl.IDL;
+      }else if (idlFileVersion === 5) {
+        const importedIdl = await import('./msp_idl_005');
+        idls[idlFileVersion] = importedIdl.IDL;
       } else {
         return null;
       }
@@ -1711,6 +1714,9 @@ async function parseVestingTreasuryInstruction(
         idls[idlFileVersion] = importedIdl.IDL;
       } else if (idlFileVersion === 4) {
         const importedIdl = await import('./msp_idl_004');
+        idls[idlFileVersion] = importedIdl.IDL;
+      } else if (idlFileVersion === 5) {
+        const importedIdl = await import('./msp_idl_005');
         idls[idlFileVersion] = importedIdl.IDL;
       } else {
         return null;
